@@ -5,19 +5,29 @@
 // el modelo y max_tokens están fijos, y hay rate limit por usuario.
 // ============================================================================
 import type { Handler } from "@netlify/functions";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { Database } from "../../src/lib/database.types";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SECRET_KEY = process.env.SUPABASE_SECRET_KEY!;
-const MODEL = "claude-sonnet-5";
+const MODEL = "claude-opus-5";
 const RATE_LIMIT_PER_HOUR = 20;
 
-// Cliente de servidor (secret key): salta RLS, por eso TODA query filtra por
-// el uid verificado del JWT. Nunca se usa sin ese filtro.
-const admin = createClient(SUPABASE_URL, SECRET_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+/**
+ * Cliente de servidor (secret key): salta RLS, por eso TODA query filtra por
+ * el uid verificado del JWT. Nunca se usa sin ese filtro.
+ * Perezoso a propósito: si falta una variable de entorno queremos un 500 con
+ * mensaje claro, no un 502 por crash al importar el módulo.
+ */
+let _admin: SupabaseClient<Database> | null = null;
+const getAdmin = (): SupabaseClient<Database> => {
+  if (_admin) return _admin;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key)
+    throw new Error("Configuración incompleta: faltan SUPABASE_URL o SUPABASE_SECRET_KEY en este entorno");
+  _admin = createClient<Database>(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  return _admin;
+};
 
 const BodySchema = z.object({
   intent: z.enum(["capture", "advise"]),
@@ -37,12 +47,12 @@ Nueva cuenta: {"action":"nueva_cuenta","accountName":"STRING","balance":NUMBER,"
 Duda: {"action":"ninguna","reply":"Aclaración"}`;
 
 async function buildContext(intent: "capture" | "advise", userId: string): Promise<string> {
-  const { data: accounts } = await admin
+  const { data: accounts } = await getAdmin()
     .from("accounts")
     .select("id,name,balance")
     .eq("user_id", userId)
     .is("archived_at", null);
-  const { data: categories } = await admin
+  const { data: categories } = await getAdmin()
     .from("categories")
     .select("name")
     .eq("user_id", userId)
@@ -54,15 +64,15 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
   if (intent === "capture") return CAPTURE_PROMPT(accList, catList);
 
   const [{ data: txs }, { data: credits }, { data: budgets }, { data: goals }] = await Promise.all([
-    admin
+    getAdmin()
       .from("transactions")
       .select("kind,amount,description,date,category:categories(name)")
       .eq("user_id", userId)
       .order("date", { ascending: false })
       .limit(100),
-    admin.from("credits").select("name,total_debt").eq("user_id", userId).is("archived_at", null),
-    admin.from("budgets").select("amount,category:categories(name)").eq("user_id", userId).eq("period", "mensual"),
-    admin.from("goals").select("name,target_amount,current_amount,target_date").eq("user_id", userId),
+    getAdmin().from("credits").select("name,total_debt").eq("user_id", userId).is("archived_at", null),
+    getAdmin().from("budgets").select("amount,category:categories(name)").eq("user_id", userId).eq("period", "mensual"),
+    getAdmin().from("goals").select("name,target_amount,current_amount,target_date").eq("user_id", userId),
   ]);
 
   const now = new Date();
@@ -115,7 +125,7 @@ export const handler: Handler = async (event) => {
     // ── Auth: JWT del usuario, verificado contra Supabase ───────────────────
     const token = (event.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!token) return { statusCode: 401, headers: h, body: JSON.stringify({ error: "No autenticado" }) };
-    const { data: userData, error: userErr } = await admin.auth.getUser(token);
+    const { data: userData, error: userErr } = await getAdmin().auth.getUser(token);
     if (userErr || !userData.user) return { statusCode: 401, headers: h, body: JSON.stringify({ error: "No autenticado" }) };
     const userId = userData.user.id;
 
@@ -127,7 +137,7 @@ export const handler: Handler = async (event) => {
 
     // ── Rate limit por usuario ──────────────────────────────────────────────
     const hourAgo = new Date(Date.now() - 3600_000).toISOString();
-    const { count } = await admin
+    const { count } = await getAdmin()
       .from("ai_usage")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
@@ -136,17 +146,23 @@ export const handler: Handler = async (event) => {
       return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Límite de consultas por hora alcanzado. Intenta más tarde." }) };
 
     // ── Contexto en servidor + llamada a Anthropic ──────────────────────────
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error("Configuración incompleta: falta ANTHROPIC_API_KEY en este entorno");
+
     const system = await buildContext(intent, userId);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
+        "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: intent === "capture" ? 400 : 700,
+        max_tokens: intent === "capture" ? 1000 : 2000,
+        // Capturar un movimiento es extracción simple: poco esfuerzo, menos latencia
+        // y menos costo. El asesor sí razona sobre todo el panorama financiero.
+        output_config: { effort: intent === "capture" ? "low" : "high" },
         system,
         messages,
       }),
@@ -158,7 +174,7 @@ export const handler: Handler = async (event) => {
     }
 
     const text = data.content?.find((b: { type: string }) => b.type === "text")?.text ?? "";
-    await admin.from("ai_usage").insert({
+    await getAdmin().from("ai_usage").insert({
       user_id: userId,
       intent,
       tokens_in: data.usage?.input_tokens ?? 0,
@@ -168,6 +184,8 @@ export const handler: Handler = async (event) => {
     return { statusCode: 200, headers: h, body: JSON.stringify({ text }) };
   } catch (e) {
     console.error("chat function error:", e);
-    return { statusCode: 500, headers: h, body: JSON.stringify({ error: "Error interno" }) };
+    // Un fallo de configuración sí se nombra: es accionable y no expone datos.
+    const msg = e instanceof Error && e.message.startsWith("Configuración incompleta") ? e.message : "Error interno";
+    return { statusCode: 500, headers: h, body: JSON.stringify({ error: msg }) };
   }
 };
