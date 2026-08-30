@@ -21,8 +21,12 @@
       (hoy apunta al default localhost:3000; por eso el flujo de invitación no
       dejó bien definida la contraseña — se resolvió con reset por admin API.
       Necesario antes de invitar al resto del equipo.)
-- [ ] Authentication → Passwords → habilitar "Leaked password protection"
-      (único advisor de seguridad pendiente en Supabase)
+- [~] "Leaked password protection": NO aplicable. Requiere plan Pro y la
+      organizacion "Jeshua MP" esta en Free. El advisor de Supabase seguira
+      marcandolo; es esperado, no es un pendiente. Vive en
+      Authentication → Sign In / Providers → Email (no en un menu "Passwords").
+      Alternativa gratuita en esa misma pantalla: subir la longitud minima de
+      contrasena a 10-12 y exigir variedad de caracteres.
 - [ ] ANTHROPIC_API_KEY solo tiene valor en el contexto `production` de Netlify.
       Los deploy previews no pueden usar la IA hasta agregarla a esos contextos.
 - [ ] Base vieja en solo-lectura 30 días (hasta ~2026-09-30) → borrar tablas
