@@ -33,6 +33,19 @@ export default function CreditForm({
 }) {
   const [f, setF] = useState<CreditFormState>(initial || empty);
   const u = (k: keyof CreditFormState) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  /**
+   * Al cambiar de tipo se limpian los campos que no pertenecen al nuevo:
+   * antes una hipoteca podía guardarse con el día de corte de una tarjeta.
+   */
+  const changeType = (k: CreditType) =>
+    setF((p) => ({
+      ...p,
+      type: k,
+      ...(k === "tarjeta"
+        ? { monthly_payment: "", interest_rate: "", next_payment_date: "" }
+        : { credit_limit: "", cut_day: "", payment_day: "" }),
+    }));
   const s: Record<string, CSSProperties> = {
     inp: { width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, color: C.text, padding: "11px 14px", fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 12 },
     lbl: { fontSize: 12, color: C.muted, marginBottom: 5, display: "block", fontWeight: 500 },
@@ -44,7 +57,7 @@ export default function CreditForm({
       <label style={s.lbl}>Tipo</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
         {(Object.entries(CREDIT_TYPES) as [CreditType, (typeof CREDIT_TYPES)[CreditType]][]).map(([k, v]) => (
-          <button key={k} onClick={() => setF((p) => ({ ...p, type: k }))} style={{ padding: "7px 12px", borderRadius: 20, border: `2px solid ${f.type === k ? v.color : C.border + "44"}`, background: f.type === k ? v.color + "22" : "transparent", color: f.type === k ? v.color : C.muted, fontSize: 13, cursor: "pointer", fontWeight: f.type === k ? 700 : 400 }}>{v.icon} {v.label}</button>
+          <button key={k} onClick={() => changeType(k)} style={{ padding: "7px 12px", borderRadius: 20, border: `2px solid ${f.type === k ? v.color : C.border + "44"}`, background: f.type === k ? v.color + "22" : "transparent", color: f.type === k ? v.color : C.muted, fontSize: 13, cursor: "pointer", fontWeight: f.type === k ? 700 : 400 }}>{v.icon} {v.label}</button>
         ))}
       </div>
       <label style={s.lbl}>Nombre</label>

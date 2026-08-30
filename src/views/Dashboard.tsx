@@ -1,6 +1,14 @@
+import { lazy, Suspense } from "react";
 import TxRow from "../components/TxRow";
-import DonutChart, { type DonutDatum } from "../components/charts/DonutChart";
-import MonthlyChart, { type MonthlyDatum } from "../components/charts/MonthlyChart";
+import type { DonutDatum } from "../components/charts/DonutChart";
+import type { MonthlyDatum } from "../components/charts/MonthlyChart";
+
+const DonutChart = lazy(() => import("../components/charts/DonutChart"));
+const MonthlyChart = lazy(() => import("../components/charts/MonthlyChart"));
+
+const ChartFallback = ({ h }: { h: number }) => (
+  <div style={{ height: h, display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6a8a", fontSize: 12 }}>Cargando gráfica…</div>
+);
 import { C, S } from "../lib/constants";
 import { fmt } from "../lib/format";
 import { PERIODS, type PeriodKey } from "../lib/periods";
@@ -146,14 +154,14 @@ export default function Dashboard({
       {/* Gráfica 6 meses (siempre 6 meses, independiente del período) */}
       <div style={S.card}>
         <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Últimos 6 meses</div>
-        <div style={{ height: 200 }}><MonthlyChart data={monthlyData} /></div>
+        <div style={{ height: 200 }}><Suspense fallback={<ChartFallback h={200} />}><MonthlyChart data={monthlyData} /></Suspense></div>
       </div>
 
       {/* Gastos por categoría */}
       <div style={S.card}>
         <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Gastos por categoría</div>
         <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>{periodLabel}</div>
-        <div style={{ height: 160, marginBottom: 14 }}><DonutChart data={catData} /></div>
+        <div style={{ height: 160, marginBottom: 14 }}><Suspense fallback={<ChartFallback h={160} />}><DonutChart data={catData} /></Suspense></div>
         {catData.map((d) => (
           <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}22` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} /><span style={{ fontSize: 13 }}>{d.icon} {d.label}</span></div>

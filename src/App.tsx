@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import CreditForm, { type CreditFormState } from "./components/CreditForm";
 import Fab from "./components/Fab";
 import Modal from "./components/Modal";
+import ConfirmModal from "./components/ConfirmModal";
 import { Toasts, useToasts } from "./components/Toast";
 import { useAI, type ParsedNewAcc, type ParsedTx } from "./hooks/useAI";
 import { useFinanceData } from "./hooks/useFinanceData";
@@ -75,6 +76,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [period, setPeriod] = useState<PeriodKey>("mes");
   const [mRecurring, setMRecurring] = useState(false);
   const [editRecurring, setEditRecurring] = useState<RecurringRule | null>(null);
+  const [confirm, setConfirm] = useState<{ title: string; message: string; confirmLabel?: string; action: () => void } | null>(null);
 
   const oops = (e: unknown, fallback: string) => {
     console.error(e);
@@ -368,6 +370,59 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     }
   };
 
+  // ── Confirmaciones (borrados que no tienen deshacer) ──────────────────────
+  const askDeleteCredit = (id: string, name: string) =>
+    setConfirm({ title: `¿Eliminar ${name}?`, message: "Se borra el crédito y su historial de pagos. Los movimientos ya registrados en tus cuentas se quedan.", action: () => deleteCredit(id) });
+
+  const askDeleteGoal = (id: string, name: string) =>
+    setConfirm({ title: `¿Eliminar la meta ${name}?`, message: "Se borra la meta y su historial de abonos. El dinero que ya salió de tus cuentas no se devuelve.", action: () => deleteGoal(id) });
+
+  const askDeleteBudget = (id: string) => {
+    const b = budgets.find((x) => x.id === id);
+    setConfirm({ title: `¿Quitar el presupuesto de ${b?.category ?? ""}?`, message: "Dejarás de ver el avance y la alerta al 90% de esta categoría.", confirmLabel: "Quitar", action: () => deleteBudget(id) });
+  };
+
+  const askDeleteRecurring = (id: string, name: string) =>
+    setConfirm({ title: `¿Eliminar ${name}?`, message: "Dejará de generarse. Los movimientos que ya creó se quedan en tu historial.", action: () => deleteRecurring(id) });
+
+  /** Una cuenta con historial se archiva; una sin movimientos se elimina. */
+  const askRemoveAccount = async (acc: EditAccState) => {
+    let n = 0;
+    try {
+      n = await api.countAccountTxs(acc.id);
+    } catch (e) {
+      oops(e, "No se pudo revisar la cuenta");
+      return;
+    }
+    setEditAcc(null);
+    if (n > 0) {
+      setConfirm({
+        title: `¿Archivar ${acc.name}?`,
+        message: `Tiene ${n} ${n === 1 ? "movimiento" : "movimientos"}, así que no se puede borrar sin perder historial. Al archivarla sale del saldo total y de los selectores, pero sus movimientos siguen en el historial.`,
+        confirmLabel: "Archivar",
+        action: async () => {
+          try {
+            await api.archiveAccount(acc.id);
+            setAccs((p) => p.filter((a) => a.id !== acc.id));
+            push({ kind: "ok", text: `${acc.name} archivada` });
+          } catch (e) { oops(e, "No se pudo archivar"); }
+        },
+      });
+    } else {
+      setConfirm({
+        title: `¿Eliminar ${acc.name}?`,
+        message: "No tiene movimientos, así que se borra por completo.",
+        action: async () => {
+          try {
+            await api.deleteAccount(acc.id);
+            setAccs((p) => p.filter((a) => a.id !== acc.id));
+            push({ kind: "ok", text: `${acc.name} eliminada` });
+          } catch (e) { oops(e, "No se pudo eliminar"); }
+        },
+      });
+    }
+  };
+
   // ── AI + voz ───────────────────────────────────────────────────────────────
   const { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis } = useAI({ applyTx, applyNewAcc, setTxInput, setLive });
 
@@ -513,7 +568,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 100px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
         {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
-        {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onDeleteBudget={deleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
+        {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} />}
         {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} />}
@@ -530,11 +585,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {mNewAcc && <AccountModal mode="new" form={newAcc} update={(p) => setNewAcc((f) => ({ ...f, ...p }))} onSave={saveNewAcc} onClose={() => setMNewAcc(false)} />}
 
       {/* Modal: Editar cuenta */}
-      {editAcc && <AccountModal mode="edit" form={editAcc} update={(p) => setEditAcc((a) => (a ? { ...a, ...p } : a))} onSave={saveEditAcc} onClose={() => setEditAcc(null)} />}
+      {editAcc && <AccountModal mode="edit" form={editAcc} update={(p) => setEditAcc((a) => (a ? { ...a, ...p } : a))} onSave={saveEditAcc} onRemove={() => askRemoveAccount(editAcc)} onClose={() => setEditAcc(null)} />}
 
       {/* Modal: Créditos */}
       {mCredit && <Modal onClose={() => setMCredit(false)}><CreditForm onSave={saveNewCredit} onClose={() => setMCredit(false)} /></Modal>}
-      {editCredit && <Modal onClose={() => setEditCredit(null)}><CreditForm initial={editCredit} onSave={saveEditCredit} onDelete={deleteCredit} onClose={() => setEditCredit(null)} /></Modal>}
+      {editCredit && <Modal onClose={() => setEditCredit(null)}><CreditForm initial={editCredit} onSave={saveEditCredit} onDelete={(id) => askDeleteCredit(id, editCredit.name)} onClose={() => setEditCredit(null)} /></Modal>}
 
       {/* Modal: Nuevo presupuesto */}
       {mBudget && <BudgetModal budgetCat={budgetCat} budgetAmt={budgetAmt} onCat={setBudgetCat} onAmt={setBudgetAmt} onSave={saveBudget} onClose={() => setMBudget(false)} />}
@@ -543,7 +598,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {mGoal && <GoalModal mode="new" form={goalForm} update={(p) => setGoalForm((f) => ({ ...f, ...p }))} onSave={saveNewGoal} onClose={() => setMGoal(false)} />}
 
       {/* Modal: Editar meta */}
-      {editGoal && <GoalModal mode="edit" form={editGoal} update={(p) => setEditGoal((f) => (f ? { ...f, ...p } : f))} onSave={saveEditGoal} onDelete={deleteGoal} onClose={() => setEditGoal(null)} />}
+      {editGoal && <GoalModal mode="edit" form={editGoal} update={(p) => setEditGoal((f) => (f ? { ...f, ...p } : f))} onSave={saveEditGoal} onDelete={(id) => askDeleteGoal(id, editGoal.name)} onClose={() => setEditGoal(null)} />}
 
       {/* Modal: Abonar a meta */}
       {mAddToGoal && <AddToGoalModal goal={mAddToGoal} accs={accs} amount={addGoalAmt} onAmount={setAddGoalAmt} accountId={addGoalAcc} onAccount={setAddGoalAcc} onSave={addToGoal} onClose={() => { setMAddToGoal(null); setAddGoalAmt(""); setAddGoalAcc(""); }} />}
@@ -560,7 +615,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
           rule={editRecurring}
           accs={accs}
           onSave={saveRecurring}
-          onDelete={deleteRecurring}
+          onDelete={(id) => askDeleteRecurring(id, editRecurring?.name ?? "")}
           onClose={() => { setMRecurring(false); setEditRecurring(null); }}
         />
       )}
@@ -570,6 +625,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {/* Modal: Entrada manual */}
       {mMan && <ManualTxModal form={man} update={(p) => setMan((f) => ({ ...f, ...p }))} accs={accs} onSave={saveTxManual} onClose={() => setMMan(false)} />}
+
+      {/* Confirmación de borrados */}
+      {confirm && (
+        <ConfirmModal
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          onConfirm={confirm.action}
+          onClose={() => setConfirm(null)}
+        />
+      )}
 
       {/* Modal: Cambiar contraseña */}
       {mPass && <PasswordModal onDone={() => { setMPass(false); push({ kind: "ok", text: "Contraseña actualizada" }); }} onClose={() => setMPass(false)} />}

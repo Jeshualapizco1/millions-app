@@ -1,11 +1,16 @@
 {
   "name": "Millions",
   "short_name": "Millions",
-  "start_url": ".",
+  "description": "Finanzas personales con IA y voz",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0a0a0f",
   "theme_color": "#7c6af7",
+  "lang": "es-MX",
   "icons": [
-    {"src": "icon.png", "sizes": "512x512", "type": "image/png"}
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

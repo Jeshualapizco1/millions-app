@@ -125,6 +125,25 @@ export const api = {
     const { error } = await sbClient.from("accounts").update(rest).eq("id", id);
     if (error) fail(error);
   },
+  /** ¿Cuántos movimientos tocan esta cuenta? Decide entre archivar y eliminar. */
+  async countAccountTxs(id: string): Promise<number> {
+    const { count, error } = await sbClient
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .or(`account_id.eq.${id},to_account_id.eq.${id}`);
+    if (error) fail(error);
+    return count ?? 0;
+  },
+  /** Sale del total y de los selectores, pero su historial se conserva. */
+  async archiveAccount(id: string): Promise<void> {
+    const { error } = await sbClient.from("accounts").update({ archived_at: new Date().toISOString() }).eq("id", id);
+    if (error) fail(error);
+  },
+  /** Solo para cuentas sin movimientos: la FK impide borrar si tiene historial. */
+  async deleteAccount(id: string): Promise<void> {
+    const { error } = await sbClient.from("accounts").delete().eq("id", id);
+    if (error) fail(error);
+  },
 
   // ── Transacciones (siempre vía RPC atómica) ───────────────────────────────
   async getTxs(): Promise<Transaction[]> {

@@ -29,7 +29,7 @@ export default function CreditCard({ credit, onEdit, onPay }: { credit: Credit; 
           <ProgressBar pct={Math.min(util, 100)} color={utilColor} height={6} />
         </div>
       )}
-      {(credit.type === "hipoteca" || credit.type === "auto" || credit.type === "personal") && Number(credit.monthly_payment) > 0 && (
+      {credit.type !== "tarjeta" && Number(credit.monthly_payment) > 0 && (
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           <div style={{ flex: 1, background: C.surface, borderRadius: 10, padding: "8px 12px", textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Mensualidad</div><div style={{ fontSize: 14, fontWeight: 700, color: C.aLight }}>{fmt(credit.monthly_payment)}</div></div>
           {credit.interest_rate != null && <div style={{ flex: 1, background: C.surface, borderRadius: 10, padding: "8px 12px", textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Tasa</div><div style={{ fontSize: 14, fontWeight: 700, color: C.amber }}>{credit.interest_rate}%</div></div>}
