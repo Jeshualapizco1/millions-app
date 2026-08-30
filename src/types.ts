@@ -1,5 +1,8 @@
+import type { Enums, Tables } from "./lib/database.types";
+
+export type TxKind = Enums<"tx_kind">;
 export type TxType = "gasto" | "ingreso";
-export type CreditType = "tarjeta" | "hipoteca" | "auto" | "personal" | "otro";
+export type CreditType = Enums<"credit_type">;
 
 export interface Account {
   id: string;
@@ -10,52 +13,39 @@ export interface Account {
   created_at?: string;
 }
 
+/** Forma que consume la UI: nombres resueltos por join, ya no desnormalizados. */
 export interface Transaction {
   id: string;
   description: string;
   amount: number;
+  /** gasto | ingreso | transferencia | pago_credito | abono_meta */
+  kind: TxKind;
+  /** Signo para la UI: ingreso suma, todo lo demás resta de la cuenta origen. */
   type: TxType;
   category: string;
-  accountId: string | null;
+  categoryId: string | null;
+  accountId: string;
   accountName: string;
+  toAccountName: string | null;
   date: string;
 }
 
-export interface Credit {
-  id: string;
-  name: string;
-  type: CreditType;
-  institution: string | null;
-  total_debt: number;
-  credit_limit: number | null;
-  monthly_payment: number | null;
-  cut_day: number | null;
-  payment_day: number | null;
-  next_payment_date: string | null;
-  interest_rate: number | null;
-  icon?: string | null;
-  color?: string | null;
-  notes: string | null;
-  created_at?: string;
-}
+export type Credit = Omit<Tables<"credits">, "user_id" | "updated_at" | "archived_at">;
 
 export interface Budget {
   id: string;
   category: string;
+  categoryId: string;
   amount: number;
-  created_at?: string;
 }
 
-export interface Goal {
+export type Goal = Omit<Tables<"goals">, "user_id" | "updated_at">;
+
+export interface Category {
   id: string;
   name: string;
-  target_amount: number;
-  current_amount: number;
-  target_date: string | null;
   icon: string;
   color: string;
-  notes: string | null;
-  created_at?: string;
 }
 
 /** Mensaje del historial que se envía a la IA (formato Anthropic). */
@@ -69,25 +59,3 @@ export interface AiMsg {
   role: "user" | "assistant";
   text: string;
 }
-
-/** Las 19 acciones que expone la Netlify Function. */
-export type ApiAction =
-  | "chat"
-  | "getAccounts"
-  | "addAccount"
-  | "updateAccount"
-  | "updateBalance"
-  | "getTxs"
-  | "addTx"
-  | "deleteTx"
-  | "getCredits"
-  | "addCredit"
-  | "updateCredit"
-  | "deleteCredit"
-  | "getBudgets"
-  | "upsertBudget"
-  | "deleteBudget"
-  | "getGoals"
-  | "addGoal"
-  | "updateGoal"
-  | "deleteGoal";

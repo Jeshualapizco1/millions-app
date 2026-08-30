@@ -50,6 +50,7 @@ export default function Fab({
               <input style={{ ...S.inp, flex: 1 }} placeholder='Di o escribe: "Gasté $200 en el Ley"' value={txInput} onChange={(e) => setTxInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onSend(txInput.trim())} />
               <button style={{ ...S.btn(), padding: "12px 14px" }} onClick={() => onSend(txInput.trim())} disabled={txLoading || !txInput.trim()}>↑</button>
             </div>
+            {!voiceOK && <div style={{ fontSize: 11, color: C.muted, marginBottom: 14, textAlign: "center" }}>El dictado por voz no está disponible en este navegador. En iPhone usa Safari; en Android o escritorio, Chrome.</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}><div style={{ flex: 1, height: 1, background: C.border }} /><span style={{ fontSize: 12, color: C.muted }}>o</span><div style={{ flex: 1, height: 1, background: C.border }} /></div>
             <button style={{ ...S.btn(`${C.accent}22`), width: "100%", color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onManual}>✏️ Entrada manual</button>
           </div>

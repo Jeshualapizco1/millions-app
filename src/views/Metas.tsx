@@ -1,5 +1,6 @@
 import ProgressBar from "../components/ProgressBar";
 import { C, CATS, S } from "../lib/constants";
+import { daysUntilDate } from "../lib/dates";
 import { fmt } from "../lib/format";
 import type { Budget, Goal } from "../types";
 
@@ -71,8 +72,8 @@ export default function Metas({
         {goals.map((g) => {
           const pct = g.target_amount > 0 ? Math.min(Math.round((g.current_amount / g.target_amount) * 100), 100) : 0;
           const barColor = pct >= 100 ? C.green : pct >= 60 ? C.aLight : C.accent;
-          const targetDate = g.target_date ? new Date(g.target_date) : null;
-          const daysLeft = targetDate ? Math.ceil((targetDate.getTime() - Date.now()) / 864e5) : null;
+          const targetDate = g.target_date;
+          const daysLeft = daysUntilDate(g.target_date);
           // Estimate months to complete
           const remaining = Number(g.target_amount) - Number(g.current_amount);
           return (
