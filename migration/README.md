@@ -14,6 +14,11 @@
 - [x] Frontend/function apuntando a la base nueva (Fase 2): CRUD directo con RLS, function solo IA
 - [x] E2E contra el proyecto real: `supabase/tests/e2e.mjs`
 - [ ] Corte en producción (deploy v2 + variables en Netlify)
+- [ ] Al tener URL de producción: Authentication → URL Configuration → Site URL
+      (hoy apunta al default localhost:3000; por eso el flujo de invitación no
+      dejó bien definida la contraseña — se resolvió con reset por admin API)
+- [ ] Fase 3: pantalla de cambio de contraseña en la app (el usuario entró con
+      una temporal)
 - [ ] Base vieja en solo-lectura 30 días → borrar tablas `jeshua_*`
 
 > Nota: las llaves legacy (anon/service_role) están deprecated en el proyecto
