@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { C, CREDIT_TYPES } from "../lib/constants";
-import type { Credit, CreditType } from "../types";
+import type { CreditType } from "../types";
 
 /** Estado del formulario: los campos numéricos pueden ser string (vacío) o number (al editar). */
 export interface CreditFormState {
@@ -26,7 +26,7 @@ export default function CreditForm({
   onDelete,
   onClose,
 }: {
-  initial?: Credit | null;
+  initial?: CreditFormState | null;
   onSave: (f: CreditFormState) => void;
   onDelete?: (id: string) => void;
   onClose: () => void;
@@ -70,7 +70,7 @@ export default function CreditForm({
         <input style={s.inp} type="date" value={f.next_payment_date || ""} onChange={u("next_payment_date")} />
       </>}
       <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-        {initial && onDelete && <button onClick={() => onDelete(initial.id)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 12, padding: "12px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Eliminar</button>}
+        {initial && onDelete && <button onClick={() => onDelete(initial.id!)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 12, padding: "12px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Eliminar</button>}
         <button onClick={onClose} style={{ flex: 1, background: "transparent", color: C.aLight, border: `1px solid ${C.accent}44`, borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
         <button onClick={() => onSave(f)} style={{ flex: 2, background: C.accent, color: "#fff", border: "none", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{initial ? "Guardar" : "Agregar"}</button>
       </div>
