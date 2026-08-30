@@ -116,3 +116,4 @@ for (const [k, expected] of Object.entries(SNAPSHOT.checksums)) {
 }
 if (!ok) { console.error("\nCHECKSUM FALLÓ — no hacer el corte."); process.exit(1); }
 console.log("\n✅ Importación verificada centavo por centavo.");
+process.exit(0); // salida explícita: evita un assert de libuv en Windows al hacer teardown de supabase-js
