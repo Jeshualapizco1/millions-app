@@ -388,6 +388,7 @@ export type Database = {
           base_currency: string
           created_at: string
           id: string
+          monthly_budget: number | null
           name: string | null
           timezone: string
           updated_at: string
@@ -396,6 +397,7 @@ export type Database = {
           base_currency?: string
           created_at?: string
           id: string
+          monthly_budget?: number | null
           name?: string | null
           timezone?: string
           updated_at?: string
@@ -404,6 +406,7 @@ export type Database = {
           base_currency?: string
           created_at?: string
           id?: string
+          monthly_budget?: number | null
           name?: string | null
           timezone?: string
           updated_at?: string
@@ -610,6 +613,7 @@ export type Database = {
         Returns: Database["public"]["Tables"]["transactions"]["Row"]
       }
       reverse_transaction: { Args: { p_id: string }; Returns: undefined }
+      import_transactions: { Args: { p_rows: Json }; Returns: number }
       advance_date: {
         Args: {
           p_date: string

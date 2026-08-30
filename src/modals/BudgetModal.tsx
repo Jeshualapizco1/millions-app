@@ -7,6 +7,8 @@ export default function BudgetModal({
   budgetAmt,
   onCat,
   onAmt,
+  rollover,
+  onRollover,
   onSave,
   onClose,
 }: {
@@ -14,6 +16,8 @@ export default function BudgetModal({
   budgetAmt: string;
   onCat: (cat: string) => void;
   onAmt: (amt: string) => void;
+  rollover: boolean;
+  onRollover: (v: boolean) => void;
   onSave: () => void;
   onClose: () => void;
 }) {
@@ -28,7 +32,20 @@ export default function BudgetModal({
         ))}
       </div>
       <label style={S.lbl}>Límite mensual</label>
-      <input autoFocus style={{ ...S.inp, marginBottom: 20 }} type="number" inputMode="decimal" placeholder="0.00" value={budgetAmt} onChange={(e) => onAmt(e.target.value)} />
+      <input autoFocus style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={budgetAmt} onChange={(e) => onAmt(e.target.value)} />
+
+      <button
+        onClick={() => onRollover(!rollover)}
+        style={{ width: "100%", textAlign: "left", background: rollover ? C.accent + "18" : "transparent", border: `1px solid ${rollover ? C.accent + "66" : C.border}`, borderRadius: 12, padding: "11px 14px", cursor: "pointer", marginBottom: 20 }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 16 }}>{rollover ? "☑️" : "⬜"}</span>
+          <div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text }}>Arrastrar lo que sobre</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>Si un mes gastas menos, el resto se suma al siguiente (solo un mes).</div>
+          </div>
+        </div>
+      </button>
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...S.btn(), flex: 1 }} onClick={onSave}>Guardar</button>

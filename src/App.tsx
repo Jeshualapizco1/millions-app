@@ -16,6 +16,7 @@ import { daysUntil, fmt, monthLabel } from "./lib/format";
 import { daysUntilDate } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
 import { netWorthHistory, projectMonth } from "./lib/analytics";
+import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
 import BudgetModal from "./modals/BudgetModal";
 import GoalModal, { AddToGoalModal, type GoalFormState } from "./modals/GoalModal";
@@ -24,6 +25,8 @@ import EditTxModal from "./modals/EditTxModal";
 import PayCreditModal from "./modals/PayCreditModal";
 import RecurringModal from "./modals/RecurringModal";
 import TransferModal from "./modals/TransferModal";
+import TotalBudgetModal from "./modals/TotalBudgetModal";
+import ImportCsvModal from "./modals/ImportCsvModal";
 import PasswordModal from "./modals/PasswordModal";
 import type { Account, Credit, Goal, RecurringRule, Transaction, TxType } from "./types";
 import Analisis from "./views/Analisis";
@@ -46,7 +49,7 @@ const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amou
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, booting, loadError, accsRef, txsRef, creditsRef, goalsRef } = useFinanceData();
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, booting, loadError, accsRef, txsRef, creditsRef, goalsRef } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
   const { toasts, push, dismiss } = useToasts();
 
@@ -81,6 +84,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [editRecurring, setEditRecurring] = useState<RecurringRule | null>(null);
   const [confirm, setConfirm] = useState<{ title: string; message: string; confirmLabel?: string; action: () => void } | null>(null);
   const [mCats, setMCats] = useState(false);
+  const [mTotalBudget, setMTotalBudget] = useState(false);
+  const [budgetRollover, setBudgetRollover] = useState(false);
+  const [mImport, setMImport] = useState(false);
 
   const oops = (e: unknown, fallback: string) => {
     console.error(e);
@@ -223,7 +229,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     const amount = parseFloat(budgetAmt);
     if (!amount || amount <= 0) return;
     try {
-      const saved = await api.upsertBudget({ category: budgetCat, amount });
+      const saved = await api.upsertBudget({ category: budgetCat, amount, rollover: budgetRollover });
       setBudgets((p) => {
         const exists = p.some((b) => b.id === saved.id);
         return exists ? p.map((b) => (b.id === saved.id ? saved : b)) : [...p, saved];
@@ -232,6 +238,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       oops(e, "No se pudo guardar el presupuesto");
     }
     setBudgetAmt("");
+    setBudgetRollover(false);
     setMBudget(false);
   };
   const deleteBudget = async (id: string) => {
@@ -444,6 +451,26 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     }
   };
 
+  const runImport = async (rows: { date: Date; description: string; amount: number; kind: TxType }[], accountId: string) => {
+    const n = await api.importTxs(
+      rows.map((r) => ({ accountId, kind: r.kind, amount: r.amount, description: r.description, date: r.date.toISOString() }))
+    );
+    // El servidor movió saldos e insertó en bloque: se recarga lo afectado.
+    const [a, t] = await Promise.all([api.getAccounts(), api.getTxs()]);
+    setAccs(a);
+    setTxs(t);
+    setMImport(false);
+    push({ kind: "ok", text: `${n} ${n === 1 ? "movimiento importado" : "movimientos importados"}` });
+    return n;
+  };
+
+  const saveTotalBudget = async (amount: number | null) => {
+    await api.setMonthlyBudget(amount);
+    setProfile((p) => (p ? { ...p, monthly_budget: amount } : p));
+    setMTotalBudget(false);
+    push({ kind: "ok", text: amount ? `Techo mensual fijado en ${fmt(amount)}` : "Techo mensual quitado" });
+  };
+
   const actionContext = () => ({ accs: accsRef.current, credits: creditsRef.current, goals: goalsRef.current });
 
   /** Tras ejecutar una acción del asesor, recargar lo que pudo cambiar. */
@@ -545,13 +572,13 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     return { thisGastos: tG, lastGastos: lG, thisIngresos: tI, lastIngresos: lI, diffPct: diff };
   }, [txs]);
 
-  // Budget progress (this month)
-  const budgetProgress = useMemo<BudgetWithProgress[]>(() => {
-    const now = new Date();
-    const thisMonthGastos: Record<string, number> = {};
-    txs.filter((t) => { const d = new Date(t.date); return t.kind === "gasto" && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); }).forEach((t) => { thisMonthGastos[t.category] = (thisMonthGastos[t.category] || 0) + Number(t.amount); });
-    return budgets.map((b) => ({ ...b, spent: thisMonthGastos[b.category] || 0, pct: b.amount > 0 ? Math.round(((thisMonthGastos[b.category] || 0) / b.amount) * 100) : 0 }));
-  }, [budgets, txs]);
+  // Presupuestos con arrastre del mes anterior
+  const budgetProgress = useMemo<BudgetWithProgress[]>(() => calcBudgets(budgets, txs), [budgets, txs]);
+
+  const totalBudget = useMemo(
+    () => totalBudgetStatus(profile?.monthly_budget ?? null, projection.spentSoFar, projection.projectedSpend),
+    [profile, projection]
+  );
 
   if (booting) return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: C.bg, gap: 16 }}>
@@ -614,10 +641,10 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 100px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
         {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
-        {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
+        {tab === "metas" && <Metas budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} />}
-        {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} />}
+        {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} />}
         {tab === "accs" && <Cuentas accs={accs} txs={txs} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
       </div>
 
@@ -638,7 +665,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {editCredit && <Modal onClose={() => setEditCredit(null)}><CreditForm initial={editCredit} onSave={saveEditCredit} onDelete={(id) => askDeleteCredit(id, editCredit.name)} onClose={() => setEditCredit(null)} /></Modal>}
 
       {/* Modal: Nuevo presupuesto */}
-      {mBudget && <BudgetModal budgetCat={budgetCat} budgetAmt={budgetAmt} onCat={setBudgetCat} onAmt={setBudgetAmt} onSave={saveBudget} onClose={() => setMBudget(false)} />}
+      {mBudget && <BudgetModal budgetCat={budgetCat} budgetAmt={budgetAmt} onCat={setBudgetCat} onAmt={setBudgetAmt} rollover={budgetRollover} onRollover={setBudgetRollover} onSave={saveBudget} onClose={() => setMBudget(false)} />}
 
       {/* Modal: Nueva meta */}
       {mGoal && <GoalModal mode="new" form={goalForm} update={(p) => setGoalForm((f) => ({ ...f, ...p }))} onSave={saveNewGoal} onClose={() => setMGoal(false)} />}
@@ -671,6 +698,12 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {/* Modal: Entrada manual */}
       {mMan && <ManualTxModal form={man} update={(p) => setMan((f) => ({ ...f, ...p }))} accs={accs} onSave={saveTxManual} onClose={() => setMMan(false)} />}
+
+      {/* Modal: Importar CSV */}
+      {mImport && <ImportCsvModal accs={accs} txs={txs} onImport={runImport} onClose={() => setMImport(false)} />}
+
+      {/* Modal: Techo mensual */}
+      {mTotalBudget && <TotalBudgetModal current={profile?.monthly_budget ?? null} spentThisMonth={projection.spentSoFar} onSave={saveTotalBudget} onClose={() => setMTotalBudget(false)} />}
 
       {/* Modal: Categorías */}
       {mCats && <CategoriesModal categories={categories} onSave={saveCategory} onToggleHidden={toggleCategoryHidden} onClose={() => setMCats(false)} />}

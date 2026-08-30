@@ -5,7 +5,7 @@
 // ============================================================================
 import type { Tables } from "./database.types";
 import { sbClient } from "./supabase";
-import type { Account, Budget, Category, CategoryKind, ChatMsg, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
+import type { Account, Budget, Category, CategoryKind, ChatMsg, Profile, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
 
 const fail = (error: { message: string } | null): never => {
   throw new Error(error?.message || "Error de servidor");
@@ -229,6 +229,23 @@ export const api = {
     return normTxLocal(data!, accs, catCache ?? []);
   },
 
+  /** Importación masiva: una sola transacción de Postgres, todo o nada. */
+  async importTxs(rows: { accountId: string; kind: TxType; amount: number; description: string; date: string; category?: string | null }[]): Promise<number> {
+    const payload = await Promise.all(
+      rows.map(async (r) => ({
+        account_id: r.accountId,
+        kind: r.kind,
+        amount: r.amount,
+        description: r.description,
+        date: r.date,
+        category_id: (await categoryId(r.category)) ?? "",
+      }))
+    );
+    const { data, error } = await sbClient.rpc("import_transactions", { p_rows: payload });
+    if (error) fail(error);
+    return Number(data ?? 0);
+  },
+
   // ── Créditos ──────────────────────────────────────────────────────────────
   async getCredits(): Promise<Credit[]> {
     const { data, error } = await sbClient
@@ -267,34 +284,49 @@ export const api = {
     return normTxLocal(data!, accs, catCache ?? []);
   },
 
+  // ── Perfil ────────────────────────────────────────────────────────────────
+  async getProfile(): Promise<Profile> {
+    const { data, error } = await sbClient
+      .from("profiles")
+      .select("id,name,base_currency,timezone,monthly_budget")
+      .single();
+    if (error) fail(error);
+    return { ...data!, monthly_budget: data!.monthly_budget === null ? null : Number(data!.monthly_budget) };
+  },
+  async setMonthlyBudget(amount: number | null): Promise<void> {
+    const { error } = await sbClient.from("profiles").update({ monthly_budget: amount }).eq("id", await uid());
+    if (error) fail(error);
+  },
+
   // ── Presupuestos (por category_id; la UI sigue hablando nombres) ──────────
   async getBudgets(): Promise<Budget[]> {
     const { data, error } = await sbClient
       .from("budgets")
-      .select("id,amount,category_id,category:categories(name)")
+      .select("id,amount,rollover,category_id,category:categories(name)")
       .eq("period", "mensual")
       .order("created_at");
     if (error) fail(error);
     return data!.map((b) => ({
       id: b.id,
       amount: Number(b.amount),
+      rollover: b.rollover,
       categoryId: b.category_id,
       category: (b.category as unknown as { name: string } | null)?.name ?? "Otros",
     }));
   },
-  async upsertBudget(p: { category: string; amount: number }): Promise<Budget> {
+  async upsertBudget(p: { category: string; amount: number; rollover?: boolean }): Promise<Budget> {
     const catId = await categoryId(p.category);
     if (!catId) throw new Error(`Categoría desconocida: ${p.category}`);
     const { data, error } = await sbClient
       .from("budgets")
       .upsert(
-        { user_id: await uid(), category_id: catId, period: "mensual", amount: p.amount },
+        { user_id: await uid(), category_id: catId, period: "mensual", amount: p.amount, rollover: p.rollover ?? false },
         { onConflict: "user_id,category_id,period" }
       )
-      .select("id,amount,category_id")
+      .select("id,amount,rollover,category_id")
       .single();
     if (error) fail(error);
-    return { id: data!.id, amount: Number(data!.amount), categoryId: data!.category_id, category: p.category };
+    return { id: data!.id, amount: Number(data!.amount), rollover: data!.rollover, categoryId: data!.category_id, category: p.category };
   },
   async deleteBudget(id: string): Promise<void> {
     const { error } = await sbClient.from("budgets").delete().eq("id", id);

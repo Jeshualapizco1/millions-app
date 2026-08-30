@@ -37,9 +37,21 @@ export interface Budget {
   category: string;
   categoryId: string;
   amount: number;
+  /** Arrastra al mes siguiente lo que no se gastó. */
+  rollover: boolean;
 }
 
 export type Goal = Omit<Tables<"goals">, "user_id" | "updated_at">;
+
+/** Preferencias del usuario. */
+export interface Profile {
+  id: string;
+  name: string | null;
+  base_currency: string;
+  timezone: string;
+  /** Techo de gasto mensual global, además de los límites por categoría. */
+  monthly_budget: number | null;
+}
 
 export type CategoryKind = Enums<"category_kind">;
 

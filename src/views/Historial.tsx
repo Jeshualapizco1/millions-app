@@ -22,11 +22,13 @@ export default function Historial({
   accs,
   onDelete,
   onEdit,
+  onImport,
 }: {
   txs: Transaction[];
   accs: Account[];
   onDelete: (id: string) => void;
   onEdit: (tx: Transaction) => void;
+  onImport: () => void;
 }) {
   const [q, setQ] = useState("");
   const [kind, setKind] = useState("todos");
@@ -67,9 +69,12 @@ export default function Historial({
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Historial</div>
-          {filtered.length > 0 && (
-            <button onClick={() => exportCSV(filtered)} title="Exporta lo que estás viendo" style={{ ...S.btn(), padding: "7px 14px", fontSize: 12, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>
-          )}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={onImport} title="Importar del banco" style={{ ...S.btn(), padding: "7px 14px", fontSize: 12, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📥 Importar</button>
+            {filtered.length > 0 && (
+              <button onClick={() => exportCSV(filtered)} title="Exporta lo que estás viendo" style={{ ...S.btn(), padding: "7px 14px", fontSize: 12, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>
+            )}
+          </div>
         </div>
 
         {/* Búsqueda */}

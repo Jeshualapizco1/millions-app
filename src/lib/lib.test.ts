@@ -7,7 +7,9 @@ import { daysUntilDate, daysUntilDayOfMonth, parseDateOnly } from "./dates";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
 import { fmtShort } from "./format";
 import { netWorthHistory, projectMonth } from "./analytics";
-import type { Account, Credit, Transaction } from "../types";
+import { budgetProgress, totalBudgetStatus } from "./budgets";
+import { buildRows, guessColumns, parseAmount, parseCSV, parseDate } from "./csvImport";
+import type { Account, Budget, Credit, Transaction } from "../types";
 
 const at = (iso: string) => vi.setSystemTime(new Date(iso));
 afterEach(() => vi.useRealTimers());
@@ -169,5 +171,101 @@ describe("proyección de cierre de mes", () => {
     const up = [{ ruleId: "r", name: "Renta", kind: "gasto" as const, amount: 12000, accountId: "a", due: "2026-10-01" }];
     const p = projectMonth([], up, new Date());
     expect(p.pendingFixed).toBe(0);
+  });
+});
+
+describe("presupuestos con arrastre", () => {
+  const b = (category: string, amount: number, rollover: boolean): Budget =>
+    ({ id: category, category, categoryId: category, amount, rollover });
+
+  it("sin arrastre, el límite es el monto", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    const txs = [tx({ kind: "gasto", amount: 400, category: "Alimentación", date: "2026-09-05T10:00:00" })];
+    const [p] = budgetProgress([b("Alimentación", 1000, false)], txs);
+    expect(p.carried).toBe(0);
+    expect(p.available).toBe(1000);
+    expect(p.pct).toBe(40);
+  });
+
+  it("con arrastre suma lo que sobró el mes pasado", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    // Agosto: presupuesto 1000, gastó 300 → sobran 700 y se arrastran
+    const txs = [
+      tx({ kind: "gasto", amount: 300, category: "Alimentación", date: "2026-08-10T10:00:00" }),
+      tx({ kind: "gasto", amount: 200, category: "Alimentación", date: "2026-09-05T10:00:00" }),
+    ];
+    const [p] = budgetProgress([b("Alimentación", 1000, true)], txs);
+    expect(p.carried).toBe(700);
+    expect(p.available).toBe(1700);
+  });
+
+  it("si el mes pasado se excedió, no arrastra deuda", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    const txs = [tx({ kind: "gasto", amount: 1500, category: "Alimentación", date: "2026-08-10T10:00:00" })];
+    const [p] = budgetProgress([b("Alimentación", 1000, true)], txs);
+    expect(p.carried).toBe(0);
+    expect(p.available).toBe(1000);
+  });
+
+  it("una transferencia no consume presupuesto", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    const txs = [tx({ kind: "transferencia", amount: 900, category: "Alimentación", date: "2026-09-05T10:00:00" })];
+    const [p] = budgetProgress([b("Alimentación", 1000, false)], txs);
+    expect(p.spent).toBe(0);
+  });
+
+  it("el techo global avisa cuando el ritmo lo va a rebasar", () => {
+    expect(totalBudgetStatus(10000, 4000, 12000)?.willExceed).toBe(true);
+    expect(totalBudgetStatus(10000, 4000, 9000)?.willExceed).toBe(false);
+    expect(totalBudgetStatus(null, 4000, 9000)).toBeNull();
+  });
+});
+
+describe("lectura de CSV bancario", () => {
+  it("respeta comas y comillas dentro de un campo", () => {
+    const g = parseCSV('Fecha,Concepto,Cargo\n01/09/2026,"OXXO, sucursal centro",250.50');
+    expect(g[1][1]).toBe("OXXO, sucursal centro");
+    expect(g[1][2]).toBe("250.50");
+  });
+
+  it("entiende montos en formato mexicano e inglés", () => {
+    expect(parseAmount("1,234.56")).toBe(1234.56);
+    expect(parseAmount("1.234,56")).toBe(1234.56);
+    expect(parseAmount("$ 2,500.00")).toBe(2500);
+    expect(parseAmount("(300.00)")).toBe(-300);
+    expect(parseAmount("")).toBeNull();
+  });
+
+  it("lee fechas día/mes y también ISO", () => {
+    expect(parseDate("05/09/2026", true)?.getMonth()).toBe(8); // septiembre
+    expect(parseDate("05/09/2026", false)?.getMonth()).toBe(4); // mayo
+    expect(parseDate("2026-09-05")?.getDate()).toBe(5);
+  });
+
+  it("adivina las columnas por el encabezado", () => {
+    const m = guessColumns(["Fecha", "Descripción", "Cargo", "Abono"]);
+    expect(m.date).toBe(0);
+    expect(m.description).toBe(1);
+    expect(m.amount).toBe(2);
+    expect(m.credit).toBe(3);
+  });
+
+  it("marca como duplicado lo que ya existe y lo deja desmarcado", () => {
+    const existing = [tx({ amount: 250, description: "OXXO", date: "2026-09-05T10:00:00" })];
+    const grid = parseCSV("Fecha,Concepto,Cargo\n05/09/2026,OXXO,250\n05/09/2026,Starbucks,90");
+    const rows = buildRows(grid, { date: 0, description: 1, amount: 2 }, existing, { hasHeader: true, dayFirst: true });
+    expect(rows).toHaveLength(2);
+    expect(rows[0].duplicate).toBe(true);
+    expect(rows[0].skip).toBe(true);
+    expect(rows[1].duplicate).toBe(false);
+  });
+
+  it("con columnas separadas, el cargo resta y el abono suma", () => {
+    const grid = parseCSV("Fecha,Concepto,Cargo,Abono\n05/09/2026,Renta,12000,\n06/09/2026,Nomina,,35000");
+    const rows = buildRows(grid, { date: 0, description: 1, amount: 2, credit: 3 }, [], { hasHeader: true, dayFirst: true });
+    expect(rows[0].kind).toBe("gasto");
+    expect(rows[0].amount).toBe(12000);
+    expect(rows[1].kind).toBe("ingreso");
+    expect(rows[1].amount).toBe(35000);
   });
 });

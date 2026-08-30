@@ -3,9 +3,11 @@ import { C, S } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 import { daysUntilDate } from "../lib/dates";
 import { fmt } from "../lib/format";
-import type { Budget, Goal, RecurringRule } from "../types";
+import type { Goal, RecurringRule } from "../types";
+import type { BudgetProgress } from "../lib/budgets";
+import type { TotalBudget } from "../lib/budgets";
 
-export type BudgetWithProgress = Budget & { spent: number; pct: number };
+export type BudgetWithProgress = BudgetProgress;
 
 const FREQ_LABEL: Record<string, string> = {
   semanal: "cada semana",
@@ -16,6 +18,8 @@ const FREQ_LABEL: Record<string, string> = {
 
 export default function Metas({
   budgetProgress,
+  totalBudget,
+  onSetTotalBudget,
   goals,
   recurring,
   onAddBudget,
@@ -29,6 +33,8 @@ export default function Metas({
   onToggleRecurring,
 }: {
   budgetProgress: BudgetWithProgress[];
+  totalBudget: TotalBudget | null;
+  onSetTotalBudget: () => void;
   goals: Goal[];
   recurring: RecurringRule[];
   onAddBudget: () => void;
@@ -103,7 +109,27 @@ export default function Metas({
             <button onClick={onAddBudget} style={{ ...S.btn(), padding: "8px 14px", fontSize: 13 }}>＋ Agregar</button>
           </div>
         </div>
-        {budgetProgress.length === 0 && <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 16 }}>Sin presupuestos. Define cuánto puedes gastar por categoría.</div>}
+        {/* Techo global del mes */}
+        <div onClick={onSetTotalBudget} style={{ background: C.surface, borderRadius: 14, padding: "12px 14px", marginBottom: 16, cursor: "pointer", border: `1px solid ${totalBudget?.willExceed ? C.red + "55" : C.border + "44"}` }}>
+          {totalBudget ? (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Techo del mes</span>
+                <span style={{ fontSize: 12, color: C.muted }}>{fmt(totalBudget.spent)} / {fmt(totalBudget.limit)}</span>
+              </div>
+              <ProgressBar pct={Math.min(totalBudget.pct, 100)} color={totalBudget.pct >= 100 ? C.red : totalBudget.pct >= 80 ? C.amber : C.green} animated />
+              <div style={{ fontSize: 11, marginTop: 4, color: totalBudget.willExceed ? C.amber : C.muted, fontWeight: totalBudget.willExceed ? 600 : 400 }}>
+                {totalBudget.willExceed
+                  ? `⚠️ Al ritmo actual cerrarías en ${fmt(totalBudget.projected)}, por encima del techo`
+                  : `Al ritmo actual cerrarías en ${fmt(totalBudget.projected)}`}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: C.muted }}>＋ Definir un techo de gasto para todo el mes</div>
+          )}
+        </div>
+
+        {budgetProgress.length === 0 && <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 16 }}>Sin presupuestos por categoría. Define cuánto puedes gastar en cada una.</div>}
         {budgetProgress.map((b) => {
           const pctCapped = Math.min(b.pct, 100);
           const barColor = b.pct >= 100 ? C.red : b.pct >= 80 ? C.amber : C.green;
@@ -115,13 +141,13 @@ export default function Metas({
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{b.category}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, color: C.muted }}>{fmt(b.spent)} / {fmt(b.amount)}</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>{fmt(b.spent)} / {fmt(b.available)}</span>
                   <button onClick={() => onDeleteBudget(b.id)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 13 }}>✕</button>
                 </div>
               </div>
               <ProgressBar pct={pctCapped} color={barColor} animated />
               <div style={{ fontSize: 11, color: barColor, marginTop: 3, fontWeight: 600 }}>
-                {b.pct >= 100 ? `⚠️ Excedido por ${fmt(b.spent - b.amount)}` : b.pct >= 80 ? `⚠️ ${b.pct}% usado — queda ${fmt(b.amount - b.spent)}` : `${b.pct}% usado — queda ${fmt(b.amount - b.spent)}`}
+                {b.pct >= 100 ? `⚠️ Excedido por ${fmt(b.spent - b.available)}` : `${b.pct}% usado — queda ${fmt(b.available - b.spent)}`}{b.carried > 0 ? ` · incluye ${fmt(b.carried)} del mes pasado` : ""}
               </div>
             </div>
           );

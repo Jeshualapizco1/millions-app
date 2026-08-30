@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
-import type { Account, Budget, Category, Credit, Goal, RecurringRule, Transaction, Upcoming } from "../types";
+import type { Account, Budget, Category, Credit, Goal, Profile, RecurringRule, Transaction, Upcoming } from "../types";
 
 /** Carga inicial + estado de accounts/txs/credits/budgets/goals, con refs espejo para callbacks. */
 export function useFinanceData() {
@@ -12,6 +12,7 @@ export function useFinanceData() {
   const [recurring, setRecurring] = useState<RecurringRule[]>([]);
   const [upcoming, setUpcoming] = useState<Upcoming[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [booting, setBooting] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -27,8 +28,9 @@ export function useFinanceData() {
   useEffect(() => { goalsRef.current = goals; }, [goals]);
 
   useEffect(() => {
-    Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7)])
-      .then(([cats, a, t, cr, b, g, rr, up]) => {
+    Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7), api.getProfile()])
+      .then(([cats, a, t, cr, b, g, rr, up, prof]) => {
+        setProfile(prof);
         setCategories(cats);
         setAccs(a);
         setTxs(t);
@@ -47,7 +49,7 @@ export function useFinanceData() {
 
   return {
     accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals,
-    recurring, setRecurring, upcoming, setUpcoming, categories, setCategories,
+    recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile,
     booting, loadError, accsRef, txsRef, creditsRef, budgetsRef, goalsRef,
   };
 }
