@@ -66,7 +66,7 @@ ahí ya se resolvió o quedó registrado abajo con su motivo.
 - Bundle de 669 KB en un solo archivo → partido en `react`/`supabase`/`charts`
   con las gráficas diferidas: la carga inicial pasó de ~200 KB a ~129 KB gzip.
 - Historial de la IA acotado: el costo por llamada ya no crece con la sesión.
-- Pruebas: `npm test` (19 unitarias de la lógica pura) y cuatro suites de
+- Pruebas: `npm test` (30 unitarias de la lógica pura) y cuatro suites de
   integración contra el proyecto real en `supabase/tests/`: contrato del
   frontend, flujos de dinero, motor de recurrentes y ciclo de acciones de la IA.
 
@@ -87,20 +87,31 @@ ahí ya se resolvió o quedó registrado abajo con su motivo.
 ### Infraestructura
 - **CI en GitHub Actions**: pruebas, typecheck, build y un paso que falla si
   aparece una llave secreta en el bundle del cliente.
+- **Presupuesto total mensual** con aviso anticipado si el ritmo lo va a
+  rebasar, y **arrastre** opcional del sobrante por categoría (un solo mes).
+- **Importar CSV del banco** con parser propio, detección de duplicados y una
+  RPC que escribe hasta 2000 filas en una sola transacción.
 
 ## ⏳ Pendiente
 
 Nada de esto bloquea el uso diario; son mejoras según lo que pida el uso real.
 
-- **Rollover del presupuesto** (la columna `profiles.monthly_budget` ya existe;
-  falta la UI del techo global y arrastrar el sobrante).
+### Requieren una cuenta o llave que no tengo
+- **Sentry** para enterarse de los errores de producción. Necesito un DSN.
+  Alternativa sin terceros: una tabla `client_errors` en Supabase.
+- **Recordatorios por correo** antes de cada corte o pago. `pg_cron` ya está
+  listo; falta un proveedor de envío (Resend, Postmark) y su API key.
+
+### Trabajo grande, conviene decidirlo con uso real de por medio
 - **Sincronización offline** de escrituras: el service worker cachea el shell,
-  pero no encola operaciones hechas sin red.
-- **Sentry** para enterarse de los errores de producción.
-- **Recordatorios por correo** antes de cada corte o pago (`pg_cron` + Resend).
-- **Multi-moneda** (Revolut) y **recibos** en Storage.
-- **Importar CSV** del banco.
-- **Modo equipo** con espacios compartidos.
+  pero no encola operaciones hechas sin red. Necesita IndexedDB y resolución
+  de conflictos.
+- **Multi-moneda** (Revolut): el esquema ya tiene `currency` por cuenta; falta
+  una fuente de tipo de cambio y decidir cómo consolidar.
+- **Recibos** en Storage: foto adjunta a la transacción, con RLS por usuario.
+- **Modo equipo** con espacios compartidos. Es el más invasivo: implica una
+  tabla `workspaces` y reescribir las políticas RLS por membresía. No debería
+  improvisarse.
 
 ## ℹ️ No aplica
 
