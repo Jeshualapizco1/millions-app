@@ -15,6 +15,7 @@ export default function Fab({
   stopMic,
   onSend,
   onManual,
+  onTransfer,
 }: {
   fab: boolean;
   onOpen: () => void;
@@ -29,6 +30,7 @@ export default function Fab({
   stopMic: () => void;
   onSend: (text: string) => void;
   onManual: () => void;
+  onTransfer: () => void;
 }) {
   return (
     <>
@@ -52,7 +54,10 @@ export default function Fab({
             </div>
             {!voiceOK && <div style={{ fontSize: 11, color: C.muted, marginBottom: 14, textAlign: "center" }}>El dictado por voz no está disponible en este navegador. En iPhone usa Safari; en Android o escritorio, Chrome.</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}><div style={{ flex: 1, height: 1, background: C.border }} /><span style={{ fontSize: 12, color: C.muted }}>o</span><div style={{ flex: 1, height: 1, background: C.border }} /></div>
-            <button style={{ ...S.btn(`${C.accent}22`), width: "100%", color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onManual}>✏️ Entrada manual</button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={{ ...S.btn(`${C.accent}22`), flex: 1, color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onManual}>✏️ Manual</button>
+              <button style={{ ...S.btn(`${C.accent}22`), flex: 1, color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onTransfer}>↔️ Transferir</button>
+            </div>
           </div>
         </div>
       )}

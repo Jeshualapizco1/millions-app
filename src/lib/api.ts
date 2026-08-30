@@ -156,6 +156,28 @@ export const api = {
     const { error } = await sbClient.rpc("reverse_transaction", { p_id: id });
     if (error) fail(error);
   },
+  /** Editar: la RPC revierte el efecto viejo y aplica el nuevo en una sola transacción. */
+  async updateTx(p: {
+    id: string;
+    accountId: string;
+    kind: TxKind;
+    amount: number;
+    description: string;
+    category?: string | null;
+    date?: string;
+  }, accs: Account[]): Promise<Transaction> {
+    const { data, error } = await sbClient.rpc("update_transaction", {
+      p_id: p.id,
+      p_account_id: p.accountId,
+      p_kind: p.kind,
+      p_amount: p.amount,
+      p_description: p.description,
+      p_category_id: (await categoryId(p.category)) ?? undefined,
+      p_date: p.date,
+    });
+    if (error) fail(error);
+    return normTxLocal(data!, accs, catCache ?? []);
+  },
   async transfer(p: { fromId: string; toId: string; amount: number; description?: string }, accs: Account[]): Promise<Transaction> {
     const { data, error } = await sbClient.rpc("transfer", {
       p_from_account: p.fromId,

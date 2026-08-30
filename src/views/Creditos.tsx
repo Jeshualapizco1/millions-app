@@ -8,11 +8,13 @@ export default function Creditos({
   totalDebt,
   onEdit,
   onAdd,
+  onPay,
 }: {
   credits: Credit[];
   totalDebt: number;
   onEdit: (c: Credit) => void;
   onAdd: () => void;
+  onPay: (c: Credit) => void;
 }) {
   return (
     <div className="fadeUp">
@@ -33,7 +35,7 @@ export default function Creditos({
           </div>
         );
       })()}
-      {credits.map((c) => <CreditCard key={c.id} credit={c} onEdit={onEdit} />)}
+      {credits.map((c) => <CreditCard key={c.id} credit={c} onEdit={onEdit} onPay={onPay} />)}
       {credits.length === 0 && <div style={{ ...S.card, textAlign: "center", padding: 32 }}><div style={{ fontSize: 48, marginBottom: 12 }}>💳</div><div style={{ fontWeight: 700, marginBottom: 6 }}>Sin créditos</div><div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Agrega tus tarjetas, hipoteca o crédito automotriz</div></div>}
       <button style={{ ...S.btn(), width: "100%" }} onClick={onAdd}>＋ Agregar crédito</button>
     </div>

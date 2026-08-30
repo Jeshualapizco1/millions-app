@@ -11,12 +11,16 @@ import { api } from "./lib/api";
 import { ACC_COLORS, C, CATS } from "./lib/constants";
 import { daysUntil, fmt, monthLabel } from "./lib/format";
 import { daysUntilDate } from "./lib/dates";
+import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
 import BudgetModal from "./modals/BudgetModal";
 import GoalModal, { AddToGoalModal, type GoalFormState } from "./modals/GoalModal";
 import ManualTxModal, { type ManualTxFormState } from "./modals/ManualTxModal";
+import EditTxModal from "./modals/EditTxModal";
+import PayCreditModal from "./modals/PayCreditModal";
+import TransferModal from "./modals/TransferModal";
 import PasswordModal from "./modals/PasswordModal";
-import type { Account, Credit, Goal, Transaction } from "./types";
+import type { Account, Credit, Goal, Transaction, TxType } from "./types";
 import Analisis from "./views/Analisis";
 import Creditos from "./views/Creditos";
 import Cuentas from "./views/Cuentas";
@@ -63,6 +67,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [mAddToGoal, setMAddToGoal] = useState<Goal | null>(null);
   const [addGoalAmt, setAddGoalAmt] = useState("");
   const [mPass, setMPass] = useState(false);
+  const [mTransfer, setMTransfer] = useState(false);
+  const [payCredit, setPayCredit] = useState<Credit | null>(null);
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
+  const [addGoalAcc, setAddGoalAcc] = useState("");
+  const [period, setPeriod] = useState<PeriodKey>("mes");
 
   const oops = (e: unknown, fallback: string) => {
     console.error(e);
@@ -267,15 +276,56 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     if (!mAddToGoal || !addGoalAmt) return;
     const amount = parseFloat(addGoalAmt);
     if (!amount || amount <= 0) return;
+    const accountId = addGoalAcc || null;
     setMAddToGoal(null);
     setAddGoalAmt("");
+    setAddGoalAcc("");
     try {
-      const updated = await api.contributeGoal({ goalId: mAddToGoal.id, amount });
+      const updated = await api.contributeGoal({ goalId: mAddToGoal.id, amount, accountId });
       setGoals((p) => p.map((g) => (g.id === updated.id ? updated : g)));
+      if (accountId) {
+        // El abono salió de una cuenta real: refrescar saldo e historial
+        const [a, t] = await Promise.all([api.getAccounts(), api.getTxs()]);
+        setAccs(a);
+        setTxs(t);
+      }
       push({ kind: "ok", text: `Abonaste ${fmt(amount)} a ${updated.name}` });
     } catch (e) {
       oops(e, "No se pudo abonar");
     }
+  };
+
+  // ── Flujos de dinero (cada uno es una RPC atómica en Postgres) ─────────────
+  const doTransfer = async (p: { fromId: string; toId: string; amount: number; description: string }) => {
+    const saved = await api.transfer(p, accsRef.current);
+    setTxs((prev) => [saved, ...prev]);
+    setAccs((prev) => prev.map((a) =>
+      a.id === p.fromId ? { ...a, balance: a.balance - p.amount }
+      : a.id === p.toId ? { ...a, balance: a.balance + p.amount }
+      : a
+    ));
+    setMTransfer(false);
+    const from = accsRef.current.find((a) => a.id === p.fromId)?.name ?? "";
+    const to = accsRef.current.find((a) => a.id === p.toId)?.name ?? "";
+    push({ kind: "ok", text: `${fmt(p.amount)} de ${from} a ${to}` });
+  };
+
+  const doPayCredit = async (p: { creditId: string; accountId: string; amount: number }) => {
+    const saved = await api.payCredit(p, accsRef.current);
+    setTxs((prev) => [saved, ...prev]);
+    setAccs((prev) => prev.map((a) => (a.id === p.accountId ? { ...a, balance: a.balance - p.amount } : a)));
+    setCredits((prev) => prev.map((c) => (c.id === p.creditId ? { ...c, total_debt: Math.max(c.total_debt - p.amount, 0) } : c)));
+    setPayCredit(null);
+    push({ kind: "ok", text: `Pago de ${fmt(p.amount)} registrado` });
+  };
+
+  const doEditTx = async (p: { id: string; accountId: string; kind: TxType; amount: number; description: string; category: string; date: string }) => {
+    const saved = await api.updateTx(p, accsRef.current);
+    setTxs((prev) => prev.map((t) => (t.id === saved.id ? saved : t)).sort((a, b) => b.date.localeCompare(a.date)));
+    // Editar puede mover monto y cuenta a la vez: el servidor ya reajustó, refrescamos
+    api.getAccounts().then(setAccs).catch(console.error);
+    setEditTx(null);
+    push({ kind: "ok", text: "Movimiento actualizado" });
   };
 
   // ── AI + voz ───────────────────────────────────────────────────────────────
@@ -300,9 +350,14 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   // ── Derived data ───────────────────────────────────────────────────────────
+  // El período manda sobre todas las cifras del dashboard, y transferencias,
+  // pagos y abonos quedan fuera de gastos/ingresos: mueven dinero, no lo consumen.
+  const periodTxs = useMemo(() => filterByPeriod(txs, period), [txs, period]);
+  const periodLabel = PERIODS.find((p) => p.key === period)?.label ?? "";
+
   const totBal = accs.reduce((s, a) => s + Number(a.balance), 0);
-  const totG = txs.filter((t) => t.type === "gasto").reduce((s, t) => s + Number(t.amount), 0);
-  const totI = txs.filter((t) => t.type === "ingreso").reduce((s, t) => s + Number(t.amount), 0);
+  const totG = useMemo(() => sumSpend(periodTxs), [periodTxs]);
+  const totI = useMemo(() => sumIncome(periodTxs), [periodTxs]);
   const totalDebt = credits.reduce((s, c) => s + Number(c.total_debt || 0), 0);
 
   const urgentCredits = useMemo(() => credits.filter((c) => {
@@ -313,9 +368,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
   const catData = useMemo(() => {
     const map: Record<string, number> = {};
-    txs.filter((t) => t.type === "gasto").forEach((t) => { const c = t.category || "Otros"; map[c] = (map[c] || 0) + Number(t.amount); });
+    periodTxs.filter((t) => t.kind === "gasto").forEach((t) => { const c = t.category || "Otros"; map[c] = (map[c] || 0) + Number(t.amount); });
     return Object.entries(map).map(([label, value]) => ({ label, value, color: CATS[label]?.color || "#6b7280", icon: CATS[label]?.icon || "📦" })).sort((a, b) => b.value - a.value);
-  }, [txs]);
+  }, [periodTxs]);
 
   // 6-month data
   const monthlyData = useMemo(() => {
@@ -327,7 +382,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       const y = d.getFullYear();
       const m = d.getMonth();
       const mt = txs.filter((t) => { const td = new Date(t.date); return td.getFullYear() === y && td.getMonth() === m; });
-      months.push({ label: monthLabel(d), ingresos: mt.filter((t) => t.type === "ingreso").reduce((s, t) => s + Number(t.amount), 0), gastos: mt.filter((t) => t.type === "gasto").reduce((s, t) => s + Number(t.amount), 0) });
+      months.push({ label: monthLabel(d), ingresos: sumIncome(mt), gastos: sumSpend(mt) });
     }
     return months;
   }, [txs]);
@@ -338,10 +393,10 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     const thisM = txs.filter((t) => { const d = new Date(t.date); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); });
     const lastD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastM = txs.filter((t) => { const d = new Date(t.date); return d.getFullYear() === lastD.getFullYear() && d.getMonth() === lastD.getMonth(); });
-    const tG = thisM.filter((t) => t.type === "gasto").reduce((s, t) => s + Number(t.amount), 0);
-    const lG = lastM.filter((t) => t.type === "gasto").reduce((s, t) => s + Number(t.amount), 0);
-    const tI = thisM.filter((t) => t.type === "ingreso").reduce((s, t) => s + Number(t.amount), 0);
-    const lI = lastM.filter((t) => t.type === "ingreso").reduce((s, t) => s + Number(t.amount), 0);
+    const tG = sumSpend(thisM);
+    const lG = sumSpend(lastM);
+    const tI = sumIncome(thisM);
+    const lI = sumIncome(lastM);
     const diff = lG > 0 ? Math.round(((tG - lG) / lG) * 100) : null;
     return { thisGastos: tG, lastGastos: lG, thisIngresos: tI, lastIngresos: lI, diffPct: diff };
   }, [txs]);
@@ -350,7 +405,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const budgetProgress = useMemo<BudgetWithProgress[]>(() => {
     const now = new Date();
     const thisMonthGastos: Record<string, number> = {};
-    txs.filter((t) => { const d = new Date(t.date); return t.type === "gasto" && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); }).forEach((t) => { thisMonthGastos[t.category] = (thisMonthGastos[t.category] || 0) + Number(t.amount); });
+    txs.filter((t) => { const d = new Date(t.date); return t.kind === "gasto" && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); }).forEach((t) => { thisMonthGastos[t.category] = (thisMonthGastos[t.category] || 0) + Number(t.amount); });
     return budgets.map((b) => ({ ...b, spent: thisMonthGastos[b.category] || 0, pct: b.amount > 0 ? Math.round(((thisMonthGastos[b.category] || 0) / b.amount) * 100) : 0 }));
   }, [budgets, txs]);
 
@@ -413,16 +468,16 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 100px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
+        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
         {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} onAddBudget={() => setMBudget(true)} onDeleteBudget={deleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
-        {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} />}
+        {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} />}
-        {tab === "hist" && <Historial txs={txs} onDelete={deleteTx} />}
+        {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} />}
         {tab === "accs" && <Cuentas accs={accs} txs={txs} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
       </div>
 
       {/* FAB + sheet */}
-      <Fab fab={fab} onOpen={() => setFab(true)} onClose={() => setFab(false)} mic={mic} live={live} txLoading={txLoading} txInput={txInput} setTxInput={setTxInput} voiceOK={voiceOK} startMic={startMic} stopMic={stopMic} onSend={sendTx} onManual={() => { setFab(false); setMMan(true); }} />
+      <Fab fab={fab} onOpen={() => setFab(true)} onClose={() => setFab(false)} mic={mic} live={live} txLoading={txLoading} txInput={txInput} setTxInput={setTxInput} voiceOK={voiceOK} startMic={startMic} stopMic={stopMic} onSend={sendTx} onManual={() => { setFab(false); setMMan(true); }} onTransfer={() => { setFab(false); setMTransfer(true); }} />
 
       {/* Toasts */}
       <Toasts toasts={toasts} onDismiss={dismiss} />
@@ -447,7 +502,16 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {editGoal && <GoalModal mode="edit" form={editGoal} update={(p) => setEditGoal((f) => (f ? { ...f, ...p } : f))} onSave={saveEditGoal} onDelete={deleteGoal} onClose={() => setEditGoal(null)} />}
 
       {/* Modal: Abonar a meta */}
-      {mAddToGoal && <AddToGoalModal goal={mAddToGoal} amount={addGoalAmt} onAmount={setAddGoalAmt} onSave={addToGoal} onClose={() => { setMAddToGoal(null); setAddGoalAmt(""); }} />}
+      {mAddToGoal && <AddToGoalModal goal={mAddToGoal} accs={accs} amount={addGoalAmt} onAmount={setAddGoalAmt} accountId={addGoalAcc} onAccount={setAddGoalAcc} onSave={addToGoal} onClose={() => { setMAddToGoal(null); setAddGoalAmt(""); setAddGoalAcc(""); }} />}
+
+      {/* Modal: Transferir entre cuentas */}
+      {mTransfer && <TransferModal accs={accs} onSave={doTransfer} onClose={() => setMTransfer(false)} />}
+
+      {/* Modal: Pagar crédito */}
+      {payCredit && <PayCreditModal credit={payCredit} accs={accs} onSave={doPayCredit} onClose={() => setPayCredit(null)} />}
+
+      {/* Modal: Editar movimiento */}
+      {editTx && <EditTxModal tx={editTx} accs={accs} onSave={doEditTx} onClose={() => setEditTx(null)} />}
 
       {/* Modal: Entrada manual */}
       {mMan && <ManualTxModal form={man} update={(p) => setMan((f) => ({ ...f, ...p }))} accs={accs} onSave={saveTxManual} onClose={() => setMMan(false)} />}

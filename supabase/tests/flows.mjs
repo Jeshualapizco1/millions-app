@@ -1,0 +1,87 @@
+// ============================================================================
+// Verifica los flujos de dinero de la Fase 5 contra el proyecto real, con un
+// usuario desechable: transferencia, pago de crédito, abono a meta desde
+// cuenta, edición y reversión. Cada paso comprueba saldos exactos.
+//
+// Uso: SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... node supabase/tests/flows.mjs
+// ============================================================================
+import { createClient } from "@supabase/supabase-js";
+
+const URL = process.env.SUPABASE_URL;
+const PK = process.env.SUPABASE_PUBLISHABLE_KEY;
+const SK = process.env.SUPABASE_SECRET_KEY;
+if (!URL || !PK || !SK) { console.error("Faltan variables de entorno"); process.exit(1); }
+
+const admin = createClient(URL, SK, { auth: { autoRefreshToken: false, persistSession: false } });
+const die = (s, e) => { console.error("✗", s, e?.message ?? e); process.exit(1); };
+const email = "flows-test@millions.local", password = "flows-Test-123!";
+
+const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+for (const u of list.users.filter((u) => u.email === email)) await admin.auth.admin.deleteUser(u.id);
+const { data: cu, error: cuErr } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+if (cuErr) die("createUser", cuErr);
+const uid = cu.user.id;
+
+const sb = createClient(URL, PK, { auth: { persistSession: false } });
+const { error: siErr } = await sb.auth.signInWithPassword({ email, password });
+if (siErr) die("signIn", siErr);
+
+const bal = async (id) => Number((await sb.from("accounts").select("balance").eq("id", id).single()).data.balance);
+const debtOf = async (id) => Number((await sb.from("credits").select("total_debt").eq("id", id).single()).data.total_debt);
+const goalOf = async (id) => Number((await sb.from("goals").select("current_amount").eq("id", id).single()).data.current_amount);
+const eq = (label, got, want) => { if (Math.abs(got - want) > 0.001) die(label, `${got} ≠ ${want}`); console.log(`  ✓ ${label}: ${got}`); };
+
+// Datos base
+const { data: a1 } = await sb.from("accounts").insert({ user_id: uid, name: "Banco", balance: 10000 }).select().single();
+const { data: a2 } = await sb.from("accounts").insert({ user_id: uid, name: "Efectivo", balance: 2000 }).select().single();
+const { data: cr } = await sb.from("credits").insert({ user_id: uid, name: "Tarjeta", type: "tarjeta", total_debt: 3000 }).select().single();
+const { data: go } = await sb.from("goals").insert({ user_id: uid, name: "Viaje", target_amount: 5000 }).select().single();
+const { data: cats } = await sb.from("categories").select("id,name");
+const catId = cats.find((c) => c.name === "Alimentación").id;
+
+console.log("\n── Transferencia: 1500 de Banco a Efectivo ──");
+const { data: tr, error: trErr } = await sb.rpc("transfer", { p_from_account: a1.id, p_to_account: a2.id, p_amount: 1500, p_description: "Retiro" });
+if (trErr) die("transfer", trErr);
+eq("Banco", await bal(a1.id), 8500);
+eq("Efectivo", await bal(a2.id), 3500);
+if (tr.to_account_id !== a2.id) die("transfer", "to_account_id no quedó registrado");
+
+console.log("\n── Pago de crédito: 800 desde Efectivo ──");
+const { error: pcErr } = await sb.rpc("pay_credit", { p_credit_id: cr.id, p_account_id: a2.id, p_amount: 800 });
+if (pcErr) die("pay_credit", pcErr);
+eq("Efectivo", await bal(a2.id), 2700);
+eq("Deuda", await debtOf(cr.id), 2200);
+const { count: pagos } = await sb.from("credit_payments").select("id", { count: "exact", head: true });
+eq("Historial de pagos", pagos, 1);
+
+console.log("\n── Abono a meta: 1000 desde Banco ──");
+const { error: cgErr } = await sb.rpc("contribute_goal", { p_goal_id: go.id, p_amount: 1000, p_account_id: a1.id });
+if (cgErr) die("contribute_goal", cgErr);
+eq("Banco", await bal(a1.id), 7500);
+eq("Meta", await goalOf(go.id), 1000);
+
+console.log("\n── Gasto y edición: 300 → 500 y cambio de cuenta ──");
+const { data: tx, error: atErr } = await sb.rpc("apply_transaction", { p_account_id: a1.id, p_kind: "gasto", p_amount: 300, p_description: "tacos", p_category_id: catId });
+if (atErr) die("apply_transaction", atErr);
+eq("Banco tras gasto", await bal(a1.id), 7200);
+const { error: upErr } = await sb.rpc("update_transaction", { p_id: tx.id, p_account_id: a2.id, p_kind: "gasto", p_amount: 500, p_description: "tacos (corregido)", p_category_id: catId });
+if (upErr) die("update_transaction", upErr);
+eq("Banco recuperó el gasto", await bal(a1.id), 7500);
+eq("Efectivo absorbió el nuevo", await bal(a2.id), 2200);
+
+console.log("\n── Reversión de todo, en orden inverso ──");
+const { data: all } = await sb.from("transactions").select("id").order("created_at", { ascending: false });
+for (const t of all) {
+  const { error } = await sb.rpc("reverse_transaction", { p_id: t.id });
+  if (error) die("reverse_transaction", error);
+}
+eq("Banco", await bal(a1.id), 10000);
+eq("Efectivo", await bal(a2.id), 2000);
+eq("Deuda", await debtOf(cr.id), 3000);
+eq("Meta", await goalOf(go.id), 0);
+const { count: quedan } = await sb.from("transactions").select("id", { count: "exact", head: true });
+eq("Transacciones restantes", quedan, 0);
+
+await admin.auth.admin.deleteUser(uid);
+console.log("\n✅ Flujos de dinero verificados: saldos exactos en ida y vuelta.");
+process.exit(0);

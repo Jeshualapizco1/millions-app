@@ -1,7 +1,7 @@
 import Modal from "../components/Modal";
 import { C, GOAL_COLORS, GOAL_ICONS, S } from "../lib/constants";
 import { fmt } from "../lib/format";
-import type { Goal } from "../types";
+import type { Account, Goal } from "../types";
 
 export interface GoalFormState {
   id?: string;
@@ -57,26 +57,47 @@ export default function GoalModal({
   );
 }
 
-/** Abonar a una meta sin crear transacción. */
+/**
+ * Abonar a una meta. Si se elige cuenta origen, el dinero sale de verdad de
+ * esa cuenta; sin cuenta es solo registro (ahorro que vive fuera de la app).
+ */
 export function AddToGoalModal({
   goal,
+  accs,
   amount,
   onAmount,
+  accountId,
+  onAccount,
   onSave,
   onClose,
 }: {
   goal: Goal;
+  accs: Account[];
   amount: string;
   onAmount: (v: string) => void;
+  accountId: string;
+  onAccount: (v: string) => void;
   onSave: () => void;
   onClose: () => void;
 }) {
+  const acc = accs.find((a) => a.id === accountId);
+  const amt = parseFloat(amount);
   return (
     <Modal onClose={onClose}>
       <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Abonar a meta</div>
       <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{goal.icon} {goal.name} — Ahorrado: {fmt(goal.current_amount)}</div>
-      <label style={S.lbl}>¿Cuánto abonás?</label>
-      <input autoFocus style={{ ...S.inp, marginBottom: 20 }} type="number" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => onAmount(e.target.value)} />
+      <label style={S.lbl}>¿Cuánto abonas?</label>
+      <input autoFocus style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => onAmount(e.target.value)} />
+      <label style={S.lbl}>¿De qué cuenta sale?</label>
+      <select style={{ ...S.inp, marginBottom: 6 }} value={accountId} onChange={(e) => onAccount(e.target.value)}>
+        <option value="">Solo registrarlo (no descuenta de ninguna cuenta)</option>
+        {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name} — {fmt(a.balance)}</option>)}
+      </select>
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 20 }}>
+        {acc && amt > 0
+          ? `${acc.name} quedaría en ${fmt(acc.balance - amt)}`
+          : "Sin cuenta, la meta sube pero ningún saldo baja."}
+      </div>
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...S.btn(), flex: 1 }} onClick={onSave}>Abonar</button>

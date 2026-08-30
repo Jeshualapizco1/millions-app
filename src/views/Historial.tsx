@@ -1,18 +1,127 @@
+import { useMemo, useState } from "react";
 import TxRow from "../components/TxRow";
-import { C, S } from "../lib/constants";
+import { C, CATS, S } from "../lib/constants";
 import { exportCSV } from "../lib/csv";
-import type { Transaction } from "../types";
+import { filterByPeriod, PERIODS, type PeriodKey } from "../lib/periods";
+import type { Account, Transaction } from "../types";
 
-export default function Historial({ txs, onDelete }: { txs: Transaction[]; onDelete: (id: string) => void }) {
+const PAGE = 50;
+
+const KIND_FILTERS: { key: string; label: string }[] = [
+  { key: "todos", label: "Todos" },
+  { key: "gasto", label: "Gastos" },
+  { key: "ingreso", label: "Ingresos" },
+  { key: "transferencia", label: "Transferencias" },
+  { key: "pago_credito", label: "Pagos" },
+  { key: "abono_meta", label: "Abonos" },
+];
+
+export default function Historial({
+  txs,
+  accs,
+  onDelete,
+  onEdit,
+}: {
+  txs: Transaction[];
+  accs: Account[];
+  onDelete: (id: string) => void;
+  onEdit: (tx: Transaction) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [kind, setKind] = useState("todos");
+  const [cat, setCat] = useState("");
+  const [accId, setAccId] = useState("");
+  const [period, setPeriod] = useState<PeriodKey>("todo");
+  const [shown, setShown] = useState(PAGE);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return filterByPeriod(txs, period).filter((t) => {
+      if (kind !== "todos" && t.kind !== kind) return false;
+      if (cat && t.category !== cat) return false;
+      if (accId && t.accountId !== accId) return false;
+      if (needle && !t.description.toLowerCase().includes(needle)) return false;
+      return true;
+    });
+  }, [txs, q, kind, cat, accId, period]);
+
+  const anyFilter = q || kind !== "todos" || cat || accId || period !== "todo";
+  const reset = () => { setQ(""); setKind("todos"); setCat(""); setAccId(""); setPeriod("todo"); setShown(PAGE); };
+
+  const chipStyle = (active: boolean, color = C.accent) => ({
+    padding: "6px 12px",
+    borderRadius: 999,
+    border: `1px solid ${active ? color : C.border + "44"}`,
+    background: active ? color + "22" : "transparent",
+    color: active ? C.aLight : C.muted,
+    fontSize: 12,
+    cursor: "pointer",
+    fontWeight: active ? 700 : 400,
+    whiteSpace: "nowrap" as const,
+  });
+
   return (
     <div className="fadeUp">
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Historial completo</div>
-          {txs.length > 0 && <button onClick={() => exportCSV(txs)} style={{ ...S.btn(), padding: "7px 14px", fontSize: 12, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>}
+          <div style={{ fontWeight: 700, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Historial</div>
+          {filtered.length > 0 && (
+            <button onClick={() => exportCSV(filtered)} title="Exporta lo que estás viendo" style={{ ...S.btn(), padding: "7px 14px", fontSize: 12, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>
+          )}
         </div>
-        {txs.length === 0 && <div style={{ color: C.muted, fontSize: 13 }}>Sin transacciones aún</div>}
-        {txs.map((t) => <TxRow key={t.id} tx={t} onDelete={onDelete} />)}
+
+        {/* Búsqueda */}
+        <input
+          style={{ ...S.inp, marginBottom: 10 }}
+          placeholder="Buscar por descripción…"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setShown(PAGE); }}
+        />
+
+        {/* Tipo */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 8, overflowX: "auto", paddingBottom: 2 }}>
+          {KIND_FILTERS.map((k) => (
+            <button key={k.key} onClick={() => { setKind(k.key); setShown(PAGE); }} style={chipStyle(kind === k.key)}>{k.label}</button>
+          ))}
+        </div>
+
+        {/* Período */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 10, overflowX: "auto", paddingBottom: 2 }}>
+          {PERIODS.map((p) => (
+            <button key={p.key} onClick={() => { setPeriod(p.key); setShown(PAGE); }} style={chipStyle(period === p.key)}>{p.label}</button>
+          ))}
+        </div>
+
+        {/* Categoría y cuenta */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <select style={{ ...S.inp, flex: 1, fontSize: 13, padding: "10px 12px" }} value={cat} onChange={(e) => { setCat(e.target.value); setShown(PAGE); }}>
+            <option value="">Toda categoría</option>
+            {Object.entries(CATS).map(([k, v]) => <option key={k} value={k}>{v.icon} {k}</option>)}
+          </select>
+          <select style={{ ...S.inp, flex: 1, fontSize: 13, padding: "10px 12px" }} value={accId} onChange={(e) => { setAccId(e.target.value); setShown(PAGE); }}>
+            <option value="">Toda cuenta</option>
+            {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+          </select>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: C.muted }}>
+            {filtered.length} {filtered.length === 1 ? "movimiento" : "movimientos"}
+          </span>
+          {anyFilter && <button onClick={reset} style={{ background: "none", border: "none", color: C.aLight, fontSize: 12, cursor: "pointer" }}>Limpiar filtros</button>}
+        </div>
+
+        {filtered.length === 0 && (
+          <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 20 }}>
+            {txs.length === 0 ? "Sin transacciones aún" : "Ningún movimiento coincide con estos filtros"}
+          </div>
+        )}
+        {filtered.slice(0, shown).map((t) => <TxRow key={t.id} tx={t} onDelete={onDelete} onEdit={onEdit} />)}
+        {filtered.length > shown && (
+          <button onClick={() => setShown((s) => s + PAGE)} style={{ ...S.btnO, width: "100%", marginTop: 14 }}>
+            Ver más ({filtered.length - shown} restantes)
+          </button>
+        )}
       </div>
     </div>
   );

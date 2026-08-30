@@ -4,7 +4,7 @@ import { daysUntil, fmt } from "../lib/format";
 import type { Credit } from "../types";
 import ProgressBar from "./ProgressBar";
 
-export default function CreditCard({ credit, onEdit }: { credit: Credit; onEdit: (c: Credit) => void }) {
+export default function CreditCard({ credit, onEdit, onPay }: { credit: Credit; onEdit: (c: Credit) => void; onPay?: (c: Credit) => void }) {
   const type = CREDIT_TYPES[credit.type] || CREDIT_TYPES.otro;
   const debt = Number(credit.total_debt) || 0;
   const limit = Number(credit.credit_limit) || 0;
@@ -40,6 +40,14 @@ export default function CreditCard({ credit, onEdit }: { credit: Credit; onEdit:
         {credit.type === "tarjeta" && credit.payment_day && <div style={{ flex: 1, background: C.surface, borderRadius: 10, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 10, color: C.muted }}>Pago día {credit.payment_day}</div><div style={{ fontSize: 13, fontWeight: 700, color: uc(daysPago) }}>{daysPago === 0 ? "¡Hoy!" : daysPago === 1 ? "Mañana" : `${daysPago}d`}</div></div>}
         {credit.type !== "tarjeta" && credit.next_payment_date && <div style={{ flex: 1, background: C.surface, borderRadius: 10, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 10, color: C.muted }}>Próximo pago</div><div style={{ fontSize: 12, fontWeight: 700, color: uc(daysNext) }}>{daysNext! <= 0 ? "¡Vencido!" : daysNext === 1 ? "Mañana" : `${daysNext}d`}</div></div>}
       </div>
+      {onPay && debt > 0 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onPay(credit); }}
+          style={{ width: "100%", marginTop: 12, background: type.color + "22", border: `1px solid ${type.color}55`, color: type.color, borderRadius: 12, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+        >
+          Registrar pago
+        </button>
+      )}
     </div>
   );
 }

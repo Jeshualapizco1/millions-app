@@ -3,6 +3,7 @@ import DonutChart, { type DonutDatum } from "../components/charts/DonutChart";
 import MonthlyChart, { type MonthlyDatum } from "../components/charts/MonthlyChart";
 import { C, S } from "../lib/constants";
 import { fmt } from "../lib/format";
+import { PERIODS, type PeriodKey } from "../lib/periods";
 import type { Account, Transaction } from "../types";
 
 export interface Comparison {
@@ -20,6 +21,9 @@ export default function Dashboard({
   totI,
   totG,
   totalDebt,
+  period,
+  onPeriod,
+  periodLabel,
   comparison,
   monthlyData,
   catData,
@@ -33,6 +37,9 @@ export default function Dashboard({
   totI: number;
   totG: number;
   totalDebt: number;
+  period: PeriodKey;
+  onPeriod: (p: PeriodKey) => void;
+  periodLabel: string;
   comparison: Comparison;
   monthlyData: MonthlyDatum[];
   catData: DonutDatum[];
@@ -54,10 +61,34 @@ export default function Dashboard({
           <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Gastos</div><div style={{ fontSize: 14, fontWeight: 700, color: C.red }}>{fmt(totG)}</div></div>
           {totalDebt > 0 && <><div style={{ width: 1, background: C.border }} /><div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Deudas</div><div style={{ fontSize: 14, fontWeight: 700, color: C.amber }}>{fmt(totalDebt)}</div></div></>}
         </div>
+        <div style={{ fontSize: 10, color: C.muted, marginTop: 10 }}>Ingresos y gastos de: {periodLabel.toLowerCase()}</div>
       </div>
 
-      {/* Comparativa mes a mes */}
-      {comparison.diffPct !== null && (
+      {/* Selector de período: manda sobre TODAS las cifras de abajo */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
+        {PERIODS.map((p) => (
+          <button
+            key={p.key}
+            onClick={() => onPeriod(p.key)}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 999,
+              border: `1px solid ${period === p.key ? C.accent : C.border + "44"}`,
+              background: period === p.key ? C.accent + "22" : "transparent",
+              color: period === p.key ? C.aLight : C.muted,
+              fontSize: 12.5,
+              cursor: "pointer",
+              fontWeight: period === p.key ? 700 : 400,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Comparativa mes a mes (solo tiene sentido viendo el mes en curso) */}
+      {period === "mes" && comparison.diffPct !== null && (
         <div style={{ ...S.card, display: "flex", gap: 10 }}>
           <div style={{ flex: 1, textAlign: "center" }}>
             <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Gastos este mes</div>
@@ -75,7 +106,7 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Gráfica 6 meses */}
+      {/* Gráfica 6 meses (siempre 6 meses, independiente del período) */}
       <div style={S.card}>
         <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Últimos 6 meses</div>
         <div style={{ height: 200 }}><MonthlyChart data={monthlyData} /></div>
@@ -83,7 +114,8 @@ export default function Dashboard({
 
       {/* Gastos por categoría */}
       <div style={S.card}>
-        <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Gastos por categoría</div>
+        <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Gastos por categoría</div>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>{periodLabel}</div>
         <div style={{ height: 160, marginBottom: 14 }}><DonutChart data={catData} /></div>
         {catData.map((d) => (
           <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}22` }}>
@@ -91,7 +123,7 @@ export default function Dashboard({
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}><span style={{ fontSize: 11, color: C.muted }}>{totG > 0 ? Math.round((d.value / totG) * 100) : 0}%</span><span style={{ fontSize: 13, fontWeight: 700, color: C.red }}>{fmt(d.value)}</span></div>
           </div>
         ))}
-        {catData.length === 0 && <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 12 }}>Sin gastos aún</div>}
+        {catData.length === 0 && <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 12 }}>Sin gastos en este período</div>}
       </div>
 
       {/* Cuentas */}
