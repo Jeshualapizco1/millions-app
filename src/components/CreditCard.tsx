@@ -1,4 +1,5 @@
 import { C, CREDIT_TYPES } from "../lib/constants";
+import { daysUntilDate } from "../lib/dates";
 import { daysUntil, fmt } from "../lib/format";
 import type { Credit } from "../types";
 import ProgressBar from "./ProgressBar";
@@ -11,8 +12,7 @@ export default function CreditCard({ credit, onEdit }: { credit: Credit; onEdit:
   const utilColor = util < 30 ? C.green : util < 70 ? C.amber : C.red;
   const daysCorte = daysUntil(credit.cut_day);
   const daysPago = daysUntil(credit.payment_day);
-  const nextDate = credit.next_payment_date ? new Date(credit.next_payment_date) : null;
-  const daysNext = nextDate ? Math.ceil((nextDate.getTime() - Date.now()) / 864e5) : null;
+  const daysNext = daysUntilDate(credit.next_payment_date);
   const uc = (d: number | null) => (d === null ? C.muted : d <= 3 ? C.red : d <= 7 ? C.amber : C.green);
   return (
     <div onClick={() => onEdit(credit)} style={{ background: C.card, border: `1px solid ${C.border}22`, borderRadius: 20, padding: 18, marginBottom: 12, cursor: "pointer", borderLeft: `4px solid ${type.color}` }}>
@@ -32,7 +32,7 @@ export default function CreditCard({ credit, onEdit }: { credit: Credit; onEdit:
       {(credit.type === "hipoteca" || credit.type === "auto" || credit.type === "personal") && Number(credit.monthly_payment) > 0 && (
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           <div style={{ flex: 1, background: C.surface, borderRadius: 10, padding: "8px 12px", textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Mensualidad</div><div style={{ fontSize: 14, fontWeight: 700, color: C.aLight }}>{fmt(credit.monthly_payment)}</div></div>
-          {credit.interest_rate && <div style={{ flex: 1, background: C.surface, borderRadius: 10, padding: "8px 12px", textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Tasa</div><div style={{ fontSize: 14, fontWeight: 700, color: C.amber }}>{credit.interest_rate}%</div></div>}
+          {credit.interest_rate != null && <div style={{ flex: 1, background: C.surface, borderRadius: 10, padding: "8px 12px", textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Tasa</div><div style={{ fontSize: 14, fontWeight: 700, color: C.amber }}>{credit.interest_rate}%</div></div>}
         </div>
       )}
       <div style={{ display: "flex", gap: 8 }}>

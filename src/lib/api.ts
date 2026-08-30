@@ -13,8 +13,13 @@ const fail = (error: { message: string } | null): never => {
 
 const uid = async (): Promise<string> => {
   const { data } = await sbClient.auth.getSession();
-  const id = data.session?.user.id;
-  if (!id) throw new Error("Sesión expirada");
+  let id = data.session?.user.id;
+  if (!id) {
+    // Un intento de refresh antes de rendirse (PWA que despierta tras horas dormida)
+    const { data: r } = await sbClient.auth.refreshSession();
+    id = r.session?.user.id;
+  }
+  if (!id) throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
   return id;
 };
 
@@ -272,4 +277,10 @@ export const api = {
   // ── IA ────────────────────────────────────────────────────────────────────
   aiCapture: (messages: ChatMsg[]) => aiCall("capture", messages),
   aiAdvise: (messages: ChatMsg[]) => aiCall("advise", messages),
+
+  // ── Cuenta de usuario ─────────────────────────────────────────────────────
+  async changePassword(newPassword: string): Promise<void> {
+    const { error } = await sbClient.auth.updateUser({ password: newPassword });
+    if (error) fail(error);
+  },
 };

@@ -3,17 +3,20 @@ import type { Session } from "@supabase/supabase-js";
 import CreditForm, { type CreditFormState } from "./components/CreditForm";
 import Fab from "./components/Fab";
 import Modal from "./components/Modal";
+import { Toasts, useToasts } from "./components/Toast";
 import { useAI, type ParsedNewAcc, type ParsedTx } from "./hooks/useAI";
 import { useFinanceData } from "./hooks/useFinanceData";
 import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
 import { ACC_COLORS, C, CATS } from "./lib/constants";
 import { daysUntil, fmt, monthLabel } from "./lib/format";
+import { daysUntilDate } from "./lib/dates";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
 import BudgetModal from "./modals/BudgetModal";
 import GoalModal, { AddToGoalModal, type GoalFormState } from "./modals/GoalModal";
 import ManualTxModal, { type ManualTxFormState } from "./modals/ManualTxModal";
-import type { Account, Credit, Goal } from "./types";
+import PasswordModal from "./modals/PasswordModal";
+import type { Account, Credit, Goal, Transaction } from "./types";
 import Analisis from "./views/Analisis";
 import Creditos from "./views/Creditos";
 import Cuentas from "./views/Cuentas";
@@ -36,6 +39,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
   const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, booting, loadError, accsRef, txsRef } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
+  const { toasts, push, dismiss } = useToasts();
 
   // FAB
   const [fab, setFab] = useState(false);
@@ -58,6 +62,12 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [goalForm, setGoalForm] = useState<GoalFormState>(emptyGoalForm);
   const [mAddToGoal, setMAddToGoal] = useState<Goal | null>(null);
   const [addGoalAmt, setAddGoalAmt] = useState("");
+  const [mPass, setMPass] = useState(false);
+
+  const oops = (e: unknown, fallback: string) => {
+    console.error(e);
+    push({ kind: "error", text: (e as Error)?.message || fallback });
+  };
 
   // ── Transactions (una RPC atómica por operación; sin ids temporales) ───────
   const applyTx = async (tx: ParsedTx): Promise<{ ok: boolean; error?: string }> => {
@@ -78,16 +88,36 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     }
   };
 
+  /** Deshacer de un borrado: vuelve a aplicar el movimiento. */
+  const redoTx = async (tx: Transaction) => {
+    try {
+      const saved = await api.applyTx({ accountId: tx.accountId, kind: tx.kind, amount: tx.amount, description: tx.description, category: tx.category }, accsRef.current);
+      setTxs((p) => [saved, ...p].sort((a, b) => b.date.localeCompare(a.date)));
+      setAccs((p) => p.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance + (tx.type === "gasto" ? -tx.amount : tx.amount) } : a)));
+    } catch (e) {
+      oops(e, "No se pudo deshacer");
+    }
+  };
+
   const deleteTx = async (id: string) => {
     const tx = txsRef.current.find((t) => t.id === id);
     if (!tx) return;
     try {
       await api.deleteTx(id); // reverse_transaction: revierte saldo y efectos en la misma transacción
       setTxs((p) => p.filter((t) => t.id !== id));
-      const delta = tx.type === "gasto" ? tx.amount : -tx.amount;
-      setAccs((p) => p.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance + delta } : a)));
+      if (tx.kind === "gasto" || tx.kind === "ingreso") {
+        const delta = tx.type === "gasto" ? tx.amount : -tx.amount;
+        setAccs((p) => p.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance + delta } : a)));
+        push({ kind: "ok", text: `Eliminado: ${tx.description}`, action: { label: "Deshacer", onClick: () => redoTx(tx) } }, 6000);
+      } else {
+        // transferencia / pago / abono: el servidor revirtió varios saldos — recargar lo afectado
+        api.getAccounts().then(setAccs).catch(console.error);
+        if (tx.kind === "pago_credito") api.getCredits().then(setCredits).catch(console.error);
+        if (tx.kind === "abono_meta") api.getGoals().then(setGoals).catch(console.error);
+        push({ kind: "ok", text: "Movimiento eliminado y saldos revertidos" });
+      }
     } catch (e) {
-      console.error(e);
+      oops(e, "No se pudo eliminar");
     }
   };
 
@@ -99,7 +129,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       const s = await api.addAccount({ name: d.accountName, balance: d.balance ?? 0, color, icon: d.icon ?? "🏦" });
       setAccs((p) => [...p, s]);
     } catch (e) {
-      console.error(e);
+      oops(e, "No se pudo crear la cuenta");
     }
   };
   const saveNewAcc = async () => {
@@ -110,13 +140,15 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
   const saveEditAcc = async () => {
     if (!editAcc || !editAcc.name.trim()) return;
+    const prev = accs;
     setAccs((p) => p.map((a) => (a.id === editAcc.id ? { ...a, ...editAcc, balance: Number(editAcc.balance) } : a)));
+    setEditAcc(null);
     try {
       await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: parseFloat(String(editAcc.balance)), icon: editAcc.icon, color: editAcc.color });
     } catch (e) {
-      console.error(e);
+      setAccs(prev);
+      oops(e, "No se pudo guardar la cuenta");
     }
-    setEditAcc(null);
   };
 
   // ── Credits ────────────────────────────────────────────────────────────────
@@ -140,27 +172,31 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       const s = await api.addCredit(parseCredit(f));
       setCredits((pr) => [...pr, s]);
     } catch (e) {
-      console.error(e);
+      oops(e, "No se pudo crear el crédito");
     }
   };
   const saveEditCredit = async (f: CreditFormState) => {
     if (!f.name.trim()) return;
     const p = { id: f.id!, ...parseCredit(f) };
+    const prev = credits;
     setCredits((pr) => pr.map((c) => (c.id === f.id ? { ...c, ...p } : c)));
     setEditCredit(null);
     try {
       await api.updateCredit(p);
     } catch (e) {
-      console.error(e);
+      setCredits(prev);
+      oops(e, "No se pudo guardar el crédito");
     }
   };
   const deleteCredit = async (id: string) => {
+    const prev = credits;
     setCredits((p) => p.filter((c) => c.id !== id));
     setEditCredit(null);
     try {
       await api.deleteCredit(id);
     } catch (e) {
-      console.error(e);
+      setCredits(prev);
+      oops(e, "No se pudo eliminar el crédito");
     }
   };
 
@@ -175,17 +211,19 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         return exists ? p.map((b) => (b.id === saved.id ? saved : b)) : [...p, saved];
       });
     } catch (e) {
-      console.error(e);
+      oops(e, "No se pudo guardar el presupuesto");
     }
     setBudgetAmt("");
     setMBudget(false);
   };
   const deleteBudget = async (id: string) => {
+    const prev = budgets;
     setBudgets((p) => p.filter((b) => b.id !== id));
     try {
       await api.deleteBudget(id);
     } catch (e) {
-      console.error(e);
+      setBudgets(prev);
+      oops(e, "No se pudo eliminar el presupuesto");
     }
   };
 
@@ -198,27 +236,31 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       const s = await api.addGoal(p);
       setGoals((pr) => [...pr, s]);
     } catch (e) {
-      console.error(e);
+      oops(e, "No se pudo crear la meta");
     }
   };
   const saveEditGoal = async () => {
     if (!editGoal) return;
     const p = { id: editGoal.id!, name: editGoal.name, target_amount: parseFloat(String(editGoal.target_amount)), current_amount: parseFloat(String(editGoal.current_amount || 0)), target_date: editGoal.target_date || null, icon: editGoal.icon, color: editGoal.color, notes: editGoal.notes || null };
+    const prev = goals;
     setGoals((pr) => pr.map((g) => (g.id === editGoal.id ? { ...g, ...p } : g)));
     setEditGoal(null);
     try {
       await api.updateGoal(p);
     } catch (e) {
-      console.error(e);
+      setGoals(prev);
+      oops(e, "No se pudo guardar la meta");
     }
   };
   const deleteGoal = async (id: string) => {
+    const prev = goals;
     setGoals((p) => p.filter((g) => g.id !== id));
     setEditGoal(null);
     try {
       await api.deleteGoal(id);
     } catch (e) {
-      console.error(e);
+      setGoals(prev);
+      oops(e, "No se pudo eliminar la meta");
     }
   };
   const addToGoal = async () => {
@@ -230,8 +272,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     try {
       const updated = await api.contributeGoal({ goalId: mAddToGoal.id, amount });
       setGoals((p) => p.map((g) => (g.id === updated.id ? updated : g)));
+      push({ kind: "ok", text: `Abonaste ${fmt(amount)} a ${updated.name}` });
     } catch (e) {
-      console.error(e);
+      oops(e, "No se pudo abonar");
     }
   };
 
@@ -249,8 +292,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     const { desc, amt, type, aid, cat } = man;
     if (!desc || !amt || !aid) return;
     const amount = parseFloat(amt);
-    if (!amount || amount <= 0) return;
-    await applyTx({ description: desc, amount, type, category: cat, accountName: accs.find((a) => a.id === aid)?.name ?? "" });
+    if (!amount || amount <= 0) { push({ kind: "error", text: "El monto debe ser mayor a cero" }); return; }
+    const r = await applyTx({ description: desc, amount, type, category: cat, accountName: accs.find((a) => a.id === aid)?.name ?? "" });
+    if (!r.ok) { push({ kind: "error", text: r.error || "No se pudo registrar" }); return; }
     setMan({ desc: "", amt: "", type: "gasto", aid: "", cat: "Otros" });
     setMMan(false);
   };
@@ -263,7 +307,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
   const urgentCredits = useMemo(() => credits.filter((c) => {
     const d1 = daysUntil(c.payment_day);
-    const d2 = c.next_payment_date ? Math.ceil((new Date(c.next_payment_date).getTime() - Date.now()) / 864e5) : null;
+    const d2 = daysUntilDate(c.next_payment_date);
     return (d1 !== null && d1 <= 5) || (d2 !== null && d2 <= 5);
   }), [credits]);
 
@@ -337,6 +381,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ background: `linear-gradient(135deg,${C.accent},#9333ea)`, color: "#fff", borderRadius: 12, padding: "6px 14px", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 12px #7c6af733" }}>{fmt(totBal)}</div>
+          <button onClick={() => setMPass(true)} title="Cambiar contraseña" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 12, padding: "6px 10px", cursor: "pointer" }}>🔑</button>
           <button onClick={onSignOut} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 12, padding: "6px 10px", cursor: "pointer" }}>↩</button>
         </div>
       </div>
@@ -379,6 +424,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {/* FAB + sheet */}
       <Fab fab={fab} onOpen={() => setFab(true)} onClose={() => setFab(false)} mic={mic} live={live} txLoading={txLoading} txInput={txInput} setTxInput={setTxInput} voiceOK={voiceOK} startMic={startMic} stopMic={stopMic} onSend={sendTx} onManual={() => { setFab(false); setMMan(true); }} />
 
+      {/* Toasts */}
+      <Toasts toasts={toasts} onDismiss={dismiss} />
+
       {/* Modal: Nueva cuenta */}
       {mNewAcc && <AccountModal mode="new" form={newAcc} update={(p) => setNewAcc((f) => ({ ...f, ...p }))} onSave={saveNewAcc} onClose={() => setMNewAcc(false)} />}
 
@@ -403,6 +451,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {/* Modal: Entrada manual */}
       {mMan && <ManualTxModal form={man} update={(p) => setMan((f) => ({ ...f, ...p }))} accs={accs} onSave={saveTxManual} onClose={() => setMMan(false)} />}
+
+      {/* Modal: Cambiar contraseña */}
+      {mPass && <PasswordModal onDone={() => { setMPass(false); push({ kind: "ok", text: "Contraseña actualizada" }); }} onClose={() => setMPass(false)} />}
     </div>
   );
 }
