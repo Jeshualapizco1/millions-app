@@ -48,6 +48,34 @@ export interface Category {
   color: string;
 }
 
+export type RecurringFrequency = Enums<"recurring_frequency">;
+
+/** Regla de movimiento fijo: el servidor genera la transacción cada período. */
+export interface RecurringRule {
+  id: string;
+  name: string;
+  kind: TxType;
+  amount: number;
+  accountId: string;
+  accountName: string;
+  categoryId: string | null;
+  category: string;
+  frequency: RecurringFrequency;
+  next_run: string;
+  last_run: string | null;
+  active: boolean;
+}
+
+/** Una ocurrencia futura, ya proyectada por el servidor. */
+export interface Upcoming {
+  ruleId: string;
+  name: string;
+  kind: TxType;
+  amount: number;
+  accountId: string;
+  due: string;
+}
+
 /** Mensaje del historial que se envía a la IA (formato Anthropic). */
 export interface ChatMsg {
   role: "user" | "assistant";

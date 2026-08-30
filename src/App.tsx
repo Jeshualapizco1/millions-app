@@ -18,9 +18,10 @@ import GoalModal, { AddToGoalModal, type GoalFormState } from "./modals/GoalModa
 import ManualTxModal, { type ManualTxFormState } from "./modals/ManualTxModal";
 import EditTxModal from "./modals/EditTxModal";
 import PayCreditModal from "./modals/PayCreditModal";
+import RecurringModal from "./modals/RecurringModal";
 import TransferModal from "./modals/TransferModal";
 import PasswordModal from "./modals/PasswordModal";
-import type { Account, Credit, Goal, Transaction, TxType } from "./types";
+import type { Account, Credit, Goal, RecurringRule, Transaction, TxType } from "./types";
 import Analisis from "./views/Analisis";
 import Creditos from "./views/Creditos";
 import Cuentas from "./views/Cuentas";
@@ -41,7 +42,7 @@ const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amou
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, booting, loadError, accsRef, txsRef } = useFinanceData();
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, booting, loadError, accsRef, txsRef } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
   const { toasts, push, dismiss } = useToasts();
 
@@ -72,6 +73,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [addGoalAcc, setAddGoalAcc] = useState("");
   const [period, setPeriod] = useState<PeriodKey>("mes");
+  const [mRecurring, setMRecurring] = useState(false);
+  const [editRecurring, setEditRecurring] = useState<RecurringRule | null>(null);
 
   const oops = (e: unknown, fallback: string) => {
     console.error(e);
@@ -328,6 +331,43 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     push({ kind: "ok", text: "Movimiento actualizado" });
   };
 
+  // ── Movimientos fijos ─────────────────────────────────────────────────────
+  const refreshRecurring = async () => {
+    const [rr, up] = await Promise.all([api.getRecurring(), api.getUpcoming(7)]);
+    setRecurring(rr);
+    setUpcoming(up);
+  };
+
+  const saveRecurring = async (p: Parameters<typeof api.upsertRecurring>[0]) => {
+    await api.upsertRecurring(p);
+    await refreshRecurring();
+    setMRecurring(false);
+    setEditRecurring(null);
+    push({ kind: "ok", text: p.id ? "Movimiento fijo actualizado" : `"${p.name}" se registrará ${p.frequency === "mensual" ? "cada mes" : "según lo programado"}` });
+  };
+
+  const toggleRecurring = async (r: RecurringRule) => {
+    setRecurring((prev) => prev.map((x) => (x.id === r.id ? { ...x, active: !x.active } : x)));
+    try {
+      await api.setRecurringActive(r.id, !r.active);
+      setUpcoming(await api.getUpcoming(7));
+    } catch (e) {
+      setRecurring((prev) => prev.map((x) => (x.id === r.id ? { ...x, active: r.active } : x)));
+      oops(e, "No se pudo cambiar el estado");
+    }
+  };
+
+  const deleteRecurring = async (id: string) => {
+    setEditRecurring(null);
+    try {
+      await api.deleteRecurring(id);
+      await refreshRecurring();
+      push({ kind: "ok", text: "Movimiento fijo eliminado" });
+    } catch (e) {
+      oops(e, "No se pudo eliminar");
+    }
+  };
+
   // ── AI + voz ───────────────────────────────────────────────────────────────
   const { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis } = useAI({ applyTx, applyNewAcc, setTxInput, setLive });
 
@@ -359,6 +399,10 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const totG = useMemo(() => sumSpend(periodTxs), [periodTxs]);
   const totI = useMemo(() => sumIncome(periodTxs), [periodTxs]);
   const totalDebt = credits.reduce((s, c) => s + Number(c.total_debt || 0), 0);
+  const upcomingNet = useMemo(
+    () => upcoming.reduce((s, u) => s + (u.kind === "ingreso" ? u.amount : -u.amount), 0),
+    [upcoming]
+  );
 
   const urgentCredits = useMemo(() => credits.filter((c) => {
     const d1 = daysUntil(c.payment_day);
@@ -468,8 +512,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 100px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
-        {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} onAddBudget={() => setMBudget(true)} onDeleteBudget={deleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
+        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
+        {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onDeleteBudget={deleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} />}
         {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} />}
@@ -509,6 +553,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {/* Modal: Pagar crédito */}
       {payCredit && <PayCreditModal credit={payCredit} accs={accs} onSave={doPayCredit} onClose={() => setPayCredit(null)} />}
+
+      {/* Modal: Movimiento fijo */}
+      {(mRecurring || editRecurring) && (
+        <RecurringModal
+          rule={editRecurring}
+          accs={accs}
+          onSave={saveRecurring}
+          onDelete={deleteRecurring}
+          onClose={() => { setMRecurring(false); setEditRecurring(null); }}
+        />
+      )}
 
       {/* Modal: Editar movimiento */}
       {editTx && <EditTxModal tx={editTx} accs={accs} onSave={doEditTx} onClose={() => setEditTx(null)} />}

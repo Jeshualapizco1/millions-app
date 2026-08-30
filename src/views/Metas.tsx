@@ -2,29 +2,91 @@ import ProgressBar from "../components/ProgressBar";
 import { C, CATS, S } from "../lib/constants";
 import { daysUntilDate } from "../lib/dates";
 import { fmt } from "../lib/format";
-import type { Budget, Goal } from "../types";
+import type { Budget, Goal, RecurringRule } from "../types";
 
 export type BudgetWithProgress = Budget & { spent: number; pct: number };
+
+const FREQ_LABEL: Record<string, string> = {
+  semanal: "cada semana",
+  quincenal: "cada 15 días",
+  mensual: "cada mes",
+  anual: "cada año",
+};
 
 export default function Metas({
   budgetProgress,
   goals,
+  recurring,
   onAddBudget,
   onDeleteBudget,
   onNewGoal,
   onEditGoal,
   onAddToGoal,
+  onNewRecurring,
+  onEditRecurring,
+  onToggleRecurring,
 }: {
   budgetProgress: BudgetWithProgress[];
   goals: Goal[];
+  recurring: RecurringRule[];
   onAddBudget: () => void;
   onDeleteBudget: (id: string) => void;
   onNewGoal: () => void;
   onEditGoal: (g: Goal) => void;
   onAddToGoal: (g: Goal) => void;
+  onNewRecurring: () => void;
+  onEditRecurring: (r: RecurringRule) => void;
+  onToggleRecurring: (r: RecurringRule) => void;
 }) {
   return (
     <div className="fadeUp">
+      {/* Movimientos fijos */}
+      <div style={S.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>🔁 Movimientos fijos</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Se registran solos cada período</div>
+          </div>
+          <button onClick={onNewRecurring} style={{ ...S.btn(), padding: "8px 14px", fontSize: 13 }}>＋ Agregar</button>
+        </div>
+        {recurring.length === 0 && (
+          <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 16 }}>
+            Sin movimientos fijos. Agrega la renta, tus suscripciones o la nómina y dejarás de capturarlas a mano.
+          </div>
+        )}
+        {recurring.map((r) => {
+          const dias = daysUntilDate(r.next_run);
+          const proximo = dias === null ? "" : dias <= 0 ? "hoy" : dias === 1 ? "mañana" : `en ${dias} días`;
+          return (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: `1px solid ${C.border}22`, opacity: r.active ? 1 : 0.5 }}>
+              <div onClick={() => onEditRecurring(r)} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: (CATS[r.category]?.color || C.muted) + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                  {CATS[r.category]?.icon || "🔁"}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>
+                    {FREQ_LABEL[r.frequency]} · {r.accountName}{r.active ? ` · ${proximo}` : " · pausado"}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 14, color: r.kind === "gasto" ? C.red : C.green }}>
+                  {r.kind === "gasto" ? "-" : "+"}{fmt(r.amount)}
+                </div>
+                <button
+                  onClick={() => onToggleRecurring(r)}
+                  title={r.active ? "Pausar" : "Reanudar"}
+                  style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, padding: 4 }}
+                >
+                  {r.active ? "⏸" : "▶️"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Presupuestos */}
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>

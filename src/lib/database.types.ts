@@ -610,6 +610,24 @@ export type Database = {
         Returns: Database["public"]["Tables"]["transactions"]["Row"]
       }
       reverse_transaction: { Args: { p_id: string }; Returns: undefined }
+      advance_date: {
+        Args: {
+          p_date: string
+          p_freq: Database["public"]["Enums"]["recurring_frequency"]
+        }
+        Returns: string
+      }
+      upcoming_recurring: {
+        Args: { p_days?: number }
+        Returns: {
+          rule_id: string
+          name: string
+          kind: Database["public"]["Enums"]["tx_kind"]
+          amount: number
+          account_id: string
+          due: string
+        }[]
+      }
       transfer: {
         Args: {
           p_amount: number

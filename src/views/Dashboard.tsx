@@ -4,7 +4,8 @@ import MonthlyChart, { type MonthlyDatum } from "../components/charts/MonthlyCha
 import { C, S } from "../lib/constants";
 import { fmt } from "../lib/format";
 import { PERIODS, type PeriodKey } from "../lib/periods";
-import type { Account, Transaction } from "../types";
+import { daysUntilDate } from "../lib/dates";
+import type { Account, Transaction, Upcoming } from "../types";
 
 export interface Comparison {
   thisGastos: number;
@@ -21,6 +22,8 @@ export default function Dashboard({
   totI,
   totG,
   totalDebt,
+  upcoming,
+  upcomingNet,
   period,
   onPeriod,
   periodLabel,
@@ -37,6 +40,8 @@ export default function Dashboard({
   totI: number;
   totG: number;
   totalDebt: number;
+  upcoming: Upcoming[];
+  upcomingNet: number;
   period: PeriodKey;
   onPeriod: (p: PeriodKey) => void;
   periodLabel: string;
@@ -102,6 +107,38 @@ export default function Dashboard({
             <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Mes pasado</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: C.muted }}>{fmt(comparison.lastGastos)}</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>referencia</div>
+          </div>
+        </div>
+      )}
+
+      {/* Lo que viene: movimientos fijos ya proyectados por el servidor */}
+      {upcoming.length > 0 && (
+        <div style={S.card}>
+          <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Próximos 7 días</div>
+          <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>Movimientos fijos que se registrarán solos</div>
+          {upcoming.map((u, i) => {
+            const dias = daysUntilDate(u.due);
+            const cuando = dias === null ? "" : dias <= 0 ? "Hoy" : dias === 1 ? "Mañana" : `En ${dias} días`;
+            return (
+              <div key={`${u.ruleId}-${i}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${C.border}22` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <span style={{ fontSize: 16 }}>🔁</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}</div>
+                    <div style={{ fontSize: 11, color: dias !== null && dias <= 1 ? C.amber : C.muted }}>{cuando}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: u.kind === "gasto" ? C.red : C.green }}>
+                  {u.kind === "gasto" ? "-" : "+"}{fmt(u.amount)}
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 12 }}>
+            <span style={{ color: C.muted }}>Impacto neto</span>
+            <span style={{ fontWeight: 700, color: upcomingNet >= 0 ? C.green : C.red }}>
+              {upcomingNet >= 0 ? "+" : ""}{fmt(upcomingNet)}
+            </span>
           </div>
         </div>
       )}

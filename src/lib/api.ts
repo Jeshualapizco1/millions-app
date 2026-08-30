@@ -5,7 +5,7 @@
 // ============================================================================
 import type { Tables } from "./database.types";
 import { sbClient } from "./supabase";
-import type { Account, Budget, Category, ChatMsg, Credit, Goal, Transaction, TxKind } from "../types";
+import type { Account, Budget, Category, ChatMsg, Credit, Goal, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
 
 const fail = (error: { message: string } | null): never => {
   throw new Error(error?.message || "Error de servidor");
@@ -294,6 +294,74 @@ export const api = {
     });
     if (error) fail(error);
     return { ...data!, target_amount: Number(data!.target_amount), current_amount: Number(data!.current_amount) };
+  },
+
+  // ── Recurrentes ───────────────────────────────────────────────────────────
+  async getRecurring(): Promise<RecurringRule[]> {
+    const { data, error } = await sbClient
+      .from("recurring_rules")
+      .select("*, account:accounts(name), category:categories(name)")
+      .order("next_run");
+    if (error) fail(error);
+    return (data as any[]).map((r) => ({
+      id: r.id,
+      name: r.name,
+      kind: r.kind as TxType,
+      amount: Number(r.amount),
+      accountId: r.account_id,
+      accountName: r.account?.name ?? "",
+      categoryId: r.category_id,
+      category: r.category?.name ?? "Otros",
+      frequency: r.frequency,
+      next_run: r.next_run,
+      last_run: r.last_run,
+      active: r.active,
+    }));
+  },
+  async upsertRecurring(p: {
+    id?: string;
+    name: string;
+    kind: TxType;
+    amount: number;
+    accountId: string;
+    category: string;
+    frequency: RecurringFrequency;
+    next_run: string;
+  }): Promise<void> {
+    const row = {
+      name: p.name,
+      kind: p.kind,
+      amount: p.amount,
+      account_id: p.accountId,
+      category_id: await categoryId(p.category),
+      frequency: p.frequency,
+      next_run: p.next_run,
+    };
+    const { error } = p.id
+      ? await sbClient.from("recurring_rules").update(row).eq("id", p.id)
+      : await sbClient.from("recurring_rules").insert({ ...row, user_id: await uid() });
+    if (error) fail(error);
+  },
+  async setRecurringActive(id: string, active: boolean): Promise<void> {
+    const { error } = await sbClient.from("recurring_rules").update({ active }).eq("id", id);
+    if (error) fail(error);
+  },
+  async deleteRecurring(id: string): Promise<void> {
+    const { error } = await sbClient.from("recurring_rules").delete().eq("id", id);
+    if (error) fail(error);
+  },
+  /** Ocurrencias proyectadas por el servidor para los próximos N días. */
+  async getUpcoming(days = 7): Promise<Upcoming[]> {
+    const { data, error } = await sbClient.rpc("upcoming_recurring", { p_days: days });
+    if (error) fail(error);
+    return (data ?? []).map((u: any) => ({
+      ruleId: u.rule_id,
+      name: u.name,
+      kind: u.kind as TxType,
+      amount: Number(u.amount),
+      accountId: u.account_id,
+      due: u.due,
+    }));
   },
 
   // ── IA ────────────────────────────────────────────────────────────────────
