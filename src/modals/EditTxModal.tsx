@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Modal from "../components/Modal";
-import { C, CATS, S } from "../lib/constants";
+import { C, S } from "../lib/constants";
+import { useCategories } from "../lib/categories";
 import type { Account, Transaction, TxType } from "../types";
 
 /**
@@ -27,6 +28,7 @@ export default function EditTxModal({
   const [date, setDate] = useState(new Date(tx.date).toISOString().slice(0, 10));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { list } = useCategories();
 
   const save = async () => {
     const amount = parseFloat(amt);
@@ -64,7 +66,7 @@ export default function EditTxModal({
       </div>
       <label style={S.lbl}>Categoría</label>
       <select style={{ ...S.inp, marginBottom: 14 }} value={cat} onChange={(e) => setCat(e.target.value)}>
-        {Object.entries(CATS).map(([k, v]) => <option key={k} value={k}>{v.icon} {k}</option>)}
+        {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
       </select>
       <label style={S.lbl}>Cuenta</label>
       <select style={{ ...S.inp, marginBottom: 14 }} value={aid} onChange={(e) => setAid(e.target.value)}>

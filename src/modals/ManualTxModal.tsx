@@ -1,5 +1,6 @@
 import Modal from "../components/Modal";
-import { C, CATS, S } from "../lib/constants";
+import { C, S } from "../lib/constants";
+import { useCategories } from "../lib/categories";
 import type { Account, TxType } from "../types";
 
 export interface ManualTxFormState {
@@ -23,6 +24,7 @@ export default function ManualTxModal({
   onSave: () => void;
   onClose: () => void;
 }) {
+  const { list } = useCategories();
   return (
     <Modal onClose={onClose}>
       <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>Entrada manual</div>
@@ -40,7 +42,7 @@ export default function ManualTxModal({
       </div>
       <label style={S.lbl}>Categoría</label>
       <select style={{ ...S.inp, marginBottom: 14 }} value={form.cat} onChange={(e) => update({ cat: e.target.value })}>
-        {Object.entries(CATS).map(([k, v]) => <option key={k} value={k}>{v.icon} {k}</option>)}
+        {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
       </select>
       <label style={S.lbl}>Cuenta</label>
       <select style={{ ...S.inp, marginBottom: 20 }} value={form.aid} onChange={(e) => update({ aid: e.target.value })}>

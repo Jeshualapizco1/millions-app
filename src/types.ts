@@ -41,11 +41,16 @@ export interface Budget {
 
 export type Goal = Omit<Tables<"goals">, "user_id" | "updated_at">;
 
+export type CategoryKind = Enums<"category_kind">;
+
 export interface Category {
   id: string;
   name: string;
   icon: string;
   color: string;
+  kind: CategoryKind;
+  hidden: boolean;
+  sort_order: number;
 }
 
 export type RecurringFrequency = Enums<"recurring_frequency">;

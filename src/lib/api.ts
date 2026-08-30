@@ -5,7 +5,7 @@
 // ============================================================================
 import type { Tables } from "./database.types";
 import { sbClient } from "./supabase";
-import type { Account, Budget, Category, ChatMsg, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
+import type { Account, Budget, Category, CategoryKind, ChatMsg, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
 
 const fail = (error: { message: string } | null): never => {
   throw new Error(error?.message || "Error de servidor");
@@ -26,11 +26,11 @@ const uid = async (): Promise<string> => {
 // ── Categorías (cache de sesión: nombre ⇄ id) ───────────────────────────────
 let catCache: Category[] | null = null;
 
+/** Trae también las ocultas: la pantalla de gestión las necesita. */
 const loadCategories = async (): Promise<Category[]> => {
   const { data, error } = await sbClient
     .from("categories")
-    .select("id,name,icon,color")
-    .eq("hidden", false)
+    .select("id,name,icon,color,kind,hidden,sort_order")
     .order("sort_order");
   if (error) fail(error);
   catCache = data!;
@@ -107,6 +107,20 @@ const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promis
 export const api = {
   // ── Categorías ────────────────────────────────────────────────────────────
   getCategories: loadCategories,
+  async upsertCategory(p: { id?: string; name: string; icon: string; color: string; kind: CategoryKind }): Promise<void> {
+    const row = { name: p.name, icon: p.icon, color: p.color, kind: p.kind };
+    const { error } = p.id
+      ? await sbClient.from("categories").update(row).eq("id", p.id)
+      : await sbClient.from("categories").insert({ ...row, user_id: await uid(), sort_order: 99 });
+    if (error) fail(error);
+    catCache = null;
+  },
+  /** No se borran: los movimientos que las usan perderían su etiqueta. */
+  async setCategoryHidden(id: string, hidden: boolean): Promise<void> {
+    const { error } = await sbClient.from("categories").update({ hidden }).eq("id", id);
+    if (error) fail(error);
+    catCache = null;
+  },
 
   // ── Cuentas ───────────────────────────────────────────────────────────────
   async getAccounts(): Promise<Account[]> {

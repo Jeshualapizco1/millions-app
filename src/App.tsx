@@ -4,12 +4,14 @@ import CreditForm, { type CreditFormState } from "./components/CreditForm";
 import Fab from "./components/Fab";
 import Modal from "./components/Modal";
 import ConfirmModal from "./components/ConfirmModal";
+import { CategoriesProvider } from "./lib/categories";
+import CategoriesModal from "./modals/CategoriesModal";
 import { Toasts, useToasts } from "./components/Toast";
 import { useAI, type ParsedNewAcc, type ParsedTx } from "./hooks/useAI";
 import { useFinanceData } from "./hooks/useFinanceData";
 import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
-import { ACC_COLORS, C, CATS } from "./lib/constants";
+import { ACC_COLORS, C } from "./lib/constants";
 import { daysUntil, fmt, monthLabel } from "./lib/format";
 import { daysUntilDate } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
@@ -44,7 +46,7 @@ const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amou
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, booting, loadError, accsRef, txsRef, creditsRef, goalsRef } = useFinanceData();
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, booting, loadError, accsRef, txsRef, creditsRef, goalsRef } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
   const { toasts, push, dismiss } = useToasts();
 
@@ -78,6 +80,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [mRecurring, setMRecurring] = useState(false);
   const [editRecurring, setEditRecurring] = useState<RecurringRule | null>(null);
   const [confirm, setConfirm] = useState<{ title: string; message: string; confirmLabel?: string; action: () => void } | null>(null);
+  const [mCats, setMCats] = useState(false);
 
   const oops = (e: unknown, fallback: string) => {
     console.error(e);
@@ -425,6 +428,22 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   // ── AI + voz ───────────────────────────────────────────────────────────────
+  const saveCategory = async (d: Parameters<typeof api.upsertCategory>[0]) => {
+    await api.upsertCategory(d);
+    setCategories(await api.getCategories());
+    push({ kind: "ok", text: d.id ? "Categoría actualizada" : `Categoría "${d.name}" creada` });
+  };
+
+  const toggleCategoryHidden = async (c: { id: string; hidden: boolean; name: string }) => {
+    setCategories((p) => p.map((x) => (x.id === c.id ? { ...x, hidden: !c.hidden } : x)));
+    try {
+      await api.setCategoryHidden(c.id, !c.hidden);
+    } catch (e) {
+      setCategories((p) => p.map((x) => (x.id === c.id ? { ...x, hidden: c.hidden } : x)));
+      oops(e, "No se pudo cambiar la categoría");
+    }
+  };
+
   const actionContext = () => ({ accs: accsRef.current, credits: creditsRef.current, goals: goalsRef.current });
 
   /** Tras ejecutar una acción del asesor, recargar lo que pudo cambiar. */
@@ -436,7 +455,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   const { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction } =
-    useAI({ applyTx, applyNewAcc, setTxInput, setLive, actionContext, onActionDone: reloadAfterAction });
+    useAI({ applyTx, applyNewAcc, setTxInput, setLive, categoryNames: () => categories.filter((c) => !c.hidden).map((c) => c.name), actionContext, onActionDone: reloadAfterAction });
 
   const { mic, voiceOK, startMic, stopMic } = useVoice({
     onResult: (t) => { setLive(t); setTxInput(t); },
@@ -491,8 +510,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const catData = useMemo(() => {
     const map: Record<string, number> = {};
     periodTxs.filter((t) => t.kind === "gasto").forEach((t) => { const c = t.category || "Otros"; map[c] = (map[c] || 0) + Number(t.amount); });
-    return Object.entries(map).map(([label, value]) => ({ label, value, color: CATS[label]?.color || "#6b7280", icon: CATS[label]?.icon || "📦" })).sort((a, b) => b.value - a.value);
-  }, [periodTxs]);
+    return Object.entries(map).map(([label, value]) => {
+      const c = categories.find((x) => x.name === label);
+      return { label, value, color: c?.color || "#6b7280", icon: c?.icon || "📦" };
+    }).sort((a, b) => b.value - a.value);
+  }, [periodTxs, categories]);
 
   // 6-month data
   const monthlyData = useMemo(() => {
@@ -549,6 +571,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   );
 
   return (
+    <CategoriesProvider categories={categories.filter((c) => !c.hidden)}>
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: C.bg }}>
       {/* Header */}
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)" }}>
@@ -591,7 +614,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 100px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
         {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
-        {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
+        {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} />}
         {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} />}
@@ -649,6 +672,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {/* Modal: Entrada manual */}
       {mMan && <ManualTxModal form={man} update={(p) => setMan((f) => ({ ...f, ...p }))} accs={accs} onSave={saveTxManual} onClose={() => setMMan(false)} />}
 
+      {/* Modal: Categorías */}
+      {mCats && <CategoriesModal categories={categories} onSave={saveCategory} onToggleHidden={toggleCategoryHidden} onClose={() => setMCats(false)} />}
+
       {/* Confirmación de borrados */}
       {confirm && (
         <ConfirmModal
@@ -663,5 +689,6 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {/* Modal: Cambiar contraseña */}
       {mPass && <PasswordModal onDone={() => { setMPass(false); push({ kind: "ok", text: "Contraseña actualizada" }); }} onClose={() => setMPass(false)} />}
     </div>
+    </CategoriesProvider>
   );
 }

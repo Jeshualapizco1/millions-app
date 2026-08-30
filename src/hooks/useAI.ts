@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { api } from "../lib/api";
-import { CATS } from "../lib/constants";
 import { describeAction, runAction, type ActionContext } from "../lib/actions";
 import type { AiMsg, ChatMsg, ProposedAction, TxType } from "../types";
 
@@ -40,6 +39,7 @@ export function useAI({
   applyNewAcc,
   setTxInput,
   setLive,
+  categoryNames,
   actionContext,
   onActionDone,
 }: {
@@ -48,6 +48,8 @@ export function useAI({
   setTxInput: (v: string) => void;
   setLive: (v: string) => void;
   /** Datos vivos para resolver nombres → ids. */
+  /** Nombres válidos de categoría, para no guardar una inventada. */
+  categoryNames: () => string[];
   actionContext: () => ActionContext;
   /** Tras ejecutar, App recarga lo que cambió. */
   onActionDone: () => Promise<void>;
@@ -77,7 +79,7 @@ export function useAI({
       }
       let reply: string = p.reply || "Listo";
       if (p.action === "transaccion" && Number(p.amount) > 0) {
-        if (p.category && !CATS[p.category]) p.category = "Otros";
+        if (p.category && !categoryNames().includes(p.category)) p.category = "Otros";
         const r = await applyTx(p);
         if (!r.ok) reply = r.error || "No pude registrar el movimiento";
       } else if (p.action === "nueva_cuenta" && p.accountName) {

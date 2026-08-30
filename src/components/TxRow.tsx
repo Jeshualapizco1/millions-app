@@ -1,4 +1,5 @@
-import { C, CATS } from "../lib/constants";
+import { C } from "../lib/constants";
+import { useCategories } from "../lib/categories";
 import { fmt } from "../lib/format";
 import type { Transaction } from "../types";
 
@@ -18,8 +19,9 @@ export default function TxRow({
   onDelete?: (id: string) => void;
   onEdit?: (tx: Transaction) => void;
 }) {
+  const { look } = useCategories();
   const special = KIND_LOOK[tx.kind];
-  const cat = CATS[tx.category] || CATS["Otros"];
+  const cat = look(tx.category);
   const icon = special?.icon ?? cat.icon;
   const color = special?.color ?? cat.color;
 

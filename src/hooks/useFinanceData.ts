@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
-import type { Account, Budget, Credit, Goal, RecurringRule, Transaction, Upcoming } from "../types";
+import type { Account, Budget, Category, Credit, Goal, RecurringRule, Transaction, Upcoming } from "../types";
 
 /** Carga inicial + estado de accounts/txs/credits/budgets/goals, con refs espejo para callbacks. */
 export function useFinanceData() {
@@ -11,6 +11,7 @@ export function useFinanceData() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [recurring, setRecurring] = useState<RecurringRule[]>([]);
   const [upcoming, setUpcoming] = useState<Upcoming[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [booting, setBooting] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -27,7 +28,8 @@ export function useFinanceData() {
 
   useEffect(() => {
     Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7)])
-      .then(([, a, t, cr, b, g, rr, up]) => {
+      .then(([cats, a, t, cr, b, g, rr, up]) => {
+        setCategories(cats);
         setAccs(a);
         setTxs(t);
         setCredits(cr);
@@ -45,7 +47,7 @@ export function useFinanceData() {
 
   return {
     accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals,
-    recurring, setRecurring, upcoming, setUpcoming,
+    recurring, setRecurring, upcoming, setUpcoming, categories, setCategories,
     booting, loadError, accsRef, txsRef, creditsRef, budgetsRef, goalsRef,
   };
 }

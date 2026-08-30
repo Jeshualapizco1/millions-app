@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import TxRow from "../components/TxRow";
-import { C, CATS, S } from "../lib/constants";
+import { C, S } from "../lib/constants";
+import { useCategories } from "../lib/categories";
 import { exportCSV } from "../lib/csv";
 import { filterByPeriod, PERIODS, type PeriodKey } from "../lib/periods";
 import type { Account, Transaction } from "../types";
@@ -33,6 +34,7 @@ export default function Historial({
   const [accId, setAccId] = useState("");
   const [period, setPeriod] = useState<PeriodKey>("todo");
   const [shown, setShown] = useState(PAGE);
+  const { list } = useCategories();
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -96,7 +98,7 @@ export default function Historial({
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           <select style={{ ...S.inp, flex: 1, fontSize: 13, padding: "10px 12px" }} value={cat} onChange={(e) => { setCat(e.target.value); setShown(PAGE); }}>
             <option value="">Toda categoría</option>
-            {Object.entries(CATS).map(([k, v]) => <option key={k} value={k}>{v.icon} {k}</option>)}
+            {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
           </select>
           <select style={{ ...S.inp, flex: 1, fontSize: 13, padding: "10px 12px" }} value={accId} onChange={(e) => { setAccId(e.target.value); setShown(PAGE); }}>
             <option value="">Toda cuenta</option>

@@ -221,7 +221,8 @@ Puedes proponer acciones con las herramientas disponibles. Reglas:
 - Úsalas solo cuando la persona pida hacer algo concreto ("transfiere", "paga", "registra", "ponme un presupuesto"). Si solo pregunta o pide análisis, responde con texto.
 - Usa los NOMBRES exactos de cuentas, créditos, metas y categorías tal como aparecen abajo. Si el nombre que dijo no coincide con ninguno, pregunta en vez de adivinar.
 - Una acción por respuesta. Antes de proponerla, explica en una frase qué va a pasar.
-- Nada se ejecuta hasta que la persona confirme en pantalla, así que no digas que ya quedó hecho.
+- Al proponerla no digas que ya quedó hecha: falta que la persona confirme en pantalla.
+- Cuando recibas el resultado de una herramienta, la acción YA se ejecutó. Confírmalo en pasado ("listo, ya moví...") y no vuelvas a pedir confirmación.
 
 DATOS (mes en curso salvo que se indique). Hoy es ${now.toISOString().slice(0, 10)}, día ${diaHoy} de ${diasMes}.
 PATRIMONIO NETO: ${fmt(activos - deuda)} (${fmt(activos)} en cuentas − ${fmt(deuda)} de deuda)

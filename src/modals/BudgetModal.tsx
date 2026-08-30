@@ -1,5 +1,6 @@
 import Modal from "../components/Modal";
-import { C, CATS, S } from "../lib/constants";
+import { C, S } from "../lib/constants";
+import { useCategories } from "../lib/categories";
 
 export default function BudgetModal({
   budgetCat,
@@ -16,13 +17,14 @@ export default function BudgetModal({
   onSave: () => void;
   onClose: () => void;
 }) {
+  const { list } = useCategories();
   return (
     <Modal onClose={onClose}>
       <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>Nuevo presupuesto</div>
       <label style={S.lbl}>Categoría</label>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-        {Object.entries(CATS).filter(([k]) => k !== "Ventas" && k !== "Nómina" && k !== "Transferencia").map(([k, v]) => (
-          <button key={k} onClick={() => onCat(k)} style={{ padding: "7px 12px", borderRadius: 20, border: `2px solid ${budgetCat === k ? v.color : C.border + "44"}`, background: budgetCat === k ? v.color + "22" : "transparent", color: budgetCat === k ? v.color : C.muted, fontSize: 13, cursor: "pointer", fontWeight: budgetCat === k ? 700 : 400 }}>{v.icon} {k}</button>
+        {list.filter((c) => c.kind !== "ingreso").map((c) => (
+          <button key={c.id} onClick={() => onCat(c.name)} style={{ padding: "7px 12px", borderRadius: 20, border: `2px solid ${budgetCat === c.name ? c.color : C.border + "44"}`, background: budgetCat === c.name ? c.color + "22" : "transparent", color: budgetCat === c.name ? c.color : C.muted, fontSize: 13, cursor: "pointer", fontWeight: budgetCat === c.name ? 700 : 400 }}>{c.icon} {c.name}</button>
         ))}
       </div>
       <label style={S.lbl}>Límite mensual</label>

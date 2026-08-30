@@ -1,0 +1,41 @@
+name: CI
+
+# Netlify ya despliega solo desde `main`. Esto corre antes/junto: si el
+# typecheck o las pruebas fallan, el PR queda marcado en rojo.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Pruebas unitarias
+        run: npm test
+
+      # `npm run build` corre tsc y luego vite: cubre typecheck y compilación.
+      # Las variables son públicas por diseño (la publishable key va al bundle);
+      # aquí solo necesitan existir para que el build no falle.
+      - name: Typecheck y build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+
+      - name: El bundle no debe llevar secretos
+        run: |
+          if grep -rE 'sb_secret_|sk-ant-' dist/assets/ ; then
+            echo "::error::Se encontró una llave secreta en el bundle del cliente"
+            exit 1
+          fi
+          echo "OK: sin secretos en dist/"

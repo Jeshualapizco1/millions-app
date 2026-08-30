@@ -1,5 +1,6 @@
 import ProgressBar from "../components/ProgressBar";
-import { C, CATS, S } from "../lib/constants";
+import { C, S } from "../lib/constants";
+import { useCategories } from "../lib/categories";
 import { daysUntilDate } from "../lib/dates";
 import { fmt } from "../lib/format";
 import type { Budget, Goal, RecurringRule } from "../types";
@@ -18,6 +19,7 @@ export default function Metas({
   goals,
   recurring,
   onAddBudget,
+  onManageCategories,
   onDeleteBudget,
   onNewGoal,
   onEditGoal,
@@ -30,6 +32,7 @@ export default function Metas({
   goals: Goal[];
   recurring: RecurringRule[];
   onAddBudget: () => void;
+  onManageCategories: () => void;
   onDeleteBudget: (id: string) => void;
   onNewGoal: () => void;
   onEditGoal: (g: Goal) => void;
@@ -38,6 +41,7 @@ export default function Metas({
   onEditRecurring: (r: RecurringRule) => void;
   onToggleRecurring: (r: RecurringRule) => void;
 }) {
+  const { look } = useCategories();
   return (
     <div className="fadeUp">
       {/* Movimientos fijos */}
@@ -60,8 +64,8 @@ export default function Metas({
           return (
             <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: `1px solid ${C.border}22`, opacity: r.active ? 1 : 0.5 }}>
               <div onClick={() => onEditRecurring(r)} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: (CATS[r.category]?.color || C.muted) + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
-                  {CATS[r.category]?.icon || "🔁"}
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: look(r.category).color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                  {look(r.category).icon}
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
@@ -94,7 +98,10 @@ export default function Metas({
             <div style={{ fontWeight: 800, fontSize: 16 }}>📋 Presupuestos</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Límites mensuales por categoría</div>
           </div>
-          <button onClick={onAddBudget} style={{ ...S.btn(), padding: "8px 14px", fontSize: 13 }}>＋ Agregar</button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={onManageCategories} title="Gestionar categorías" style={{ ...S.btnO, padding: "8px 12px", fontSize: 13 }}>🏷️</button>
+            <button onClick={onAddBudget} style={{ ...S.btn(), padding: "8px 14px", fontSize: 13 }}>＋ Agregar</button>
+          </div>
         </div>
         {budgetProgress.length === 0 && <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 16 }}>Sin presupuestos. Define cuánto puedes gastar por categoría.</div>}
         {budgetProgress.map((b) => {
@@ -104,7 +111,7 @@ export default function Metas({
             <div key={b.id} style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 16 }}>{CATS[b.category]?.icon || "📦"}</span>
+                  <span style={{ fontSize: 16 }}>{look(b.category).icon}</span>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{b.category}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
