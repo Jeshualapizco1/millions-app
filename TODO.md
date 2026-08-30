@@ -71,11 +71,13 @@ ahí ya se resolvió o quedó registrado abajo con su motivo.
 
 ## ⏳ Pendiente
 
-- **Patrimonio neto** (activos − deudas) con tendencia mensual. Es el número
-  que más importa y todavía no existe.
-- **Proyección de cierre de mes** con recurrentes y promedio de gasto.
 - **IA con acciones**: que el asesor pueda ejecutar desde el chat, con
-  confirmación en la UI.
+  confirmación en la UI. Requiere tool use y un viaje de ida y vuelta:
+  la función devuelve la acción propuesta, el cliente la confirma y ejecuta,
+  y le regresa el resultado al modelo.
+- **Snapshots de patrimonio.** Hoy la tendencia se reconstruye desde los
+  movimientos, así que un saldo o una deuda ajustados a mano la desvían.
+  Un job mensual que guarde el corte real lo volvería historia registrada.
 - **Presupuesto total mensual** y rollover del sobrante.
 - **Categorías personalizadas**: la tabla ya existe por usuario, falta la UI.
 - **Sincronización offline** de escrituras (hoy el service worker cachea el
