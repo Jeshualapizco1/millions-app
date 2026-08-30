@@ -1,0 +1,51 @@
+{
+  "source": {
+    "project_ref": "jyttvttnzndvqqrghqna",
+    "project_name": "Analítica - Orgánico",
+    "taken_at": "2026-08-30",
+    "tables": ["jeshua_accounts", "jeshua_transactions", "jeshua_credits", "jeshua_budgets", "jeshua_goals"]
+  },
+  "users": [
+    {"id": "8b96a7a5-2c13-4076-9b90-b7ee46eddec0", "email": "jeshua@aromante.mx", "name": "Jeshua", "created_at": "2026-03-05T04:15:11.037131+00:00", "has_data": false},
+    {"id": "6f6ba00f-1252-418c-b108-d3c477be3d89", "email": "josue@aromante.mx", "name": "Josué Suárez", "created_at": "2026-03-11T16:26:28.672917+00:00", "has_data": false},
+    {"id": "e853362b-1ab3-4e16-ae7b-e02234fe6ea6", "email": "arthur@aromante.mx", "name": "Arthur2003@", "created_at": "2026-03-20T00:38:50.030838+00:00", "has_data": false},
+    {"id": "e22bde82-debe-486b-90a6-49c5fc14aedc", "email": "karyme@aromante.mx", "name": "Karyme Guerrero", "created_at": "2026-03-20T00:39:47.791326+00:00", "has_data": false},
+    {"id": "f6edeaa3-3629-42f5-838f-57ab4d773b25", "email": "eduardo@aromante.mx", "name": "Eduardo Beltran", "created_at": "2026-03-20T01:59:50.710181+00:00", "has_data": false},
+    {"id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "email": "jeshualapizco@gmail.com", "name": "Jeshua Alapizco", "created_at": "2026-05-18T18:44:42.089828+00:00", "has_data": true}
+  ],
+  "accounts": [
+    {"id": "ceb1ec62-cbf5-4977-b3aa-b0d36cd65b1a", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "name": "Efectivo", "balance": 38900, "icon": "💵", "color": "#4ade80", "created_at": "2026-05-17T22:47:23.599266+00:00"},
+    {"id": "71dad363-d62c-4299-be5a-865adf09577d", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "name": "MercadoPago", "balance": 1216664.37, "icon": "💳", "color": "#00b1ea", "created_at": "2026-05-17T22:47:23.599266+00:00"},
+    {"id": "d3c614f5-9bb2-4906-874a-0957dfbfde42", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "name": "Revolut", "balance": 26257, "icon": "💳", "color": "#f472b6", "created_at": "2026-05-18T04:08:05.933857+00:00"},
+    {"id": "cb944ad2-335e-4ac0-a637-2791974acc1f", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "name": "BanRegio", "balance": 110849.81, "icon": "💳", "color": "#fb923c", "created_at": "2026-05-18T04:28:34.097052+00:00"},
+    {"id": "4a8e891a-1ed3-4c77-afb3-0841f64dde1d", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "name": "Caja Fuerte", "balance": 373296, "icon": "🏦", "color": "#34d399", "created_at": "2026-05-18T15:41:13.526513+00:00"},
+    {"id": "eb06e735-be80-4c88-9d7f-b38b1818ca2f", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "name": "Fondeadora", "balance": 26595, "icon": "💳", "color": "#60a5fa", "created_at": "2026-05-18T15:42:27.093629+00:00"}
+  ],
+  "transactions": [
+    {"id": "8f4e20b7-90f2-4cba-a335-93cfefc2f596", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Transferencia a esposa Fany", "amount": 10000, "type": "gasto", "category": "Transferencia", "account_id": "71dad363-d62c-4299-be5a-865adf09577d", "account_name": "MercadoPago", "date": "2026-05-18T04:53:45.037+00:00"},
+    {"id": "4ce5e834-a482-4373-82a8-1205a36ef4e3", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Electrol Lit de moras azules", "amount": 47, "type": "gasto", "category": "Salud", "account_id": "d3c614f5-9bb2-4906-874a-0957dfbfde42", "account_name": "Revolut", "date": "2026-05-18T18:14:35.658+00:00"},
+    {"id": "a70ef665-9a09-4156-a544-5e0946fd0da4", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Inversión en mentoría para marca personal", "amount": 100000, "type": "gasto", "category": "Educación", "account_id": "4a8e891a-1ed3-4c77-afb3-0841f64dde1d", "account_name": "Caja Fuerte", "date": "2026-05-20T13:34:29.429+00:00"},
+    {"id": "08d0fc4c-fca4-46b7-9522-b79e978e3862", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Transferencia a Stephanie (esposa)", "amount": 10000, "type": "gasto", "category": "Transferencia", "account_id": "71dad363-d62c-4299-be5a-865adf09577d", "account_name": "MercadoPago", "date": "2026-05-20T13:35:30.564+00:00"},
+    {"id": "b8b42091-10e9-480f-8883-429fdb4d1408", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Americano en Starbucks", "amount": 59, "type": "gasto", "category": "Alimentación", "account_id": "d3c614f5-9bb2-4906-874a-0957dfbfde42", "account_name": "Revolut", "date": "2026-05-20T18:32:06.024+00:00"},
+    {"id": "ca1c31be-f441-4f1f-9774-41e7ec4715d7", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Depósito para nuevo departamento", "amount": 80000, "type": "gasto", "category": "Otros", "account_id": "71dad363-d62c-4299-be5a-865adf09577d", "account_name": "MercadoPago", "date": "2026-05-21T13:20:53.207+00:00"},
+    {"id": "5abb0453-78d1-45a8-9694-19ff5e77a8ed", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Transferencia a Elías - diseño tribu", "amount": 14500, "type": "gasto", "category": "Transferencia", "account_id": "71dad363-d62c-4299-be5a-865adf09577d", "account_name": "MercadoPago", "date": "2026-05-21T13:21:41.204+00:00"},
+    {"id": "dbf77097-e716-43bd-a85c-7c6083269465", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Multas y recargos de privada", "amount": 2150, "type": "gasto", "category": "Servicios", "account_id": "71dad363-d62c-4299-be5a-865adf09577d", "account_name": "MercadoPago", "date": "2026-05-22T20:07:54.492+00:00"},
+    {"id": "50722097-80b8-445a-abcf-61f7bf93178c", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Internet Totalplay", "amount": 720, "type": "gasto", "category": "Servicios", "account_id": "71dad363-d62c-4299-be5a-865adf09577d", "account_name": "MercadoPago", "date": "2026-05-22T20:08:26.952+00:00"},
+    {"id": "0bb91556-d189-4559-b75b-653eb7ee3e33", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Mantenimiento de la privada donde vivo", "amount": 6015.24, "type": "gasto", "category": "Servicios", "account_id": "71dad363-d62c-4299-be5a-865adf09577d", "account_name": "MercadoPago", "date": "2026-05-22T20:09:26.639+00:00"},
+    {"id": "eb732935-0b09-4baf-bf18-e76098ca8e9a", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "gasolina", "amount": 1154.07, "type": "gasto", "category": "Transporte", "account_id": "cb944ad2-335e-4ac0-a637-2791974acc1f", "account_name": "BanRegio", "date": "2026-05-22T20:11:06.514+00:00"},
+    {"id": "b1bcf4df-3c87-4098-93ba-ce382bf89c2c", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Starbucks", "amount": 89, "type": "gasto", "category": "Alimentación", "account_id": "d3c614f5-9bb2-4906-874a-0957dfbfde42", "account_name": "Revolut", "date": "2026-05-23T18:52:33.112+00:00"},
+    {"id": "5914fc45-6e68-41f3-98f0-d066f5549623", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "description": "Cake pop (postre)", "amount": 45, "type": "gasto", "category": "Alimentación", "account_id": "d3c614f5-9bb2-4906-874a-0957dfbfde42", "account_name": "Revolut", "date": "2026-05-23T19:07:40.384+00:00"}
+  ],
+  "credits": [
+    {"id": "0b9e1009-15a2-4242-9391-9cb1adb729d3", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "name": "Mercado credito", "type": "tarjeta", "institution": "Mercadopago", "total_debt": 7875.92, "credit_limit": 50700, "monthly_payment": null, "cut_day": 27, "payment_day": 8, "next_payment_date": null, "interest_rate": null, "notes": null, "created_at": "2026-05-18T04:22:56.271823+00:00"},
+    {"id": "e92fb599-ff5f-43c3-8fd0-052e47fd646d", "user_id": "f63c7e83-956d-4ffc-a984-932f47f1200b", "name": "Jaecoo mamá", "type": "auto", "institution": "BBVA", "total_debt": 0, "credit_limit": null, "monthly_payment": 11300, "cut_day": null, "payment_day": null, "next_payment_date": "2026-06-15", "interest_rate": null, "notes": null, "created_at": "2026-05-18T04:26:00.340286+00:00"}
+  ],
+  "budgets": [],
+  "goals": [],
+  "checksums": {
+    "accounts_total_balance": 1792562.18,
+    "transactions_count": 13,
+    "transactions_total_amount": 224779.31,
+    "credits_total_debt": 7875.92
+  }
+}
