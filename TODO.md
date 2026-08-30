@@ -66,24 +66,38 @@ ahí ya se resolvió o quedó registrado abajo con su motivo.
 - Bundle de 669 KB en un solo archivo → partido en `react`/`supabase`/`charts`
   con las gráficas diferidas: la carga inicial pasó de ~200 KB a ~129 KB gzip.
 - Historial de la IA acotado: el costo por llamada ya no crece con la sesión.
-- Pruebas: `npm test` (12 unitarias de la lógica pura) y tres suites de
-  integración contra el proyecto real en `supabase/tests/`.
+- Pruebas: `npm test` (19 unitarias de la lógica pura) y cuatro suites de
+  integración contra el proyecto real en `supabase/tests/`: contrato del
+  frontend, flujos de dinero, motor de recurrentes y ciclo de acciones de la IA.
+
+### Análisis y automatización
+- **Patrimonio neto** con tendencia de 6 meses y **proyección de cierre de mes**
+  por ritmo diario más los fijos pendientes.
+- **Movimientos recurrentes** con `pg_cron`: se ponen al corriente si el job no
+  corre, no duplican y respetan la pausa.
+- **Cortes mensuales de patrimonio** (`net_worth_snapshots`): a partir de ahora
+  la tendencia será historia registrada, no reconstrucción.
+- **IA con acciones**: el asesor propone (transferir, pagar crédito, registrar
+  movimiento, crear presupuesto, abonar a meta) y la persona confirma en una
+  tarjeta que muestra el efecto exacto. Nada se ejecuta antes. Las herramientas
+  reciben nombres, no ids, para que el modelo no pueda inventar un UUID.
+- **Categorías personalizadas**: salieron del código a la base, con gestión
+  propia. Se ocultan, no se borran: los movimientos conservan su etiqueta.
+
+### Infraestructura
+- **CI en GitHub Actions**: pruebas, typecheck, build y un paso que falla si
+  aparece una llave secreta en el bundle del cliente.
 
 ## ⏳ Pendiente
 
-- **IA con acciones**: que el asesor pueda ejecutar desde el chat, con
-  confirmación en la UI. Requiere tool use y un viaje de ida y vuelta:
-  la función devuelve la acción propuesta, el cliente la confirma y ejecuta,
-  y le regresa el resultado al modelo.
-- **Snapshots de patrimonio.** Hoy la tendencia se reconstruye desde los
-  movimientos, así que un saldo o una deuda ajustados a mano la desvían.
-  Un job mensual que guarde el corte real lo volvería historia registrada.
-- **Presupuesto total mensual** y rollover del sobrante.
-- **Categorías personalizadas**: la tabla ya existe por usuario, falta la UI.
-- **Sincronización offline** de escrituras (hoy el service worker cachea el
-  shell, pero no encola operaciones sin red).
-- **CI en GitHub Actions** y **Sentry**.
-- **Recordatorios por correo** antes de cada corte o pago.
+Nada de esto bloquea el uso diario; son mejoras según lo que pida el uso real.
+
+- **Rollover del presupuesto** (la columna `profiles.monthly_budget` ya existe;
+  falta la UI del techo global y arrastrar el sobrante).
+- **Sincronización offline** de escrituras: el service worker cachea el shell,
+  pero no encola operaciones hechas sin red.
+- **Sentry** para enterarse de los errores de producción.
+- **Recordatorios por correo** antes de cada corte o pago (`pg_cron` + Resend).
 - **Multi-moneda** (Revolut) y **recibos** en Storage.
 - **Importar CSV** del banco.
 - **Modo equipo** con espacios compartidos.
