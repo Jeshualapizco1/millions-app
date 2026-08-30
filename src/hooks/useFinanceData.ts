@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { logError } from "../lib/errorLog";
 import type { Account, Budget, Category, Credit, Goal, Profile, RecurringRule, Transaction, Upcoming } from "../types";
 
 /** Carga inicial + estado de accounts/txs/credits/budgets/goals, con refs espejo para callbacks. */
@@ -42,6 +43,7 @@ export function useFinanceData() {
       })
       .catch((e) => {
         console.error(e);
+        logError(e, { action: "carga inicial de datos" });
         setLoadError(e?.message || "No se pudieron cargar tus datos");
       })
       .finally(() => setBooting(false));

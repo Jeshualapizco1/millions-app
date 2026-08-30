@@ -3,6 +3,11 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  // Netlify expone COMMIT_REF en el build. Va al registro de errores para
+  // poder atar un fallo al despliegue exacto que lo introdujo.
+  define: {
+    __COMMIT__: JSON.stringify((process.env.COMMIT_REF || "local").slice(0, 7)),
+  },
   build: {
     rollupOptions: {
       output: {

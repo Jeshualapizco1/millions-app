@@ -17,6 +17,7 @@ import { daysUntilDate } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
+import { logError } from "./lib/errorLog";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
 import BudgetModal from "./modals/BudgetModal";
 import GoalModal, { AddToGoalModal, type GoalFormState } from "./modals/GoalModal";
@@ -90,6 +91,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
   const oops = (e: unknown, fallback: string) => {
     console.error(e);
+    logError(e, { action: fallback, tab });
     push({ kind: "error", text: (e as Error)?.message || fallback });
   };
 

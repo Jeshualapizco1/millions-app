@@ -8,3 +8,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Commit desplegado, inyectado por Vite. */
+declare const __COMMIT__: string;

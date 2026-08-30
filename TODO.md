@@ -91,14 +91,15 @@ ahí ya se resolvió o quedó registrado abajo con su motivo.
   rebasar, y **arrastre** opcional del sobrante por categoría (un solo mes).
 - **Importar CSV del banco** con parser propio, detección de duplicados y una
   RPC que escribe hasta 2000 filas en una sola transacción.
+- **Registro de errores** en la propia base (`client_errors`): lo que antes
+  moría en `console.error` queda con su ruta, acción y commit desplegado.
+  Se calla solo ante fallos repetidos y se purga a los 60 días.
 
 ## ⏳ Pendiente
 
 Nada de esto bloquea el uso diario; son mejoras según lo que pida el uso real.
 
 ### Requieren una cuenta o llave que no tengo
-- **Sentry** para enterarse de los errores de producción. Necesito un DSN.
-  Alternativa sin terceros: una tabla `client_errors` en Supabase.
 - **Recordatorios por correo** antes de cada corte o pago. `pg_cron` ya está
   listo; falta un proveedor de envío (Resend, Postmark) y su API key.
 
@@ -109,9 +110,11 @@ Nada de esto bloquea el uso diario; son mejoras según lo que pida el uso real.
 - **Multi-moneda** (Revolut): el esquema ya tiene `currency` por cuenta; falta
   una fuente de tipo de cambio y decidir cómo consolidar.
 - **Recibos** en Storage: foto adjunta a la transacción, con RLS por usuario.
-- **Modo equipo** con espacios compartidos. Es el más invasivo: implica una
-  tabla `workspaces` y reescribir las políticas RLS por membresía. No debería
-  improvisarse.
+## 🚫 Descartado
+
+- **Modo equipo / espacios compartidos.** Millions es una app de finanzas
+  personales; el multi-tenant traería una tabla `workspaces` y reescribir todas
+  las políticas RLS por membresía, a cambio de nada que el usuario necesite.
 
 ## ℹ️ No aplica
 

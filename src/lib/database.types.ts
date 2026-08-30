@@ -80,6 +80,33 @@ export type Database = {
         }
         Relationships: []
       }
+      client_errors: {
+        Row: {
+          context: Json
+          created_at: string
+          id: number
+          message: string
+          stack: string | null
+          user_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          id?: never
+          message: string
+          stack?: string | null
+          user_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          id?: never
+          message?: string
+          stack?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       budgets: {
         Row: {
           amount: number
