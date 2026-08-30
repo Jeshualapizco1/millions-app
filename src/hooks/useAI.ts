@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import { CATS } from "../lib/constants";
-import type { AiMsg, ChatMsg, TxType } from "../types";
+import { describeAction, runAction, type ActionContext } from "../lib/actions";
+import type { AiMsg, ChatMsg, ProposedAction, TxType } from "../types";
 
 /** Lo que la IA extrae del lenguaje natural para registrar una transacción. */
 export interface ParsedTx {
@@ -19,27 +20,37 @@ export interface ParsedNewAcc {
 }
 
 const AI_GREETING =
-  "¡Hola! Soy tu asesor financiero 🤖\n\nAnalizo tus cuentas, gastos, ingresos, créditos, presupuestos y metas.\n\nEjemplos:\n• ¿Cómo voy con mis presupuestos?\n• ¿Cuándo llegaré a mi meta de ahorro?\n• Dame un análisis completo\n• ¿En qué gasto más?";
+  "¡Hola! Soy tu asesor financiero 🤖\n\nAnalizo tus cuentas, gastos, ingresos, créditos, presupuestos y metas — y puedo hacer cosas por ti.\n\nEjemplos:\n• ¿Cómo voy con mis presupuestos?\n• Transfiere 2000 de Efectivo a BanRegio\n• Pon un presupuesto de 8 mil en Alimentación\n• Dame un análisis completo";
 
 /** Historial acotado: el costo por llamada deja de crecer con la sesión. */
 const CAPTURE_TURNS = 6;
-const ADVISE_TURNS = 10;
+const ADVISE_TURNS = 12;
 
 /**
  * sendTx (captura por voz/texto) y sendAnalysis (asesor). El contexto
  * financiero y el system prompt se construyen en el SERVIDOR; el cliente
  * solo manda los mensajes.
+ *
+ * Cuando el asesor propone una acción, NO se ejecuta: viaja al chat como una
+ * tarjeta que la persona confirma. Al confirmar se ejecuta aquí y se le
+ * devuelve el resultado al modelo para que cierre la conversación.
  */
 export function useAI({
   applyTx,
   applyNewAcc,
   setTxInput,
   setLive,
+  actionContext,
+  onActionDone,
 }: {
   applyTx: (tx: ParsedTx) => Promise<{ ok: boolean; error?: string }>;
   applyNewAcc: (d: ParsedNewAcc) => Promise<void>;
   setTxInput: (v: string) => void;
   setLive: (v: string) => void;
+  /** Datos vivos para resolver nombres → ids. */
+  actionContext: () => ActionContext;
+  /** Tras ejecutar, App recarga lo que cambió. */
+  onActionDone: () => Promise<void>;
 }) {
   const [txLoading, setTxLoading] = useState(false);
   const [txHistory, setTxHistory] = useState<ChatMsg[]>([]);
@@ -57,7 +68,7 @@ export function useAI({
     const newHist = [...txHistory, { role: "user" as const, content: text }].slice(-CAPTURE_TURNS);
     setTxHistory(newHist);
     try {
-      const raw = await api.aiCapture(newHist);
+      const { text: raw } = await api.aiCapture(newHist);
       let p: any;
       try {
         p = JSON.parse(raw.replace(/```json|```/g, "").trim());
@@ -91,8 +102,22 @@ export function useAI({
     setAiLoading(true);
     try {
       const reply = await api.aiAdvise(newHist);
-      setAiHistory([...newHist, { role: "assistant" as const, content: reply }].slice(-ADVISE_TURNS));
-      setAiMsgs((m) => [...m, { role: "assistant", text: reply }]);
+      let action = reply.action;
+      let extra = "";
+
+      // Si la acción no se puede resolver contra los datos reales, se descarta
+      // y se le dice al modelo por qué, en vez de mostrar una tarjeta rota.
+      if (action) {
+        try {
+          describeAction(action, actionContext());
+        } catch (e: any) {
+          extra = `\n\n⚠️ ${e?.message || "No pude preparar esa acción"}`;
+          action = undefined;
+        }
+      }
+
+      setAiHistory([...newHist, { role: "assistant" as const, content: reply.raw ?? reply.text }].slice(-ADVISE_TURNS));
+      setAiMsgs((m) => [...m, { role: "assistant", text: (reply.text || "Listo") + extra, action }]);
     } catch (e: any) {
       setAiMsgs((m) => [...m, { role: "assistant", text: e?.message || "Error al conectar." }]);
     } finally {
@@ -100,5 +125,44 @@ export function useAI({
     }
   };
 
-  return { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis };
+  /** Ejecuta lo confirmado y le devuelve el resultado al modelo. */
+  const confirmAction = async (action: ProposedAction) => {
+    setAiLoading(true);
+    let outcome: string;
+    let ok = true;
+    try {
+      outcome = await runAction(action, actionContext());
+      await onActionDone();
+    } catch (e: any) {
+      ok = false;
+      outcome = `No se pudo: ${e?.message || "error"}`;
+    }
+
+    setAiMsgs((m) => m.map((x) => (x.action?.toolUseId === action.toolUseId ? { ...x, resolved: ok ? "hecho" : "descartado" } : x)));
+
+    const hist: ChatMsg[] = [
+      ...aiHistory,
+      { role: "user" as const, content: [{ type: "tool_result", tool_use_id: action.toolUseId, content: outcome, ...(ok ? {} : { is_error: true }) }] },
+    ];
+    try {
+      const reply = await api.aiAdvise(hist.slice(-ADVISE_TURNS));
+      setAiHistory([...hist, { role: "assistant" as const, content: reply.raw ?? reply.text }].slice(-ADVISE_TURNS));
+      setAiMsgs((m) => [...m, { role: "assistant", text: reply.text || outcome }]);
+    } catch {
+      // Si el cierre falla, la acción ya ocurrió: se reporta igual.
+      setAiMsgs((m) => [...m, { role: "assistant", text: outcome }]);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const dismissAction = (action: ProposedAction) => {
+    setAiMsgs((m) => m.map((x) => (x.action?.toolUseId === action.toolUseId ? { ...x, resolved: "descartado" } : x)));
+    setAiHistory((h) => [
+      ...h,
+      { role: "user" as const, content: [{ type: "tool_result", tool_use_id: action.toolUseId, content: "La persona no confirmó esta acción.", is_error: true }] },
+    ]);
+  };
+
+  return { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction };
 }

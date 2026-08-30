@@ -29,13 +29,106 @@ const getAdmin = (): SupabaseClient<Database> => {
   return _admin;
 };
 
+// El contenido puede ser texto plano o los bloques crudos de Anthropic: al
+// confirmar una acción, el cliente devuelve el turno del asistente tal cual
+// (incluidos los bloques de razonamiento) más el resultado de la herramienta.
+const ContentSchema = z.union([
+  z.string().min(1).max(4000),
+  z.array(z.record(z.string(), z.unknown())).min(1).max(20),
+]);
+
 const BodySchema = z.object({
   intent: z.enum(["capture", "advise"]),
   messages: z
-    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(4000) }))
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: ContentSchema }))
     .min(1)
     .max(24),
 });
+
+/**
+ * Lo que el asesor puede proponer. Recibe NOMBRES, no ids: el modelo solo ve
+ * nombres en su contexto y así no puede inventarse un UUID. El cliente los
+ * resuelve, pide confirmación y ejecuta. La función nunca escribe nada.
+ */
+const TOOLS = [
+  {
+    name: "transferir",
+    description: "Mueve dinero entre dos cuentas propias del usuario. No es gasto ni ingreso.",
+    input_schema: {
+      type: "object",
+      properties: {
+        desde: { type: "string", description: "Nombre exacto de la cuenta de origen" },
+        hacia: { type: "string", description: "Nombre exacto de la cuenta destino" },
+        monto: { type: "number", description: "Monto en pesos, mayor a cero" },
+        concepto: { type: "string", description: "Concepto breve, opcional" },
+      },
+      required: ["desde", "hacia", "monto"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: "pagar_credito",
+    description: "Registra un pago a un crédito: baja el saldo de la cuenta y baja la deuda.",
+    input_schema: {
+      type: "object",
+      properties: {
+        credito: { type: "string", description: "Nombre exacto del crédito" },
+        desde_cuenta: { type: "string", description: "Nombre exacto de la cuenta de donde sale el pago" },
+        monto: { type: "number" },
+      },
+      required: ["credito", "desde_cuenta", "monto"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: "registrar_movimiento",
+    description: "Registra un gasto o un ingreso en una cuenta.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tipo: { type: "string", enum: ["gasto", "ingreso"] },
+        monto: { type: "number" },
+        descripcion: { type: "string" },
+        cuenta: { type: "string", description: "Nombre exacto de la cuenta" },
+        categoria: { type: "string", description: "Una de las categorías válidas del usuario" },
+      },
+      required: ["tipo", "monto", "descripcion", "cuenta", "categoria"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: "crear_presupuesto",
+    description: "Define o actualiza el límite mensual de gasto de una categoría.",
+    input_schema: {
+      type: "object",
+      properties: {
+        categoria: { type: "string" },
+        monto: { type: "number" },
+      },
+      required: ["categoria", "monto"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: "abonar_meta",
+    description: "Abona a una meta de ahorro. Si se indica cuenta, el dinero sale de ella.",
+    input_schema: {
+      type: "object",
+      properties: {
+        meta: { type: "string", description: "Nombre exacto de la meta" },
+        monto: { type: "number" },
+        desde_cuenta: { type: "string", description: "Opcional: nombre de la cuenta de origen" },
+      },
+      required: ["meta", "monto"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+];
 
 const fmt = (n: number | null | undefined) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(n) || 0);
@@ -124,6 +217,12 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
 
   return `Eres el asesor financiero de Millions. Responde en español, amigable, claro y accionable. Máximo 3 párrafos, emojis moderados.
 
+Puedes proponer acciones con las herramientas disponibles. Reglas:
+- Úsalas solo cuando la persona pida hacer algo concreto ("transfiere", "paga", "registra", "ponme un presupuesto"). Si solo pregunta o pide análisis, responde con texto.
+- Usa los NOMBRES exactos de cuentas, créditos, metas y categorías tal como aparecen abajo. Si el nombre que dijo no coincide con ninguno, pregunta en vez de adivinar.
+- Una acción por respuesta. Antes de proponerla, explica en una frase qué va a pasar.
+- Nada se ejecuta hasta que la persona confirme en pantalla, así que no digas que ya quedó hecho.
+
 DATOS (mes en curso salvo que se indique). Hoy es ${now.toISOString().slice(0, 10)}, día ${diaHoy} de ${diasMes}.
 PATRIMONIO NETO: ${fmt(activos - deuda)} (${fmt(activos)} en cuentas − ${fmt(deuda)} de deuda)
 Cuentas: ${accList || "Sin cuentas"}
@@ -186,6 +285,8 @@ export const handler: Handler = async (event) => {
         output_config: { effort: intent === "capture" ? "low" : "high" },
         system,
         messages,
+        // Solo el asesor propone acciones; la captura devuelve JSON plano.
+        ...(intent === "advise" ? { tools: TOOLS } : {}),
       }),
     });
     const data: any = await res.json();
@@ -194,7 +295,10 @@ export const handler: Handler = async (event) => {
       return { statusCode: 502, headers: h, body: JSON.stringify({ error: "El servicio de IA no está disponible" }) };
     }
 
-    const text = data.content?.find((b: { type: string }) => b.type === "text")?.text ?? "";
+    const blocks: { type: string; text?: string; id?: string; name?: string; input?: unknown }[] = data.content ?? [];
+    const text = blocks.filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+    const toolUse = blocks.find((b) => b.type === "tool_use");
+
     await getAdmin().from("ai_usage").insert({
       user_id: userId,
       intent,
@@ -202,7 +306,18 @@ export const handler: Handler = async (event) => {
       tokens_out: data.usage?.output_tokens ?? 0,
     });
 
-    return { statusCode: 200, headers: h, body: JSON.stringify({ text }) };
+    // Si propuso una acción, viaja al cliente SIN ejecutarse. `raw` lleva el
+    // turno completo del asistente para poder continuar la conversación con
+    // el tool_result una vez que la persona confirme.
+    return {
+      statusCode: 200,
+      headers: h,
+      body: JSON.stringify(
+        toolUse
+          ? { text, action: { toolUseId: toolUse.id, name: toolUse.name, input: toolUse.input }, raw: blocks }
+          : { text }
+      ),
+    };
   } catch (e) {
     console.error("chat function error:", e);
     // Un fallo de configuración sí se nombra: es accionable y no expone datos.

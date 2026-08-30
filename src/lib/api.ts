@@ -5,7 +5,7 @@
 // ============================================================================
 import type { Tables } from "./database.types";
 import { sbClient } from "./supabase";
-import type { Account, Budget, Category, ChatMsg, Credit, Goal, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
+import type { Account, Budget, Category, ChatMsg, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
 
 const fail = (error: { message: string } | null): never => {
   throw new Error(error?.message || "Error de servidor");
@@ -83,7 +83,14 @@ const normTxLocal = (r: Tables<"transactions">, accs: Account[], cats: Category[
 });
 
 // ── IA (única responsabilidad de la Netlify Function) ───────────────────────
-const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promise<string> => {
+export interface AiReply {
+  text: string;
+  action?: ProposedAction;
+  /** Turno completo del asistente, para continuar la conversación tras confirmar. */
+  raw?: unknown[];
+}
+
+const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promise<AiReply> => {
   const { data } = await sbClient.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Sesión expirada");
@@ -94,7 +101,7 @@ const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promis
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
-  return body.text as string;
+  return body as AiReply;
 };
 
 export const api = {

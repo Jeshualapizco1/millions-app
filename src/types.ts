@@ -79,11 +79,23 @@ export interface Upcoming {
 /** Mensaje del historial que se envía a la IA (formato Anthropic). */
 export interface ChatMsg {
   role: "user" | "assistant";
-  content: string;
+  /** Texto, o los bloques crudos cuando hay una herramienta de por medio. */
+  content: string | unknown[];
+}
+
+/** Acción que el asesor propone y que la persona debe confirmar. */
+export interface ProposedAction {
+  toolUseId: string;
+  name: string;
+  input: Record<string, any>;
 }
 
 /** Mensaje mostrado en el chat de Análisis. */
 export interface AiMsg {
   role: "user" | "assistant";
   text: string;
+  /** Cuando viene, el mensaje trae una tarjeta de confirmación. */
+  action?: ProposedAction;
+  /** Se marca al confirmar o descartar para que la tarjeta deje de ser accionable. */
+  resolved?: "hecho" | "descartado";
 }

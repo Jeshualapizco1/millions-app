@@ -44,7 +44,7 @@ const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amou
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, booting, loadError, accsRef, txsRef } = useFinanceData();
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, booting, loadError, accsRef, txsRef, creditsRef, goalsRef } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
   const { toasts, push, dismiss } = useToasts();
 
@@ -425,7 +425,18 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   // ── AI + voz ───────────────────────────────────────────────────────────────
-  const { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis } = useAI({ applyTx, applyNewAcc, setTxInput, setLive });
+  const actionContext = () => ({ accs: accsRef.current, credits: creditsRef.current, goals: goalsRef.current });
+
+  /** Tras ejecutar una acción del asesor, recargar lo que pudo cambiar. */
+  const reloadAfterAction = async () => {
+    const [a, t, cr, b, g] = await Promise.all([
+      api.getAccounts(), api.getTxs(), api.getCredits(), api.getBudgets(), api.getGoals(),
+    ]);
+    setAccs(a); setTxs(t); setCredits(cr); setBudgets(b); setGoals(g);
+  };
+
+  const { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction } =
+    useAI({ applyTx, applyNewAcc, setTxInput, setLive, actionContext, onActionDone: reloadAfterAction });
 
   const { mic, voiceOK, startMic, stopMic } = useVoice({
     onResult: (t) => { setLive(t); setTxInput(t); },
@@ -582,7 +593,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
         {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
-        {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} />}
+        {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} />}
         {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} />}
         {tab === "accs" && <Cuentas accs={accs} txs={txs} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
       </div>
