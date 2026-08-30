@@ -18,7 +18,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # `npm install`, no `npm ci`: el lock se genera en Windows y esbuild trae
+      # un binario opcional por plataforma. npm ci los exige todos y falla en
+      # Linux con EBADPLATFORM. `install` resuelve los de la plataforma actual.
+      - run: npm install --no-audit --no-fund
 
       - name: Pruebas unitarias
         run: npm test
