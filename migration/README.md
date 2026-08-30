@@ -26,10 +26,10 @@ Del dashboard del proyecto nuevo (Settings → API y Settings → Database):
 ## Pasos
 
 ```bash
-# 1. Aplicar migraciones (en orden)
-psql "<connection-string>" -f supabase/migrations/0001_schema.sql
-psql "<connection-string>" -f supabase/migrations/0002_rls.sql
-psql "<connection-string>" -f supabase/migrations/0003_rpc.sql
+# 1. Aplicar migraciones (en orden; --single-transaction revierte todo si algo falla)
+psql "<connection-string>" --single-transaction -f supabase/migrations/0001_schema.sql
+psql "<connection-string>" --single-transaction -f supabase/migrations/0002_rls.sql
+psql "<connection-string>" --single-transaction -f supabase/migrations/0003_rpc.sql
 
 # 2. Simulacro
 NEW_SUPABASE_URL=... NEW_SERVICE_ROLE_KEY=... node migration/import.mjs --dry-run
