@@ -34,7 +34,10 @@ jobs:
 
       - name: El bundle no debe llevar secretos
         run: |
-          if grep -rE 'sb_secret_|sk-ant-' dist/assets/ ; then
+          # Se exige el prefijo MÁS cuerpo de llave: supabase-js incluye la
+          # cadena "sb_secret_" en su propio código para validar prefijos, y
+          # buscarla a secas marcaría un falso positivo en cada build.
+          if grep -rEo 'sb_secret_[A-Za-z0-9_-]{16,}|sk-ant-[A-Za-z0-9_-]{16,}' dist/assets/ ; then
             echo "::error::Se encontró una llave secreta en el bundle del cliente"
             exit 1
           fi
