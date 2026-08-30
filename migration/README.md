@@ -13,13 +13,26 @@
 - [x] Usuario invitado y aceptado (jeshualapizco@gmail.com); registro cerrado
 - [x] Frontend/function apuntando a la base nueva (Fase 2): CRUD directo con RLS, function solo IA
 - [x] E2E contra el proyecto real: `supabase/tests/e2e.mjs`
-- [ ] Corte en producción (deploy v2 + variables en Netlify)
-- [ ] Al tener URL de producción: Authentication → URL Configuration → Site URL
+- [x] Corte en producción: https://millionsjeshua.netlify.app (2026-08-30, commit 5310ed4)
+      Deploy automático desde `main`. Verificado: bundle apunta a la base nueva,
+      cero secretos en el cliente, function 401 sin token, IA respondiendo.
+- [x] Fase 3: pantalla de cambio de contraseña en la app (botón 🔑 del header)
+- [ ] Authentication → URL Configuration → Site URL = https://millionsjeshua.netlify.app
       (hoy apunta al default localhost:3000; por eso el flujo de invitación no
-      dejó bien definida la contraseña — se resolvió con reset por admin API)
-- [ ] Fase 3: pantalla de cambio de contraseña en la app (el usuario entró con
-      una temporal)
-- [ ] Base vieja en solo-lectura 30 días → borrar tablas `jeshua_*`
+      dejó bien definida la contraseña — se resolvió con reset por admin API.
+      Necesario antes de invitar al resto del equipo.)
+- [ ] Authentication → Passwords → habilitar "Leaked password protection"
+      (único advisor de seguridad pendiente en Supabase)
+- [ ] ANTHROPIC_API_KEY solo tiene valor en el contexto `production` de Netlify.
+      Los deploy previews no pueden usar la IA hasta agregarla a esos contextos.
+- [ ] Base vieja en solo-lectura 30 días (hasta ~2026-09-30) → borrar tablas
+      `jeshua_*` del proyecto jyttvttnzndvqqrghqna
+
+## Rollback
+
+Si algo sale mal en producción: Netlify → Deploys → el deploy anterior →
+"Publish deploy". La base vieja sigue intacta y con datos hasta el 30 de
+septiembre, así que revertir el sitio la deja operando como antes.
 
 > Nota: las llaves legacy (anon/service_role) están deprecated en el proyecto
 > nuevo. Se usan `sb_publishable_...` (cliente) y `sb_secret_...` (servidor).
