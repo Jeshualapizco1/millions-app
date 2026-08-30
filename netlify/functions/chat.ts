@@ -162,7 +162,7 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
       .select("kind,amount,description,date,category:categories(name)")
       .eq("user_id", userId)
       .order("date", { ascending: false })
-      .limit(100),
+      .limit(60),
     getAdmin().from("credits").select("name,total_debt").eq("user_id", userId).is("archived_at", null),
     getAdmin().from("budgets").select("amount,category:categories(name)").eq("user_id", userId).eq("period", "mensual"),
     getAdmin().from("goals").select("name,target_amount,current_amount,target_date").eq("user_id", userId),
@@ -280,9 +280,11 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: intent === "capture" ? 1000 : 2000,
-        // Capturar un movimiento es extracción simple: poco esfuerzo, menos latencia
-        // y menos costo. El asesor sí razona sobre todo el panorama financiero.
-        output_config: { effort: intent === "capture" ? "low" : "high" },
+        // Las funciones de Netlify cortan a los 10 s. Con esfuerzo alto el asesor
+        // rozaba ese límite (7.8 s medidos) y a veces lo pasaba, devolviendo 504.
+        // 'medium' responde holgado dentro del margen y la calidad se sostiene:
+        // son tres párrafos sobre datos ya resumidos, no un análisis abierto.
+        output_config: { effort: intent === "capture" ? "low" : "medium" },
         system,
         messages,
         // Solo el asesor propone acciones; la captura devuelve JSON plano.
