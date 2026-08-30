@@ -1,149 +1,275 @@
-import type { Account, ApiAction, Budget, Credit, Goal, Transaction, TxType } from "../types";
+// ============================================================================
+// Capa de datos v2: el cliente habla directo con Supabase (RLS autoriza) y
+// cada movimiento de dinero pasa por una RPC atómica. La Netlify Function
+// queda solo para la IA. El proxy de 19 acciones desapareció.
+// ============================================================================
+import type { Tables } from "./database.types";
+import { sbClient } from "./supabase";
+import type { Account, Budget, Category, ChatMsg, Credit, Goal, Transaction, TxKind } from "../types";
 
-// ── Filas crudas de Supabase (NUMERIC llega como string, FKs en snake_case) ──
-interface RawAccount {
-  id: string;
-  name: string;
-  balance: string | number;
-  icon: string;
-  color: string;
-  created_at?: string;
-}
-interface RawTx {
-  id: string;
-  description: string;
-  amount: string | number;
-  type: TxType;
-  category: string;
-  account_id: string | null;
-  account_name: string;
-  date: string;
-}
-interface RawCredit {
-  id: string;
-  name: string;
-  type: Credit["type"];
-  institution: string | null;
-  total_debt: string | number | null;
-  credit_limit: string | number | null;
-  monthly_payment: string | number | null;
-  cut_day: number | null;
-  payment_day: number | null;
-  next_payment_date: string | null;
-  interest_rate: string | number | null;
-  icon?: string | null;
-  color?: string | null;
-  notes: string | null;
-  created_at?: string;
-}
-interface RawBudget {
-  id: string;
-  category: string;
-  amount: string | number;
-  created_at?: string;
-}
-interface RawGoal {
-  id: string;
-  name: string;
-  target_amount: string | number;
-  current_amount: string | number;
-  target_date: string | null;
-  icon: string;
-  color: string;
-  notes: string | null;
-  created_at?: string;
-}
+const fail = (error: { message: string } | null): never => {
+  throw new Error(error?.message || "Error de servidor");
+};
 
-// ── Payloads de escritura (van a la function tal como los espera Supabase) ──
-export interface TxInsert {
-  description: string;
-  amount: number;
-  type: TxType;
-  category: string;
-  account_id: string | null;
-  account_name: string;
-  date: string;
-}
-export type AccountInsert = { name: string; balance: number; icon: string; color: string };
-export type CreditUpsert = Omit<Credit, "id" | "created_at" | "icon" | "color">;
-export type GoalUpsert = Omit<Goal, "id" | "created_at">;
+const uid = async (): Promise<string> => {
+  const { data } = await sbClient.auth.getSession();
+  const id = data.session?.user.id;
+  if (!id) throw new Error("Sesión expirada");
+  return id;
+};
 
-// ── Normalización: se hace UNA sola vez aquí, el resto de la app usa number/camelCase ──
-const num = (v: string | number | null | undefined) => Number(v) || 0;
-const numOrNull = (v: string | number | null | undefined) => (v === null || v === undefined ? null : Number(v));
+// ── Categorías (cache de sesión: nombre ⇄ id) ───────────────────────────────
+let catCache: Category[] | null = null;
 
-const normAccount = (r: RawAccount): Account => ({ ...r, balance: num(r.balance) });
+const loadCategories = async (): Promise<Category[]> => {
+  const { data, error } = await sbClient
+    .from("categories")
+    .select("id,name,icon,color")
+    .eq("hidden", false)
+    .order("sort_order");
+  if (error) fail(error);
+  catCache = data!;
+  return catCache;
+};
+
+const categoryId = async (name: string | null | undefined): Promise<string | null> => {
+  if (!name) return null;
+  const cats = catCache ?? (await loadCategories());
+  return cats.find((c) => c.name === name)?.id ?? cats.find((c) => c.name === "Otros")?.id ?? null;
+};
+
+// ── Normalización de transacciones (joins → forma de la UI) ─────────────────
+type RawTx = Tables<"transactions"> & {
+  account: { name: string } | null;
+  to_account: { name: string } | null;
+  category: { name: string } | null;
+};
+
+const TX_SELECT =
+  "*, account:accounts!transactions_account_id_fkey(name), to_account:accounts!transactions_to_account_id_fkey(name), category:categories(name)";
+
 const normTx = (r: RawTx): Transaction => ({
   id: r.id,
   description: r.description,
-  amount: num(r.amount),
-  type: r.type,
-  category: r.category,
+  amount: Number(r.amount),
+  kind: r.kind,
+  type: r.kind === "ingreso" ? "ingreso" : "gasto",
+  category: r.category?.name ?? "Otros",
+  categoryId: r.category_id,
   accountId: r.account_id,
-  accountName: r.account_name,
+  accountName: r.account?.name ?? "",
+  toAccountName: r.to_account?.name ?? null,
   date: r.date,
 });
-const normCredit = (r: RawCredit): Credit => ({
-  ...r,
-  total_debt: num(r.total_debt),
-  credit_limit: numOrNull(r.credit_limit),
-  monthly_payment: numOrNull(r.monthly_payment),
-  interest_rate: numOrNull(r.interest_rate),
-});
-const normBudget = (r: RawBudget): Budget => ({ ...r, amount: num(r.amount) });
-const normGoal = (r: RawGoal): Goal => ({
-  ...r,
-  target_amount: num(r.target_amount),
-  current_amount: num(r.current_amount),
+
+/** Tras una RPC (sin joins), resuelve nombres con los datos ya cargados. */
+const normTxLocal = (r: Tables<"transactions">, accs: Account[], cats: Category[]): Transaction => ({
+  id: r.id,
+  description: r.description,
+  amount: Number(r.amount),
+  kind: r.kind,
+  type: r.kind === "ingreso" ? "ingreso" : "gasto",
+  category: cats.find((c) => c.id === r.category_id)?.name ?? "Otros",
+  categoryId: r.category_id,
+  accountId: r.account_id,
+  accountName: accs.find((a) => a.id === r.account_id)?.name ?? "",
+  toAccountName: accs.find((a) => a.id === r.to_account_id)?.name ?? null,
+  date: r.date,
 });
 
-const call = async (action: ApiAction, payload?: unknown, token?: string): Promise<any> => {
+// ── IA (única responsabilidad de la Netlify Function) ───────────────────────
+const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promise<string> => {
+  const { data } = await sbClient.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Sesión expirada");
   const res = await fetch("/.netlify/functions/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, payload, token }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ intent, messages }),
   });
-  if (!res.ok) throw new Error(`Error ${res.status}`);
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
+  return body.text as string;
 };
 
 export const api = {
-  chat: (payload: unknown, token: string): Promise<any> => call("chat", payload, token),
+  // ── Categorías ────────────────────────────────────────────────────────────
+  getCategories: loadCategories,
 
-  getAccounts: async (token: string): Promise<Account[]> =>
-    (((await call("getAccounts", undefined, token)) as RawAccount[]) || []).map(normAccount),
-  addAccount: async (payload: AccountInsert, token: string): Promise<Account[]> =>
-    (((await call("addAccount", payload, token)) as RawAccount[]) || []).map(normAccount),
-  updateAccount: (payload: { id: string } & AccountInsert, token: string) =>
-    call("updateAccount", payload, token),
-  updateBalance: (payload: { id: string; delta?: number; balance?: number }, token: string) =>
-    call("updateBalance", payload, token),
+  // ── Cuentas ───────────────────────────────────────────────────────────────
+  async getAccounts(): Promise<Account[]> {
+    const { data, error } = await sbClient
+      .from("accounts")
+      .select("id,name,balance,icon,color,created_at")
+      .is("archived_at", null)
+      .order("created_at");
+    if (error) fail(error);
+    return data!.map((a) => ({ ...a, balance: Number(a.balance) }));
+  },
+  async addAccount(p: { name: string; balance: number; icon: string; color: string }): Promise<Account> {
+    const { data, error } = await sbClient
+      .from("accounts")
+      .insert({ ...p, user_id: await uid() })
+      .select("id,name,balance,icon,color,created_at")
+      .single();
+    if (error) fail(error);
+    return { ...data!, balance: Number(data!.balance) };
+  },
+  async updateAccount(p: { id: string; name: string; balance: number; icon: string; color: string }): Promise<void> {
+    const { id, ...rest } = p;
+    const { error } = await sbClient.from("accounts").update(rest).eq("id", id);
+    if (error) fail(error);
+  },
 
-  getTxs: async (token: string): Promise<Transaction[]> =>
-    (((await call("getTxs", undefined, token)) as RawTx[]) || []).map(normTx),
-  addTx: async (payload: TxInsert, token: string): Promise<Transaction[]> =>
-    (((await call("addTx", payload, token)) as RawTx[]) || []).map(normTx),
-  deleteTx: (payload: { id: string }, token: string) => call("deleteTx", payload, token),
+  // ── Transacciones (siempre vía RPC atómica) ───────────────────────────────
+  async getTxs(): Promise<Transaction[]> {
+    const { data, error } = await sbClient
+      .from("transactions")
+      .select(TX_SELECT)
+      .order("date", { ascending: false });
+    if (error) fail(error);
+    return (data as unknown as RawTx[]).map(normTx);
+  },
+  async applyTx(p: {
+    accountId: string;
+    kind: TxKind;
+    amount: number;
+    description: string;
+    category?: string | null;
+  }, accs: Account[]): Promise<Transaction> {
+    const { data, error } = await sbClient.rpc("apply_transaction", {
+      p_account_id: p.accountId,
+      p_kind: p.kind,
+      p_amount: p.amount,
+      p_description: p.description,
+      p_category_id: (await categoryId(p.category)) ?? undefined,
+    });
+    if (error) fail(error);
+    return normTxLocal(data!, accs, catCache ?? []);
+  },
+  async deleteTx(id: string): Promise<void> {
+    const { error } = await sbClient.rpc("reverse_transaction", { p_id: id });
+    if (error) fail(error);
+  },
+  async transfer(p: { fromId: string; toId: string; amount: number; description?: string }, accs: Account[]): Promise<Transaction> {
+    const { data, error } = await sbClient.rpc("transfer", {
+      p_from_account: p.fromId,
+      p_to_account: p.toId,
+      p_amount: p.amount,
+      p_description: p.description,
+    });
+    if (error) fail(error);
+    return normTxLocal(data!, accs, catCache ?? []);
+  },
 
-  getCredits: async (token: string): Promise<Credit[]> =>
-    (((await call("getCredits", undefined, token)) as RawCredit[]) || []).map(normCredit),
-  addCredit: async (payload: CreditUpsert, token: string): Promise<Credit[]> =>
-    (((await call("addCredit", payload, token)) as RawCredit[]) || []).map(normCredit),
-  updateCredit: (payload: { id: string } & CreditUpsert, token: string) =>
-    call("updateCredit", payload, token),
-  deleteCredit: (payload: { id: string }, token: string) => call("deleteCredit", payload, token),
+  // ── Créditos ──────────────────────────────────────────────────────────────
+  async getCredits(): Promise<Credit[]> {
+    const { data, error } = await sbClient
+      .from("credits")
+      .select("id,name,type,institution,total_debt,credit_limit,monthly_payment,cut_day,payment_day,next_payment_date,interest_rate,notes,created_at")
+      .is("archived_at", null)
+      .order("created_at");
+    if (error) fail(error);
+    return data!.map((c) => ({ ...c, total_debt: Number(c.total_debt) }));
+  },
+  async addCredit(p: Omit<Credit, "id" | "created_at">): Promise<Credit> {
+    const { data, error } = await sbClient
+      .from("credits")
+      .insert({ ...p, user_id: await uid() })
+      .select("id,name,type,institution,total_debt,credit_limit,monthly_payment,cut_day,payment_day,next_payment_date,interest_rate,notes,created_at")
+      .single();
+    if (error) fail(error);
+    return { ...data!, total_debt: Number(data!.total_debt) };
+  },
+  async updateCredit(p: { id: string } & Omit<Credit, "id" | "created_at">): Promise<void> {
+    const { id, ...rest } = p;
+    const { error } = await sbClient.from("credits").update(rest).eq("id", id);
+    if (error) fail(error);
+  },
+  async deleteCredit(id: string): Promise<void> {
+    const { error } = await sbClient.from("credits").delete().eq("id", id);
+    if (error) fail(error);
+  },
+  async payCredit(p: { creditId: string; accountId: string; amount: number }, accs: Account[]): Promise<Transaction> {
+    const { data, error } = await sbClient.rpc("pay_credit", {
+      p_credit_id: p.creditId,
+      p_account_id: p.accountId,
+      p_amount: p.amount,
+    });
+    if (error) fail(error);
+    return normTxLocal(data!, accs, catCache ?? []);
+  },
 
-  getBudgets: async (token: string): Promise<Budget[]> =>
-    (((await call("getBudgets", undefined, token)) as RawBudget[]) || []).map(normBudget),
-  upsertBudget: async (payload: { category: string; amount: number }, token: string): Promise<Budget[]> =>
-    (((await call("upsertBudget", payload, token)) as RawBudget[]) || []).map(normBudget),
-  deleteBudget: (payload: { id: string }, token: string) => call("deleteBudget", payload, token),
+  // ── Presupuestos (por category_id; la UI sigue hablando nombres) ──────────
+  async getBudgets(): Promise<Budget[]> {
+    const { data, error } = await sbClient
+      .from("budgets")
+      .select("id,amount,category_id,category:categories(name)")
+      .eq("period", "mensual")
+      .order("created_at");
+    if (error) fail(error);
+    return data!.map((b) => ({
+      id: b.id,
+      amount: Number(b.amount),
+      categoryId: b.category_id,
+      category: (b.category as unknown as { name: string } | null)?.name ?? "Otros",
+    }));
+  },
+  async upsertBudget(p: { category: string; amount: number }): Promise<Budget> {
+    const catId = await categoryId(p.category);
+    if (!catId) throw new Error(`Categoría desconocida: ${p.category}`);
+    const { data, error } = await sbClient
+      .from("budgets")
+      .upsert(
+        { user_id: await uid(), category_id: catId, period: "mensual", amount: p.amount },
+        { onConflict: "user_id,category_id,period" }
+      )
+      .select("id,amount,category_id")
+      .single();
+    if (error) fail(error);
+    return { id: data!.id, amount: Number(data!.amount), categoryId: data!.category_id, category: p.category };
+  },
+  async deleteBudget(id: string): Promise<void> {
+    const { error } = await sbClient.from("budgets").delete().eq("id", id);
+    if (error) fail(error);
+  },
 
-  getGoals: async (token: string): Promise<Goal[]> =>
-    (((await call("getGoals", undefined, token)) as RawGoal[]) || []).map(normGoal),
-  addGoal: async (payload: GoalUpsert, token: string): Promise<Goal[]> =>
-    (((await call("addGoal", payload, token)) as RawGoal[]) || []).map(normGoal),
-  updateGoal: (payload: { id: string } & Partial<GoalUpsert>, token: string) =>
-    call("updateGoal", payload, token),
-  deleteGoal: (payload: { id: string }, token: string) => call("deleteGoal", payload, token),
+  // ── Metas ─────────────────────────────────────────────────────────────────
+  async getGoals(): Promise<Goal[]> {
+    const { data, error } = await sbClient.from("goals").select().order("created_at");
+    if (error) fail(error);
+    return data!.map((g) => ({ ...g, target_amount: Number(g.target_amount), current_amount: Number(g.current_amount) }));
+  },
+  async addGoal(p: { name: string; target_amount: number; current_amount: number; target_date: string | null; icon: string; color: string; notes: string | null }): Promise<Goal> {
+    const { data, error } = await sbClient
+      .from("goals")
+      .insert({ ...p, user_id: await uid() })
+      .select()
+      .single();
+    if (error) fail(error);
+    return { ...data!, target_amount: Number(data!.target_amount), current_amount: Number(data!.current_amount) };
+  },
+  async updateGoal(p: { id: string } & Partial<Omit<Goal, "id" | "created_at">>): Promise<void> {
+    const { id, ...rest } = p;
+    const { error } = await sbClient.from("goals").update(rest).eq("id", id);
+    if (error) fail(error);
+  },
+  async deleteGoal(id: string): Promise<void> {
+    const { error } = await sbClient.from("goals").delete().eq("id", id);
+    if (error) fail(error);
+  },
+  /** Abono atómico. Sin accountId es solo registro (ahorro externo). */
+  async contributeGoal(p: { goalId: string; amount: number; accountId?: string | null }): Promise<Goal> {
+    const { data, error } = await sbClient.rpc("contribute_goal", {
+      p_goal_id: p.goalId,
+      p_amount: p.amount,
+      p_account_id: p.accountId ?? undefined,
+    });
+    if (error) fail(error);
+    return { ...data!, target_amount: Number(data!.target_amount), current_amount: Number(data!.current_amount) };
+  },
+
+  // ── IA ────────────────────────────────────────────────────────────────────
+  aiCapture: (messages: ChatMsg[]) => aiCall("capture", messages),
+  aiAdvise: (messages: ChatMsg[]) => aiCall("advise", messages),
 };

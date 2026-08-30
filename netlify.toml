@@ -2,3 +2,7 @@
   command = "npm run build"
   publish = "dist"
   functions = "netlify/functions"
+
+[build.environment]
+  # La publishable key es pública por diseño; que el scanner de secretos no aborte el build
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_PUBLISHABLE_KEY,VITE_SUPABASE_URL,SUPABASE_URL"

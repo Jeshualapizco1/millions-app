@@ -7,12 +7,17 @@
 - [x] RLS: `../supabase/migrations/0002_rls.sql`
 - [x] RPCs atómicas: `../supabase/migrations/0003_rpc.sql`
 - [x] Script de importación: `import.mjs`
-- [ ] Proyecto nuevo de Supabase creado (cuenta nueva)
-- [ ] Migraciones aplicadas
-- [ ] Datos importados y checksums verificados
-- [ ] Frontend/function apuntando a la base nueva (Fase 2)
-- [ ] Corte en producción
+- [x] Proyecto nuevo de Supabase creado: `wliksgpzgfidvakjubdu` (cuenta personal, 2026-08-30)
+- [x] Migraciones aplicadas (0001–0004, vía MCP; advisors de seguridad en cero)
+- [x] Datos importados y checksums verificados centavo por centavo
+- [x] Usuario invitado y aceptado (jeshualapizco@gmail.com); registro cerrado
+- [x] Frontend/function apuntando a la base nueva (Fase 2): CRUD directo con RLS, function solo IA
+- [x] E2E contra el proyecto real: `supabase/tests/e2e.mjs`
+- [ ] Corte en producción (deploy v2 + variables en Netlify)
 - [ ] Base vieja en solo-lectura 30 días → borrar tablas `jeshua_*`
+
+> Nota: las llaves legacy (anon/service_role) están deprecated en el proyecto
+> nuevo. Se usan `sb_publishable_...` (cliente) y `sb_secret_...` (servidor).
 
 ## Qué se necesita del proyecto nuevo
 

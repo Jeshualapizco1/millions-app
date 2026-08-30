@@ -1,114 +1,173 @@
+// ============================================================================
+// Única responsabilidad: la IA. El CRUD va directo del cliente a Supabase
+// bajo RLS. Aquí: se verifica el JWT, se valida el body con zod, se construye
+// el contexto financiero EN EL SERVIDOR (el cliente no puede manipularlo),
+// el modelo y max_tokens están fijos, y hay rate limit por usuario.
+// ============================================================================
 import type { Handler } from "@netlify/functions";
-import https from "node:https";
+import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
-const SB_HOST = "jyttvttnzndvqqrghqna.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SECRET_KEY = process.env.SUPABASE_SECRET_KEY!;
+const MODEL = "claude-sonnet-5";
+const RATE_LIMIT_PER_HOUR = 20;
 
-interface SbResponse {
-  status: number | undefined;
-  data: any;
-}
+// Cliente de servidor (secret key): salta RLS, por eso TODA query filtra por
+// el uid verificado del JWT. Nunca se usa sin ese filtro.
+const admin = createClient(SUPABASE_URL, SECRET_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
-function sbReq(method: string, path: string, body: unknown, key: string): Promise<SbResponse> {
-  return new Promise((resolve, reject) => {
-    const data = body ? JSON.stringify(body) : null;
-    const req = https.request({
-      hostname: SB_HOST, path: `/rest/v1/${path}`, method,
-      headers: { "apikey": key, "Authorization": `Bearer ${key}`, "Content-Type": "application/json", "Prefer": "return=representation", ...(data ? { "Content-Length": Buffer.byteLength(data) } : {}) },
-    }, (res) => {
-      let out = ""; res.on("data", (c) => out += c);
-      res.on("end", () => { try { resolve({ status: res.statusCode, data: JSON.parse(out || "[]") }); } catch { resolve({ status: res.statusCode, data: [] }); } });
+const BodySchema = z.object({
+  intent: z.enum(["capture", "advise"]),
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(4000) }))
+    .min(1)
+    .max(24),
+});
+
+const fmt = (n: number | null | undefined) =>
+  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(n) || 0);
+
+const CAPTURE_PROMPT = (accounts: string, categories: string) => `Asistente de registro financiero de Millions. Cuentas del usuario: ${accounts || "ninguna"}. Categorías válidas: ${categories}.
+Responde SOLO con JSON:
+Transacción: {"action":"transaccion","type":"gasto|ingreso","amount":NUMBER,"description":"STRING","accountName":"STRING (nombre EXACTO de una cuenta de la lista)","category":"STRING (una de las categorías válidas)","reply":"Confirmación breve"}
+Nueva cuenta: {"action":"nueva_cuenta","accountName":"STRING","balance":NUMBER,"icon":"EMOJI","reply":"Confirmación"}
+Duda: {"action":"ninguna","reply":"Aclaración"}`;
+
+async function buildContext(intent: "capture" | "advise", userId: string): Promise<string> {
+  const { data: accounts } = await admin
+    .from("accounts")
+    .select("id,name,balance")
+    .eq("user_id", userId)
+    .is("archived_at", null);
+  const { data: categories } = await admin
+    .from("categories")
+    .select("name")
+    .eq("user_id", userId)
+    .eq("hidden", false)
+    .order("sort_order");
+  const accList = (accounts ?? []).map((a) => `${a.name}: ${fmt(a.balance)}`).join(", ");
+  const catList = (categories ?? []).map((c) => c.name).join(", ");
+
+  if (intent === "capture") return CAPTURE_PROMPT(accList, catList);
+
+  const [{ data: txs }, { data: credits }, { data: budgets }, { data: goals }] = await Promise.all([
+    admin
+      .from("transactions")
+      .select("kind,amount,description,date,category:categories(name)")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .limit(100),
+    admin.from("credits").select("name,total_debt").eq("user_id", userId).is("archived_at", null),
+    admin.from("budgets").select("amount,category:categories(name)").eq("user_id", userId).eq("period", "mensual"),
+    admin.from("goals").select("name,target_amount,current_amount,target_date").eq("user_id", userId),
+  ]);
+
+  const now = new Date();
+  const isThisMonth = (d: string) => {
+    const t = new Date(d);
+    return t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth();
+  };
+  const monthTxs = (txs ?? []).filter((t) => isThisMonth(t.date));
+  const monthG = monthTxs.filter((t) => t.kind === "gasto").reduce((s, t) => s + Number(t.amount), 0);
+  const monthI = monthTxs.filter((t) => t.kind === "ingreso").reduce((s, t) => s + Number(t.amount), 0);
+  const catMap: Record<string, number> = {};
+  monthTxs
+    .filter((t) => t.kind === "gasto")
+    .forEach((t) => {
+      const c = (t.category as unknown as { name: string } | null)?.name ?? "Otros";
+      catMap[c] = (catMap[c] || 0) + Number(t.amount);
     });
-    req.on("error", reject);
-    if (data) req.write(data);
-    req.end();
-  });
-}
+  const budgetStatus = (budgets ?? [])
+    .map((b) => {
+      const cat = (b.category as unknown as { name: string } | null)?.name ?? "Otros";
+      const spent = catMap[cat] || 0;
+      return `${cat}: presupuesto ${fmt(b.amount)}, gastado ${fmt(spent)} (${b.amount > 0 ? Math.round((spent / Number(b.amount)) * 100) : 0}%)`;
+    })
+    .join("\n");
+  const goalStatus = (goals ?? [])
+    .map((g) => {
+      const pct = Number(g.target_amount) > 0 ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) : 0;
+      return `${g.name}: meta ${fmt(g.target_amount)}, ahorrado ${fmt(g.current_amount)} (${pct}%)${g.target_date ? `, fecha objetivo ${g.target_date}` : ""}`;
+    })
+    .join("\n");
 
-function getUser(token: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: SB_HOST, path: "/auth/v1/user", method: "GET",
-      headers: { "apikey": process.env.SUPABASE_ANON_KEY!, "Authorization": `Bearer ${token}` },
-    }, (res) => {
-      let out = ""; res.on("data", (c) => out += c);
-      res.on("end", () => {
-        try { const p = JSON.parse(out); if (res.statusCode === 200 && p.id) resolve(p.id); else reject(new Error("Unauthorized")); }
-        catch { reject(new Error("Unauthorized")); }
-      });
-    });
-    req.on("error", reject); req.end();
-  });
-}
+  return `Eres el asesor financiero de Millions. Responde en español, amigable, claro y accionable. Máximo 3 párrafos, emojis moderados.
 
-function anthropicReq(body: unknown): Promise<SbResponse> {
-  return new Promise((resolve, reject) => {
-    const data = JSON.stringify(body);
-    const req = https.request({
-      hostname: "api.anthropic.com", path: "/v1/messages", method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01", "Content-Length": Buffer.byteLength(data) },
-    }, (res) => {
-      let out = ""; res.on("data", (c) => out += c);
-      res.on("end", () => { try { resolve({ status: res.statusCode, data: JSON.parse(out) }); } catch (e) { reject(e); } });
-    });
-    req.on("error", reject); req.write(data); req.end();
-  });
+DATOS (mes en curso salvo que se indique):
+Cuentas: ${accList || "Sin cuentas"}
+Este mes — Ingresos: ${fmt(monthI)} | Gastos: ${fmt(monthG)}
+Gastos del mes por categoría: ${Object.entries(catMap).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}: ${fmt(v)}`).join(", ") || "Sin gastos"}
+Deuda total: ${fmt((credits ?? []).reduce((s, c) => s + Number(c.total_debt), 0))}
+Créditos: ${(credits ?? []).map((c) => `${c.name}: ${fmt(c.total_debt)}`).join(", ") || "Ninguno"}
+Presupuestos del mes:\n${budgetStatus || "Sin presupuestos"}
+Metas de ahorro:\n${goalStatus || "Sin metas"}
+Últimas transacciones: ${(txs ?? []).slice(0, 15).map((t) => `${t.kind === "ingreso" ? "+" : "-"}${fmt(t.amount)} ${t.description}`).join(", ") || "Ninguna"}`;
 }
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method Not Allowed" };
-  const h = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
+  const h = { "Content-Type": "application/json" };
+  if (event.httpMethod !== "POST") return { statusCode: 405, headers: h, body: JSON.stringify({ error: "Method Not Allowed" }) };
+
   try {
-    const { action, payload, token } = JSON.parse(event.body || "{}");
-    const KEY = process.env.SUPABASE_ANON_KEY!;
+    // ── Auth: JWT del usuario, verificado contra Supabase ───────────────────
+    const token = (event.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    if (!token) return { statusCode: 401, headers: h, body: JSON.stringify({ error: "No autenticado" }) };
+    const { data: userData, error: userErr } = await admin.auth.getUser(token);
+    if (userErr || !userData.user) return { statusCode: 401, headers: h, body: JSON.stringify({ error: "No autenticado" }) };
+    const userId = userData.user.id;
 
-    if (action === "chat") { const r = await anthropicReq(payload); return { statusCode: r.status || 500, headers: h, body: JSON.stringify(r.data) }; }
+    // ── Validación ──────────────────────────────────────────────────────────
+    if ((event.body?.length ?? 0) > 64_000) return { statusCode: 413, headers: h, body: JSON.stringify({ error: "Body demasiado grande" }) };
+    const parsed = BodySchema.safeParse(JSON.parse(event.body || "{}"));
+    if (!parsed.success) return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Body inválido" }) };
+    const { intent, messages } = parsed.data;
 
-    const uid = await getUser(token);
+    // ── Rate limit por usuario ──────────────────────────────────────────────
+    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+    const { count } = await admin
+      .from("ai_usage")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", hourAgo);
+    if ((count ?? 0) >= RATE_LIMIT_PER_HOUR)
+      return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Límite de consultas por hora alcanzado. Intenta más tarde." }) };
 
-    // ── Accounts ──────────────────────────────────────────────────────────
-    if (action === "getAccounts")   { const r = await sbReq("GET", `jeshua_accounts?user_id=eq.${uid}&order=created_at.asc`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "addAccount")    { const r = await sbReq("POST", "jeshua_accounts", { ...payload, user_id: uid }, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "updateAccount") { const { id, ...rest } = payload; await sbReq("PATCH", `jeshua_accounts?id=eq.${id}&user_id=eq.${uid}`, rest, KEY); return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true }) }; }
-    if (action === "updateBalance") {
-      if (payload.delta !== undefined) {
-        const cur = await sbReq("GET", `jeshua_accounts?id=eq.${payload.id}&user_id=eq.${uid}&select=balance`, null, KEY);
-        const newBal = Number(cur.data?.[0]?.balance || 0) + payload.delta;
-        await sbReq("PATCH", `jeshua_accounts?id=eq.${payload.id}&user_id=eq.${uid}`, { balance: newBal }, KEY);
-      } else {
-        await sbReq("PATCH", `jeshua_accounts?id=eq.${payload.id}&user_id=eq.${uid}`, { balance: payload.balance }, KEY);
-      }
-      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true }) };
+    // ── Contexto en servidor + llamada a Anthropic ──────────────────────────
+    const system = await buildContext(intent, userId);
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: intent === "capture" ? 400 : 700,
+        system,
+        messages,
+      }),
+    });
+    const data: any = await res.json();
+    if (!res.ok) {
+      console.error("anthropic error:", res.status, JSON.stringify(data).slice(0, 500));
+      return { statusCode: 502, headers: h, body: JSON.stringify({ error: "El servicio de IA no está disponible" }) };
     }
-    // ── Transactions ──────────────────────────────────────────────────────
-    if (action === "getTxs")   { const r = await sbReq("GET", `jeshua_transactions?user_id=eq.${uid}&order=date.desc`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "addTx")    { const r = await sbReq("POST", "jeshua_transactions", { ...payload, user_id: uid }, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "deleteTx") { await sbReq("DELETE", `jeshua_transactions?id=eq.${payload.id}&user_id=eq.${uid}`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true }) }; }
-    // ── Credits ───────────────────────────────────────────────────────────
-    if (action === "getCredits")   { const r = await sbReq("GET", `jeshua_credits?user_id=eq.${uid}&order=created_at.asc`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "addCredit")    { const r = await sbReq("POST", "jeshua_credits", { ...payload, user_id: uid }, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "updateCredit") { const { id, ...rest } = payload; await sbReq("PATCH", `jeshua_credits?id=eq.${id}&user_id=eq.${uid}`, rest, KEY); return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true }) }; }
-    if (action === "deleteCredit") { await sbReq("DELETE", `jeshua_credits?id=eq.${payload.id}&user_id=eq.${uid}`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true }) }; }
-    // ── Budgets ───────────────────────────────────────────────────────────
-    if (action === "getBudgets")   { const r = await sbReq("GET", `jeshua_budgets?user_id=eq.${uid}&order=created_at.asc`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "upsertBudget") {
-      const existing = await sbReq("GET", `jeshua_budgets?user_id=eq.${uid}&category=eq.${encodeURIComponent(payload.category)}`, null, KEY);
-      if (existing.data?.length > 0) {
-        await sbReq("PATCH", `jeshua_budgets?id=eq.${existing.data[0].id}&user_id=eq.${uid}`, { amount: payload.amount }, KEY);
-        return { statusCode: 200, headers: h, body: JSON.stringify([{ ...existing.data[0], amount: payload.amount }]) };
-      } else {
-        const r = await sbReq("POST", "jeshua_budgets", { ...payload, user_id: uid }, KEY);
-        return { statusCode: 200, headers: h, body: JSON.stringify(r.data) };
-      }
-    }
-    if (action === "deleteBudget") { await sbReq("DELETE", `jeshua_budgets?id=eq.${payload.id}&user_id=eq.${uid}`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true }) }; }
-    // ── Goals ─────────────────────────────────────────────────────────────
-    if (action === "getGoals")   { const r = await sbReq("GET", `jeshua_goals?user_id=eq.${uid}&order=created_at.asc`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "addGoal")    { const r = await sbReq("POST", "jeshua_goals", { ...payload, user_id: uid }, KEY); return { statusCode: 200, headers: h, body: JSON.stringify(r.data) }; }
-    if (action === "updateGoal") { const { id, ...rest } = payload; await sbReq("PATCH", `jeshua_goals?id=eq.${id}&user_id=eq.${uid}`, rest, KEY); return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true }) }; }
-    if (action === "deleteGoal") { await sbReq("DELETE", `jeshua_goals?id=eq.${payload.id}&user_id=eq.${uid}`, null, KEY); return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true }) }; }
 
-    return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Unknown action" }) };
-  } catch (e: any) {
-    return { statusCode: e.message === "Unauthorized" ? 401 : 500, headers: h, body: JSON.stringify({ error: e.message }) };
+    const text = data.content?.find((b: { type: string }) => b.type === "text")?.text ?? "";
+    await admin.from("ai_usage").insert({
+      user_id: userId,
+      intent,
+      tokens_in: data.usage?.input_tokens ?? 0,
+      tokens_out: data.usage?.output_tokens ?? 0,
+    });
+
+    return { statusCode: 200, headers: h, body: JSON.stringify({ text }) };
+  } catch (e) {
+    console.error("chat function error:", e);
+    return { statusCode: 500, headers: h, body: JSON.stringify({ error: "Error interno" }) };
   }
 };

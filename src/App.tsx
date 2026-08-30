@@ -6,14 +6,14 @@ import Modal from "./components/Modal";
 import { useAI, type ParsedNewAcc, type ParsedTx } from "./hooks/useAI";
 import { useFinanceData } from "./hooks/useFinanceData";
 import { useVoice } from "./hooks/useVoice";
-import { api, type CreditUpsert, type GoalUpsert } from "./lib/api";
+import { api } from "./lib/api";
 import { ACC_COLORS, C, CATS } from "./lib/constants";
 import { daysUntil, fmt, monthLabel } from "./lib/format";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
 import BudgetModal from "./modals/BudgetModal";
 import GoalModal, { AddToGoalModal, type GoalFormState } from "./modals/GoalModal";
 import ManualTxModal, { type ManualTxFormState } from "./modals/ManualTxModal";
-import type { Account, Goal } from "./types";
+import type { Account, Credit, Goal } from "./types";
 import Analisis from "./views/Analisis";
 import Creditos from "./views/Creditos";
 import Cuentas from "./views/Cuentas";
@@ -23,16 +23,18 @@ import Metas, { type BudgetWithProgress } from "./views/Metas";
 
 type Tab = "dash" | "metas" | "creditos" | "analisis" | "hist" | "accs";
 
+type CreditUpsert = Omit<Credit, "id" | "created_at">;
+type GoalUpsert = Omit<Goal, "id" | "created_at" | "account_id" | "completed_at">;
+
 /** Cuenta en edición: el input deja el balance como string mientras se teclea. */
 type EditAccState = Omit<Account, "balance"> & { balance: string | number };
 
 const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amount: "", target_date: "", icon: "🎯", color: "#7c6af7", notes: "" };
 
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
-  const token = session.access_token;
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, booting, accsRef, txsRef, creditsRef, budgetsRef, goalsRef } = useFinanceData(token);
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, booting, loadError, accsRef, txsRef } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
 
   // FAB
@@ -57,42 +59,48 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [mAddToGoal, setMAddToGoal] = useState<Goal | null>(null);
   const [addGoalAmt, setAddGoalAmt] = useState("");
 
-  // ── Transactions ───────────────────────────────────────────────────────────
-  const applyTx = async (tx: ParsedTx) => {
+  // ── Transactions (una RPC atómica por operación; sin ids temporales) ───────
+  const applyTx = async (tx: ParsedTx): Promise<{ ok: boolean; error?: string }> => {
     const cur = accsRef.current;
     const acc = cur.find((a) => tx.accountName && a.name.toLowerCase().includes(tx.accountName.toLowerCase()));
-    const tmpId = "tmp-" + Date.now();
-    setTxs((p) => [{ id: tmpId, description: tx.description, amount: tx.amount, type: tx.type, category: tx.category || "Otros", accountId: acc?.id ?? null, accountName: acc?.name ?? tx.accountName ?? "Sin cuenta", date: new Date().toISOString() }, ...p]);
-    if (acc) setAccs((p) => p.map((a) => (a.id === acc.id ? { ...a, balance: Number(a.balance) + (tx.type === "gasto" ? -tx.amount : tx.amount) } : a)));
+    if (!acc) return { ok: false, error: `No encontré la cuenta "${tx.accountName ?? ""}". Cuentas: ${cur.map((a) => a.name).join(", ")}` };
     try {
-      const [saved] = await api.addTx({ description: tx.description, amount: tx.amount, type: tx.type, category: tx.category || "Otros", account_id: acc?.id ?? null, account_name: acc?.name ?? tx.accountName ?? "Sin cuenta", date: new Date().toISOString() }, token);
-      if (saved) setTxs((p) => p.map((t) => (t.id === tmpId ? saved : t)));
-      if (acc) await api.updateBalance({ id: acc.id, delta: tx.type === "gasto" ? -tx.amount : tx.amount }, token);
-    } catch (e) { console.error(e); }
+      const saved = await api.applyTx(
+        { accountId: acc.id, kind: tx.type, amount: tx.amount, description: tx.description, category: tx.category || "Otros" },
+        cur
+      );
+      setTxs((p) => [saved, ...p]);
+      setAccs((p) => p.map((a) => (a.id === acc.id ? { ...a, balance: a.balance + (tx.type === "gasto" ? -tx.amount : tx.amount) } : a)));
+      return { ok: true };
+    } catch (e: any) {
+      console.error(e);
+      return { ok: false, error: e?.message || "No se pudo registrar" };
+    }
   };
 
   const deleteTx = async (id: string) => {
     const tx = txsRef.current.find((t) => t.id === id);
     if (!tx) return;
-    const delta = tx.type === "gasto" ? tx.amount : -tx.amount;
-    if (tx.accountId) setAccs((p) => p.map((a) => (a.id === tx.accountId ? { ...a, balance: Number(a.balance) + delta } : a)));
-    setTxs((p) => p.filter((t) => t.id !== id));
     try {
-      await api.deleteTx({ id }, token);
-      if (tx.accountId) await api.updateBalance({ id: tx.accountId, delta }, token);
-    } catch (e) { console.error(e); }
+      await api.deleteTx(id); // reverse_transaction: revierte saldo y efectos en la misma transacción
+      setTxs((p) => p.filter((t) => t.id !== id));
+      const delta = tx.type === "gasto" ? tx.amount : -tx.amount;
+      setAccs((p) => p.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance + delta } : a)));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // ── Accounts ───────────────────────────────────────────────────────────────
   const applyNewAcc = async (d: ParsedNewAcc) => {
     const cur = accsRef.current;
     const color = ACC_COLORS[cur.length % ACC_COLORS.length];
-    const tmpId = "tmp-" + Date.now();
-    setAccs((p) => [...p, { id: tmpId, name: d.accountName, balance: d.balance ?? 0, color, icon: d.icon ?? "🏦" }]);
     try {
-      const [s] = await api.addAccount({ name: d.accountName, balance: d.balance ?? 0, color, icon: d.icon ?? "🏦" }, token);
-      if (s) setAccs((p) => p.map((a) => (a.id === tmpId ? s : a)));
-    } catch (e) { console.error(e); }
+      const s = await api.addAccount({ name: d.accountName, balance: d.balance ?? 0, color, icon: d.icon ?? "🏦" });
+      setAccs((p) => [...p, s]);
+    } catch (e) {
+      console.error(e);
+    }
   };
   const saveNewAcc = async () => {
     if (!newAcc.name.trim()) return;
@@ -104,8 +112,10 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     if (!editAcc || !editAcc.name.trim()) return;
     setAccs((p) => p.map((a) => (a.id === editAcc.id ? { ...a, ...editAcc, balance: Number(editAcc.balance) } : a)));
     try {
-      await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: parseFloat(String(editAcc.balance)), icon: editAcc.icon, color: editAcc.color }, token);
-    } catch (e) { console.error(e); }
+      await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: parseFloat(String(editAcc.balance)), icon: editAcc.icon, color: editAcc.color });
+    } catch (e) {
+      console.error(e);
+    }
     setEditAcc(null);
   };
 
@@ -125,14 +135,13 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   });
   const saveNewCredit = async (f: CreditFormState) => {
     if (!f.name.trim()) return;
-    const p = parseCredit(f);
-    const tmpId = "tmp-" + Date.now();
-    setCredits((pr) => [...pr, { id: tmpId, ...p }]);
     setMCredit(false);
     try {
-      const [s] = await api.addCredit(p, token);
-      if (s) setCredits((pr) => pr.map((c) => (c.id === tmpId ? s : c)));
-    } catch (e) { console.error(e); }
+      const s = await api.addCredit(parseCredit(f));
+      setCredits((pr) => [...pr, s]);
+    } catch (e) {
+      console.error(e);
+    }
   };
   const saveEditCredit = async (f: CreditFormState) => {
     if (!f.name.trim()) return;
@@ -140,47 +149,57 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setCredits((pr) => pr.map((c) => (c.id === f.id ? { ...c, ...p } : c)));
     setEditCredit(null);
     try {
-      await api.updateCredit(p, token);
-    } catch (e) { console.error(e); }
+      await api.updateCredit(p);
+    } catch (e) {
+      console.error(e);
+    }
   };
   const deleteCredit = async (id: string) => {
     setCredits((p) => p.filter((c) => c.id !== id));
     setEditCredit(null);
     try {
-      await api.deleteCredit({ id }, token);
-    } catch (e) { console.error(e); }
+      await api.deleteCredit(id);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // ── Budgets ────────────────────────────────────────────────────────────────
   const saveBudget = async () => {
-    if (!budgetAmt) return;
-    const existing = budgetsRef.current.find((b) => b.category === budgetCat);
-    if (existing) setBudgets((p) => p.map((b) => (b.category === budgetCat ? { ...b, amount: parseFloat(budgetAmt) } : b)));
-    else setBudgets((p) => [...p, { id: "tmp-" + Date.now(), category: budgetCat, amount: parseFloat(budgetAmt) }]);
+    const amount = parseFloat(budgetAmt);
+    if (!amount || amount <= 0) return;
     try {
-      await api.upsertBudget({ category: budgetCat, amount: parseFloat(budgetAmt) }, token);
-    } catch (e) { console.error(e); }
+      const saved = await api.upsertBudget({ category: budgetCat, amount });
+      setBudgets((p) => {
+        const exists = p.some((b) => b.id === saved.id);
+        return exists ? p.map((b) => (b.id === saved.id ? saved : b)) : [...p, saved];
+      });
+    } catch (e) {
+      console.error(e);
+    }
     setBudgetAmt("");
     setMBudget(false);
   };
   const deleteBudget = async (id: string) => {
     setBudgets((p) => p.filter((b) => b.id !== id));
     try {
-      await api.deleteBudget({ id }, token);
-    } catch (e) { console.error(e); }
+      await api.deleteBudget(id);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // ── Goals ──────────────────────────────────────────────────────────────────
   const saveNewGoal = async () => {
     if (!goalForm.name || !goalForm.target_amount) return;
     const p: GoalUpsert = { name: goalForm.name, target_amount: parseFloat(String(goalForm.target_amount)), current_amount: parseFloat(String(goalForm.current_amount || 0)), target_date: goalForm.target_date || null, icon: goalForm.icon, color: goalForm.color, notes: goalForm.notes || null };
-    const tmpId = "tmp-" + Date.now();
-    setGoals((pr) => [...pr, { id: tmpId, ...p }]);
     setMGoal(false);
     try {
-      const [s] = await api.addGoal(p, token);
-      if (s) setGoals((pr) => pr.map((g) => (g.id === tmpId ? s : g)));
-    } catch (e) { console.error(e); }
+      const s = await api.addGoal(p);
+      setGoals((pr) => [...pr, s]);
+    } catch (e) {
+      console.error(e);
+    }
   };
   const saveEditGoal = async () => {
     if (!editGoal) return;
@@ -188,29 +207,36 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setGoals((pr) => pr.map((g) => (g.id === editGoal.id ? { ...g, ...p } : g)));
     setEditGoal(null);
     try {
-      await api.updateGoal(p, token);
-    } catch (e) { console.error(e); }
+      await api.updateGoal(p);
+    } catch (e) {
+      console.error(e);
+    }
   };
   const deleteGoal = async (id: string) => {
     setGoals((p) => p.filter((g) => g.id !== id));
     setEditGoal(null);
     try {
-      await api.deleteGoal({ id }, token);
-    } catch (e) { console.error(e); }
+      await api.deleteGoal(id);
+    } catch (e) {
+      console.error(e);
+    }
   };
   const addToGoal = async () => {
     if (!mAddToGoal || !addGoalAmt) return;
-    const newAmt = Number(mAddToGoal.current_amount) + parseFloat(addGoalAmt);
-    setGoals((p) => p.map((g) => (g.id === mAddToGoal.id ? { ...g, current_amount: newAmt } : g)));
+    const amount = parseFloat(addGoalAmt);
+    if (!amount || amount <= 0) return;
     setMAddToGoal(null);
     setAddGoalAmt("");
     try {
-      await api.updateGoal({ id: mAddToGoal.id, current_amount: newAmt }, token);
-    } catch (e) { console.error(e); }
+      const updated = await api.contributeGoal({ goalId: mAddToGoal.id, amount });
+      setGoals((p) => p.map((g) => (g.id === updated.id ? updated : g)));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // ── AI + voz ───────────────────────────────────────────────────────────────
-  const { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis } = useAI({ token, accsRef, txsRef, creditsRef, budgetsRef, goalsRef, applyTx, applyNewAcc, setTxInput, setLive });
+  const { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis } = useAI({ applyTx, applyNewAcc, setTxInput, setLive });
 
   const { mic, voiceOK, startMic, stopMic } = useVoice({
     onResult: (t) => { setLive(t); setTxInput(t); },
@@ -222,7 +248,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const saveTxManual = async () => {
     const { desc, amt, type, aid, cat } = man;
     if (!desc || !amt || !aid) return;
-    await applyTx({ description: desc, amount: parseFloat(amt), type, category: cat, accountName: accs.find((a) => a.id === aid)?.name ?? "" });
+    const amount = parseFloat(amt);
+    if (!amount || amount <= 0) return;
+    await applyTx({ description: desc, amount, type, category: cat, accountName: accs.find((a) => a.id === aid)?.name ?? "" });
     setMan({ desc: "", amt: "", type: "gasto", aid: "", cat: "Otros" });
     setMMan(false);
   };
@@ -279,7 +307,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     const now = new Date();
     const thisMonthGastos: Record<string, number> = {};
     txs.filter((t) => { const d = new Date(t.date); return t.type === "gasto" && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); }).forEach((t) => { thisMonthGastos[t.category] = (thisMonthGastos[t.category] || 0) + Number(t.amount); });
-    return budgets.map((b) => ({ ...b, spent: thisMonthGastos[b.category] || 0, pct: Math.round(((thisMonthGastos[b.category] || 0) / b.amount) * 100) }));
+    return budgets.map((b) => ({ ...b, spent: thisMonthGastos[b.category] || 0, pct: b.amount > 0 ? Math.round(((thisMonthGastos[b.category] || 0) / b.amount) * 100) : 0 }));
   }, [budgets, txs]);
 
   if (booting) return (
@@ -287,6 +315,15 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       <div style={{ fontSize: 52 }}>💰</div>
       <div style={{ width: 28, height: 28, border: `3px solid ${C.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
       <div style={{ color: C.muted, fontSize: 13 }}>Cargando tus finanzas…</div>
+    </div>
+  );
+
+  if (loadError) return (
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: C.bg, gap: 16, padding: 24 }}>
+      <div style={{ fontSize: 52 }}>⚠️</div>
+      <div style={{ color: C.text, fontSize: 15, fontWeight: 700 }}>No se pudieron cargar tus datos</div>
+      <div style={{ color: C.muted, fontSize: 13, textAlign: "center" }}>{loadError}</div>
+      <button onClick={() => window.location.reload()} style={{ background: C.accent, color: "#fff", border: "none", borderRadius: 12, padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Reintentar</button>
     </div>
   );
 
