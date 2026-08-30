@@ -13,6 +13,7 @@ import { ACC_COLORS, C, CATS } from "./lib/constants";
 import { daysUntil, fmt, monthLabel } from "./lib/format";
 import { daysUntilDate } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
+import { netWorthHistory, projectMonth } from "./lib/analytics";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
 import BudgetModal from "./modals/BudgetModal";
 import GoalModal, { AddToGoalModal, type GoalFormState } from "./modals/GoalModal";
@@ -454,6 +455,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const totG = useMemo(() => sumSpend(periodTxs), [periodTxs]);
   const totI = useMemo(() => sumIncome(periodTxs), [periodTxs]);
   const totalDebt = credits.reduce((s, c) => s + Number(c.total_debt || 0), 0);
+  const netWorth = useMemo(() => netWorthHistory(accs, credits, txs, 6), [accs, credits, txs]);
+
+  const projection = useMemo(() => {
+    const now = new Date();
+    const monthTxs = txs.filter((t) => {
+      const d = new Date(t.date);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    });
+    return projectMonth(monthTxs, upcoming, now);
+  }, [txs, upcoming]);
+
   const upcomingNet = useMemo(
     () => upcoming.reduce((s, u) => s + (u.kind === "ingreso" ? u.amount : -u.amount), 0),
     [upcoming]
@@ -567,7 +579,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 100px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
+        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
         {tab === "metas" && <Metas budgetProgress={budgetProgress} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} />}

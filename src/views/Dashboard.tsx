@@ -5,6 +5,7 @@ import type { MonthlyDatum } from "../components/charts/MonthlyChart";
 
 const DonutChart = lazy(() => import("../components/charts/DonutChart"));
 const MonthlyChart = lazy(() => import("../components/charts/MonthlyChart"));
+const NetWorthChart = lazy(() => import("../components/NetWorthChart"));
 
 const ChartFallback = ({ h }: { h: number }) => (
   <div style={{ height: h, display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6a8a", fontSize: 12 }}>Cargando gráfica…</div>
@@ -14,6 +15,7 @@ import { fmt } from "../lib/format";
 import { PERIODS, type PeriodKey } from "../lib/periods";
 import { daysUntilDate } from "../lib/dates";
 import type { Account, Transaction, Upcoming } from "../types";
+import type { NetWorthPoint, Projection } from "../lib/analytics";
 
 export interface Comparison {
   thisGastos: number;
@@ -32,6 +34,8 @@ export default function Dashboard({
   totalDebt,
   upcoming,
   upcomingNet,
+  netWorth,
+  projection,
   period,
   onPeriod,
   periodLabel,
@@ -50,6 +54,8 @@ export default function Dashboard({
   totalDebt: number;
   upcoming: Upcoming[];
   upcomingNet: number;
+  netWorth: NetWorthPoint[];
+  projection: Projection;
   period: PeriodKey;
   onPeriod: (p: PeriodKey) => void;
   periodLabel: string;
@@ -76,6 +82,74 @@ export default function Dashboard({
         </div>
         <div style={{ fontSize: 10, color: C.muted, marginTop: 10 }}>Ingresos y gastos de: {periodLabel.toLowerCase()}</div>
       </div>
+
+      {/* Patrimonio neto: activos menos deudas, el número que resume todo */}
+      {(() => {
+        const hoy = netWorth[netWorth.length - 1];
+        const antes = netWorth[0];
+        if (!hoy) return null;
+        const cambio = hoy.net - antes.net;
+        const pct = antes.net !== 0 ? Math.round((cambio / Math.abs(antes.net)) * 100) : null;
+        const sube = cambio >= 0;
+        return (
+          <div style={S.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Patrimonio neto</div>
+              {netWorth.length > 1 && (
+                <div style={{ fontSize: 12, fontWeight: 700, color: sube ? C.green : C.red }}>
+                  {sube ? "↑" : "↓"} {fmt(Math.abs(cambio))}{pct !== null ? ` (${sube ? "+" : ""}${pct}%)` : ""}
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: 30, fontWeight: 900, color: hoy.net >= 0 ? C.green : C.red, letterSpacing: -0.5, marginBottom: 2 }}>{fmt(hoy.net)}</div>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
+              {fmt(hoy.assets)} en cuentas − {fmt(hoy.debt)} de deuda
+            </div>
+            {netWorth.length > 1 && (
+              <>
+                <div style={{ height: 200 }}>
+                  <Suspense fallback={<ChartFallback h={200} />}><NetWorthChart data={netWorth} /></Suspense>
+                </div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 8, lineHeight: 1.4 }}>
+                  El dato de hoy es exacto. Los meses anteriores se reconstruyen a partir de tus movimientos,
+                  así que un saldo o una deuda que hayas ajustado a mano no se refleja ahí.
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Proyección de cierre de mes */}
+      {period === "mes" && projection.daysElapsed > 0 && projection.spentSoFar > 0 && (
+        <div style={S.card}>
+          <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Cierre de mes estimado</div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Llevas gastado</div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: C.red }}>{fmt(projection.spentSoFar)}</div>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{fmt(projection.dailyRate)} por día</div>
+            </div>
+            <div style={{ width: 1, background: C.border }} />
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Cerrarías en</div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: C.amber }}>{fmt(projection.projectedSpend)}</div>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>día {projection.daysElapsed} de {projection.daysInMonth}</div>
+            </div>
+          </div>
+          {projection.pendingFixed > 0 && (
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>
+              Incluye {fmt(projection.pendingFixed)} de movimientos fijos que aún no ocurren.
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${C.border}22`, fontSize: 13 }}>
+            <span style={{ color: C.muted }}>Balance estimado del mes</span>
+            <span style={{ fontWeight: 800, color: projection.projectedNet >= 0 ? C.green : C.red }}>
+              {projection.projectedNet >= 0 ? "+" : ""}{fmt(projection.projectedNet)}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Selector de período: manda sobre TODAS las cifras de abajo */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>

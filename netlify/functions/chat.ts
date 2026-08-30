@@ -63,7 +63,7 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
 
   if (intent === "capture") return CAPTURE_PROMPT(accList, catList);
 
-  const [{ data: txs }, { data: credits }, { data: budgets }, { data: goals }] = await Promise.all([
+  const [{ data: txs }, { data: credits }, { data: budgets }, { data: goals }, { data: fijos }] = await Promise.all([
     getAdmin()
       .from("transactions")
       .select("kind,amount,description,date,category:categories(name)")
@@ -73,6 +73,7 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
     getAdmin().from("credits").select("name,total_debt").eq("user_id", userId).is("archived_at", null),
     getAdmin().from("budgets").select("amount,category:categories(name)").eq("user_id", userId).eq("period", "mensual"),
     getAdmin().from("goals").select("name,target_amount,current_amount,target_date").eq("user_id", userId),
+    getAdmin().from("recurring_rules").select("name,kind,amount,frequency,next_run").eq("user_id", userId).eq("active", true),
   ]);
 
   const now = new Date();
@@ -104,9 +105,27 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
     })
     .join("\n");
 
+  const activos = (accounts ?? []).reduce((s, a) => s + Number(a.balance), 0);
+  const deuda = (credits ?? []).reduce((s, c) => s + Number(c.total_debt), 0);
+
+  const diaHoy = now.getDate();
+  const diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const ritmo = diaHoy > 0 ? monthG / diaHoy : 0;
+  const fijosPendientes = (fijos ?? []).filter((f) => {
+    const d = new Date(`${f.next_run}T12:00:00`);
+    return d >= now && d.getMonth() === now.getMonth();
+  });
+  const fijoGastoPend = fijosPendientes.filter((f) => f.kind === "gasto").reduce((s, f) => s + Number(f.amount), 0);
+  const cierre = monthG + ritmo * (diasMes - diaHoy) + fijoGastoPend;
+
+  const fijosTexto = (fijos ?? [])
+    .map((f) => `${f.name}: ${f.kind === "gasto" ? "-" : "+"}${fmt(f.amount)} ${f.frequency}, próximo ${f.next_run}`)
+    .join("\n");
+
   return `Eres el asesor financiero de Millions. Responde en español, amigable, claro y accionable. Máximo 3 párrafos, emojis moderados.
 
-DATOS (mes en curso salvo que se indique):
+DATOS (mes en curso salvo que se indique). Hoy es ${now.toISOString().slice(0, 10)}, día ${diaHoy} de ${diasMes}.
+PATRIMONIO NETO: ${fmt(activos - deuda)} (${fmt(activos)} en cuentas − ${fmt(deuda)} de deuda)
 Cuentas: ${accList || "Sin cuentas"}
 Este mes — Ingresos: ${fmt(monthI)} | Gastos: ${fmt(monthG)}
 Gastos del mes por categoría: ${Object.entries(catMap).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}: ${fmt(v)}`).join(", ") || "Sin gastos"}
@@ -114,6 +133,8 @@ Deuda total: ${fmt((credits ?? []).reduce((s, c) => s + Number(c.total_debt), 0)
 Créditos: ${(credits ?? []).map((c) => `${c.name}: ${fmt(c.total_debt)}`).join(", ") || "Ninguno"}
 Presupuestos del mes:\n${budgetStatus || "Sin presupuestos"}
 Metas de ahorro:\n${goalStatus || "Sin metas"}
+Movimientos fijos activos:\n${fijosTexto || "Ninguno"}
+RITMO: ${fmt(ritmo)} de gasto por día. Al ritmo actual, más ${fmt(fijoGastoPend)} de fijos pendientes, cerrarías el mes gastando ${fmt(cierre)}.
 Últimas transacciones: ${(txs ?? []).slice(0, 15).map((t) => `${t.kind === "ingreso" ? "+" : "-"}${fmt(t.amount)} ${t.description}`).join(", ") || "Ninguna"}`;
 }
 

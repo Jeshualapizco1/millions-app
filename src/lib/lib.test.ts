@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { daysUntilDate, daysUntilDayOfMonth, parseDateOnly } from "./dates";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
 import { fmtShort } from "./format";
-import type { Transaction } from "../types";
+import { netWorthHistory, projectMonth } from "./analytics";
+import type { Account, Credit, Transaction } from "../types";
 
 const at = (iso: string) => vi.setSystemTime(new Date(iso));
 afterEach(() => vi.useRealTimers());
@@ -98,5 +99,75 @@ describe("formato", () => {
   });
   it("por debajo de mil usa el formato completo", () => {
     expect(fmtShort(250)).toContain("250");
+  });
+});
+
+describe("patrimonio neto", () => {
+  const acc = (balance: number): Account => ({ id: "a", name: "A", balance, icon: "🏦", color: "#000000" });
+  const cred = (total_debt: number): Credit => ({
+    id: "c", name: "C", type: "tarjeta", institution: null, total_debt,
+    credit_limit: null, monthly_payment: null, cut_day: null, payment_day: null,
+    next_payment_date: null, interest_rate: null, notes: null,
+    created_at: "2026-01-01T00:00:00.000Z",
+  });
+
+  it("el punto de hoy es activos menos deuda", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    const h = netWorthHistory([acc(10000)], [cred(3000)], [], 3);
+    expect(h[h.length - 1].net).toBe(7000);
+  });
+
+  it("reconstruye hacia atrás restando los movimientos posteriores", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    // Hoy hay 10,000. En septiembre entraron 2,000 de ingreso.
+    // Al cierre de agosto debía haber 8,000.
+    const txs = [tx({ kind: "ingreso", type: "ingreso", amount: 2000, date: "2026-09-10T10:00:00" })];
+    const h = netWorthHistory([acc(10000)], [], txs, 2);
+    expect(h[0].assets).toBe(8000); // cierre de agosto
+    expect(h[1].assets).toBe(10000); // hoy
+  });
+
+  it("una transferencia no altera el patrimonio", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    const txs = [tx({ kind: "transferencia", amount: 5000, date: "2026-09-10T10:00:00" })];
+    const h = netWorthHistory([acc(10000)], [], txs, 2);
+    expect(h[0].assets).toBe(10000);
+    expect(h[1].assets).toBe(10000);
+  });
+
+  it("un pago de crédito baja activos y baja deuda: el patrimonio no cambia", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    // Hoy: 8,000 en cuenta y 1,000 de deuda tras pagar 2,000 en septiembre.
+    // Antes del pago: 10,000 en cuenta y 3,000 de deuda. Neto igual: 7,000.
+    const txs = [tx({ kind: "pago_credito", amount: 2000, date: "2026-09-10T10:00:00" })];
+    const h = netWorthHistory([acc(8000)], [cred(1000)], txs, 2);
+    expect(h[0].net).toBe(7000);
+    expect(h[1].net).toBe(7000);
+  });
+});
+
+describe("proyección de cierre de mes", () => {
+  it("extrapola el ritmo diario a los días que faltan", () => {
+    vi.useFakeTimers(); at("2026-09-10T10:00:00"); // día 10 de 30
+    const txs = [tx({ kind: "gasto", amount: 1000, date: "2026-09-05T10:00:00" })];
+    const p = projectMonth(txs, [], new Date());
+    expect(p.dailyRate).toBe(100); // 1000 / 10 días
+    expect(p.projectedSpend).toBe(3000); // 1000 + 100 × 20 días restantes
+  });
+
+  it("suma los fijos pendientes como monto conocido, no como promedio", () => {
+    vi.useFakeTimers(); at("2026-09-10T10:00:00");
+    const txs = [tx({ kind: "gasto", amount: 1000, date: "2026-09-05T10:00:00" })];
+    const up = [{ ruleId: "r", name: "Renta", kind: "gasto" as const, amount: 12000, accountId: "a", due: "2026-09-20" }];
+    const p = projectMonth(txs, up, new Date());
+    expect(p.pendingFixed).toBe(12000);
+    expect(p.projectedSpend).toBe(15000); // 3000 del ritmo + 12000 fijo
+  });
+
+  it("ignora los fijos que caen en el mes siguiente", () => {
+    vi.useFakeTimers(); at("2026-09-25T10:00:00");
+    const up = [{ ruleId: "r", name: "Renta", kind: "gasto" as const, amount: 12000, accountId: "a", due: "2026-10-01" }];
+    const p = projectMonth([], up, new Date());
+    expect(p.pendingFixed).toBe(0);
   });
 });
