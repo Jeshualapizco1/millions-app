@@ -94,6 +94,12 @@ ahí ya se resolvió o quedó registrado abajo con su motivo.
 - **Registro de errores** en la propia base (`client_errors`): lo que antes
   moría en `console.error` queda con su ruta, acción y commit desplegado.
   Se calla solo ante fallos repetidos y se purga a los 60 días.
+- **Cola offline**: capturar sin señal y sincronizar al reconectar. El id lo
+  decide el teléfono y `apply_transaction` es idempotente, así que un reintento
+  tras una respuesta perdida no duplica el movimiento ni el saldo.
+- **Multi-moneda**: cuentas en USD/EUR/CAD/GBP con el total consolidado a
+  pesos. Las tasas las trae un job diario del BCE a `fx_rates`; el cliente
+  nunca depende de una API externa y sin red usa la última conocida.
 
 ## ⏳ Pendiente
 
@@ -104,11 +110,6 @@ Nada de esto bloquea el uso diario; son mejoras según lo que pida el uso real.
   listo; falta un proveedor de envío (Resend, Postmark) y su API key.
 
 ### Trabajo grande, conviene decidirlo con uso real de por medio
-- **Sincronización offline** de escrituras: el service worker cachea el shell,
-  pero no encola operaciones hechas sin red. Necesita IndexedDB y resolución
-  de conflictos.
-- **Multi-moneda** (Revolut): el esquema ya tiene `currency` por cuenta; falta
-  una fuente de tipo de cambio y decidir cómo consolidar.
 - **Recibos** en Storage: foto adjunta a la transacción, con RLS por usuario.
 ## 🚫 Descartado
 
