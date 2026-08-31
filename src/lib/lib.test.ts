@@ -9,6 +9,7 @@ import { fmtShort } from "./format";
 import { netWorthHistory, projectMonth } from "./analytics";
 import { budgetProgress, totalBudgetStatus } from "./budgets";
 import { buildRows, guessColumns, parseAmount, parseCSV, parseDate } from "./csvImport";
+import { fromBase, hasForeign, toBase } from "./currency";
 import type { Account, Budget, Credit, Transaction } from "../types";
 
 const at = (iso: string) => vi.setSystemTime(new Date(iso));
@@ -105,7 +106,7 @@ describe("formato", () => {
 });
 
 describe("patrimonio neto", () => {
-  const acc = (balance: number): Account => ({ id: "a", name: "A", balance, icon: "🏦", color: "#000000" });
+  const acc = (balance: number, currency = "MXN"): Account => ({ id: "a", name: "A", balance, currency, icon: "🏦", color: "#000000" });
   const cred = (total_debt: number): Credit => ({
     id: "c", name: "C", type: "tarjeta", institution: null, total_debt,
     credit_limit: null, monthly_payment: null, cut_day: null, payment_day: null,
@@ -267,5 +268,44 @@ describe("lectura de CSV bancario", () => {
     expect(rows[0].amount).toBe(12000);
     expect(rows[1].kind).toBe("ingreso");
     expect(rows[1].amount).toBe(35000);
+  });
+});
+
+describe("conversión de monedas", () => {
+  // Las tasas son MXN → X: cuántos X vale 1 peso.
+  const fx = { USD: 0.059, EUR: 0.05068 };
+  const cuenta = (id: string, balance: number, currency = "MXN"): Account =>
+    ({ id, name: id, balance, currency, icon: "🏦", color: "#000000" });
+
+  it("un saldo en la moneda base no se toca", () => {
+    expect(toBase(1000, "MXN", fx)).toBe(1000);
+    expect(toBase(1000, "", fx)).toBe(1000);
+  });
+
+  it("convierte a pesos dividiendo, no multiplicando", () => {
+    // 100 USD con 1 MXN = 0.059 USD → 100 / 0.059 ≈ 1694.92 MXN
+    expect(Math.round(toBase(100, "USD", fx))).toBe(1695);
+  });
+
+  it("ida y vuelta devuelve el mismo monto", () => {
+    const enPesos = toBase(250, "EUR", fx);
+    expect(Math.round(fromBase(enPesos, "EUR", fx))).toBe(250);
+  });
+
+  it("sin tasa conocida devuelve el monto tal cual, no un invento", () => {
+    expect(toBase(500, "JPY", fx)).toBe(500);
+    expect(toBase(500, "USD", {})).toBe(500);
+  });
+
+  it("detecta si hay cuentas en otra moneda", () => {
+    expect(hasForeign([{ currency: "MXN" }, { currency: "USD" }])).toBe(true);
+    expect(hasForeign([{ currency: "MXN" }])).toBe(false);
+  });
+
+  it("el patrimonio consolida las cuentas en otra moneda", () => {
+    vi.useFakeTimers(); at("2026-09-15T10:00:00");
+    // 1000 MXN + 100 USD (≈1695 MXN) ≈ 2695
+    const h = netWorthHistory([cuenta("a", 1000), cuenta("b", 100, "USD")], [], [], 1, new Date(), fx);
+    expect(Math.round(h[0].assets)).toBe(2695);
   });
 });

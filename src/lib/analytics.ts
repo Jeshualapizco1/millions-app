@@ -4,6 +4,7 @@
 // ============================================================================
 import type { Account, Credit, Transaction, Upcoming } from "../types";
 import { monthLabel } from "./format";
+import { toBase, type FxRates } from "./currency";
 
 /** Efecto de un movimiento sobre la SUMA de todas las cuentas. */
 const totalDelta = (t: Transaction): number => {
@@ -41,9 +42,11 @@ export const netWorthHistory = (
   credits: Credit[],
   txs: Transaction[],
   months = 6,
-  now = new Date()
+  now = new Date(),
+  fx: FxRates = {}
 ): NetWorthPoint[] => {
-  const assetsNow = accs.reduce((s, a) => s + a.balance, 0);
+  // Las cuentas en otra moneda se consolidan a la base antes de sumar.
+  const assetsNow = accs.reduce((s, a) => s + toBase(a.balance, a.currency, fx), 0);
   const debtNow = credits.reduce((s, c) => s + Number(c.total_debt || 0), 0);
 
   const points: NetWorthPoint[] = [];

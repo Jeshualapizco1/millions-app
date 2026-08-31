@@ -14,6 +14,7 @@ import { C, S } from "../lib/constants";
 import { fmt } from "../lib/format";
 import { PERIODS, type PeriodKey } from "../lib/periods";
 import { daysUntilDate } from "../lib/dates";
+import { fmtCurrency, toBase, type FxRates } from "../lib/currency";
 import type { Account, Transaction, Upcoming } from "../types";
 import type { NetWorthPoint, Projection } from "../lib/analytics";
 
@@ -36,6 +37,7 @@ export default function Dashboard({
   upcomingNet,
   netWorth,
   projection,
+  fx,
   period,
   onPeriod,
   periodLabel,
@@ -56,6 +58,7 @@ export default function Dashboard({
   upcomingNet: number;
   netWorth: NetWorthPoint[];
   projection: Projection;
+  fx: FxRates;
   period: PeriodKey;
   onPeriod: (p: PeriodKey) => void;
   periodLabel: string;
@@ -252,9 +255,12 @@ export default function Dashboard({
           <div key={a.id} onClick={() => onEditAcc(a)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: `1px solid ${C.border}22`, cursor: "pointer" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: a.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{a.icon}</div>
-              <div><div style={{ fontWeight: 600, fontSize: 14 }}>{a.name}</div><div style={{ fontSize: 11, color: C.muted }}>Toca para editar</div></div>
+              <div><div style={{ fontWeight: 600, fontSize: 14 }}>{a.name}</div><div style={{ fontSize: 11, color: C.muted }}>{a.currency && a.currency !== "MXN" ? a.currency : "Toca para editar"}</div></div>
             </div>
-            <div style={{ fontWeight: 800, color: Number(a.balance) >= 0 ? C.green : C.red, fontSize: 15 }}>{fmt(a.balance)}</div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontWeight: 800, color: Number(a.balance) >= 0 ? C.green : C.red, fontSize: 15 }}>{fmtCurrency(a.balance, a.currency)}</div>
+              {a.currency && a.currency !== "MXN" && <div style={{ fontSize: 10, color: C.muted }}>≈ {fmt(toBase(a.balance, a.currency, fx))}</div>}
+            </div>
           </div>
         ))}
         <button onClick={onNewAcc} style={{ ...S.btn(), width: "100%", marginTop: 14, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44`, padding: "10px" }}>＋ Nueva cuenta</button>

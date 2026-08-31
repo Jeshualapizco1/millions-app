@@ -8,6 +8,8 @@ export interface Account {
   id: string;
   name: string;
   balance: number;
+  /** Moneda de la cuenta. El total se consolida en MXN. */
+  currency: string;
   icon: string;
   color: string;
   created_at?: string;

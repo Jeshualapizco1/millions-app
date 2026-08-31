@@ -16,6 +16,7 @@ export interface ParsedNewAcc {
   accountName: string;
   balance?: number;
   icon?: string;
+  currency?: string;
 }
 
 const AI_GREETING =

@@ -299,6 +299,30 @@ export type Database = {
         }
         Relationships: []
       }
+      fx_rates: {
+        Row: {
+          as_of: string
+          base: string
+          quote: string
+          rate: number
+          updated_at: string
+        }
+        Insert: {
+          as_of: string
+          base: string
+          quote: string
+          rate: number
+          updated_at?: string
+        }
+        Update: {
+          as_of?: string
+          base?: string
+          quote?: string
+          rate?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goal_contributions: {
         Row: {
           account_id: string | null

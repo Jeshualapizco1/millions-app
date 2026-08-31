@@ -5,6 +5,7 @@
 // ============================================================================
 import type { Tables } from "./database.types";
 import { sbClient } from "./supabase";
+import type { FxRates } from "./currency";
 import type { Account, Budget, Category, CategoryKind, ChatMsg, Profile, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
 
 const fail = (error: { message: string } | null): never => {
@@ -126,22 +127,22 @@ export const api = {
   async getAccounts(): Promise<Account[]> {
     const { data, error } = await sbClient
       .from("accounts")
-      .select("id,name,balance,icon,color,created_at")
+      .select("id,name,balance,currency,icon,color,created_at")
       .is("archived_at", null)
       .order("created_at");
     if (error) fail(error);
     return data!.map((a) => ({ ...a, balance: Number(a.balance) }));
   },
-  async addAccount(p: { name: string; balance: number; icon: string; color: string }): Promise<Account> {
+  async addAccount(p: { name: string; balance: number; icon: string; color: string; currency?: string }): Promise<Account> {
     const { data, error } = await sbClient
       .from("accounts")
       .insert({ ...p, user_id: await uid() })
-      .select("id,name,balance,icon,color,created_at")
+      .select("id,name,balance,currency,icon,color,created_at")
       .single();
     if (error) fail(error);
     return { ...data!, balance: Number(data!.balance) };
   },
-  async updateAccount(p: { id: string; name: string; balance: number; icon: string; color: string }): Promise<void> {
+  async updateAccount(p: { id: string; name: string; balance: number; icon: string; color: string; currency?: string }): Promise<void> {
     const { id, ...rest } = p;
     const { error } = await sbClient.from("accounts").update(rest).eq("id", id);
     if (error) fail(error);
@@ -287,6 +288,14 @@ export const api = {
     });
     if (error) fail(error);
     return normTxLocal(data!, accs, catCache ?? []);
+  },
+
+  // ── Tipos de cambio ───────────────────────────────────────────────────────
+  /** MXN → X. Un job diario las actualiza desde el BCE. */
+  async getFxRates(): Promise<FxRates> {
+    const { data, error } = await sbClient.from("fx_rates").select("quote,rate").eq("base", "MXN");
+    if (error) fail(error);
+    return Object.fromEntries((data ?? []).map((r) => [r.quote, Number(r.rate)]));
   },
 
   // ── Perfil ────────────────────────────────────────────────────────────────

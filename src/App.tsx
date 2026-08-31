@@ -18,6 +18,7 @@ import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import { logError } from "./lib/errorLog";
+import { hasForeign, toBase } from "./lib/currency";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
 import { esFalloDeRed } from "./lib/offlineQueue";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
@@ -52,7 +53,7 @@ const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amou
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, booting, loadError, accsRef, txsRef, creditsRef, goalsRef } = useFinanceData();
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx, booting, loadError, accsRef, txsRef, creditsRef, goalsRef } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
   const { toasts, push, dismiss } = useToasts();
 
@@ -66,7 +67,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [man, setMan] = useState<ManualTxFormState>({ desc: "", amt: "", type: "gasto", aid: "", cat: "Otros" });
   const [editAcc, setEditAcc] = useState<EditAccState | null>(null);
   const [mNewAcc, setMNewAcc] = useState(false);
-  const [newAcc, setNewAcc] = useState<AccountFormState>({ name: "", balance: "", icon: "🏦" });
+  const [newAcc, setNewAcc] = useState<AccountFormState>({ name: "", balance: "", icon: "🏦", currency: "MXN" });
   const [mCredit, setMCredit] = useState(false);
   const [editCredit, setEditCredit] = useState<CreditFormState | null>(null);
   const [mBudget, setMBudget] = useState(false);
@@ -187,7 +188,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     const cur = accsRef.current;
     const color = ACC_COLORS[cur.length % ACC_COLORS.length];
     try {
-      const s = await api.addAccount({ name: d.accountName, balance: d.balance ?? 0, color, icon: d.icon ?? "🏦" });
+      const s = await api.addAccount({ name: d.accountName, balance: d.balance ?? 0, color, icon: d.icon ?? "🏦", currency: d.currency ?? "MXN" });
       setAccs((p) => [...p, s]);
     } catch (e) {
       oops(e, "No se pudo crear la cuenta");
@@ -195,8 +196,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
   const saveNewAcc = async () => {
     if (!newAcc.name.trim()) return;
-    await applyNewAcc({ accountName: newAcc.name.trim(), balance: parseFloat(String(newAcc.balance) || "0"), icon: newAcc.icon });
-    setNewAcc({ name: "", balance: "", icon: "🏦" });
+    await applyNewAcc({ accountName: newAcc.name.trim(), balance: parseFloat(String(newAcc.balance) || "0"), icon: newAcc.icon, currency: newAcc.currency });
+    setNewAcc({ name: "", balance: "", icon: "🏦", currency: "MXN" });
     setMNewAcc(false);
   };
   const saveEditAcc = async () => {
@@ -205,7 +206,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setAccs((p) => p.map((a) => (a.id === editAcc.id ? { ...a, ...editAcc, balance: Number(editAcc.balance) } : a)));
     setEditAcc(null);
     try {
-      await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: parseFloat(String(editAcc.balance)), icon: editAcc.icon, color: editAcc.color });
+      await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: parseFloat(String(editAcc.balance)), icon: editAcc.icon, color: editAcc.color, currency: editAcc.currency });
     } catch (e) {
       setAccs(prev);
       oops(e, "No se pudo guardar la cuenta");
@@ -545,11 +546,12 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const periodTxs = useMemo(() => filterByPeriod(txs, period), [txs, period]);
   const periodLabel = PERIODS.find((p) => p.key === period)?.label ?? "";
 
-  const totBal = accs.reduce((s, a) => s + Number(a.balance), 0);
+  // Consolidado en pesos: una cuenta en dólares no puede sumarse tal cual.
+  const totBal = accs.reduce((s, a) => s + toBase(Number(a.balance), a.currency, fx), 0);
   const totG = useMemo(() => sumSpend(periodTxs), [periodTxs]);
   const totI = useMemo(() => sumIncome(periodTxs), [periodTxs]);
   const totalDebt = credits.reduce((s, c) => s + Number(c.total_debt || 0), 0);
-  const netWorth = useMemo(() => netWorthHistory(accs, credits, txs, 6), [accs, credits, txs]);
+  const netWorth = useMemo(() => netWorthHistory(accs, credits, txs, 6, new Date(), fx), [accs, credits, txs, fx]);
 
   const projection = useMemo(() => {
     const now = new Date();
@@ -641,7 +643,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)" }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{userName}</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{userName}{hasForeign(accs) ? " · totales en MXN" : ""}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ background: `linear-gradient(135deg,${C.accent},#9333ea)`, color: "#fff", borderRadius: 12, padding: "6px 14px", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 12px #7c6af733" }}>{fmt(totBal)}</div>
@@ -686,12 +688,12 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 100px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
+        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
         {tab === "metas" && <Metas budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} />}
         {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} />}
-        {tab === "accs" && <Cuentas accs={accs} txs={txs} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
+        {tab === "accs" && <Cuentas accs={accs} txs={txs} fx={fx} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
       </div>
 
       {/* FAB + sheet */}
