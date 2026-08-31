@@ -287,15 +287,26 @@ export const handler: Handler = async (event) => {
     if ((count ?? 0) >= RATE_LIMIT_PER_HOUR)
       return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Llegaste al límite de consultas por hora. Vuelve a intentar en un rato." }) };
 
-    const { data: mesUsuario } = await getAdmin().rpc("ai_calls_this_month", { p_user: userId });
+    const { data: mesUsuario, error: errMes } = await getAdmin().rpc("ai_calls_this_month", { p_user: userId });
+    if (errMes) {
+      // Un control de gasto que ante un error deja pasar no es un control.
+      console.error("no se pudo verificar el consumo del usuario:", errMes.message);
+      return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
+    }
     if (Number(mesUsuario ?? 0) >= RATE_LIMIT_PER_MONTH)
       return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Llegaste al límite de consultas de este mes. Se renueva el día 1." }) };
 
     // Freno de mano global: si el mes ya costó lo presupuestado, la IA se
     // apaga sola. El resto de la app sigue funcionando sin ella.
-    const { data: gastoMes } = await getAdmin().rpc("ai_spend_this_month");
-    if (Number(gastoMes ?? 0) >= MONTHLY_BUDGET_USD) {
-      console.error(`presupuesto de IA agotado: ${gastoMes} USD de ${MONTHLY_BUDGET_USD}`);
+    const { data: gastoMes, error: errGasto } = await getAdmin().rpc("ai_spend_this_month");
+    if (errGasto) {
+      console.error("no se pudo verificar el presupuesto:", errGasto.message);
+      return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
+    }
+    const gastado = Number(gastoMes ?? 0);
+    console.log(`presupuesto: ${gastado.toFixed(5)} de ${MONTHLY_BUDGET_USD} USD · usuario ${mesUsuario} llamadas este mes`);
+    if (gastado >= MONTHLY_BUDGET_USD) {
+      console.error(`presupuesto de IA agotado: ${gastado} USD de ${MONTHLY_BUDGET_USD}`);
       return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
     }
 
