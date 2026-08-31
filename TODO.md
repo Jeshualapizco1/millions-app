@@ -35,7 +35,9 @@ el paso 1 existe por eso.
       ~$0.20 USD al mes**.
 
 - [x] **Tres frenos de gasto**, todos por variable de entorno:
-      - 20 llamadas por hora y usuario (ya existía)
+      - `AI_CALLS_PER_USER_DAY` = 15 — el día se corta a medianoche de
+        Mazatlán, no UTC. Reemplazó al tope por hora, que dejaba un hueco:
+        20/hora durante un día eran 480 llamadas, más que el mes entero.
       - `AI_CALLS_PER_USER_MONTH` = 400 — que nadie solo agote el presupuesto
       - `AI_MONTHLY_BUDGET_USD` = 40 — freno de mano global
 - [x] **Falla cerrado.** Si no se puede verificar el presupuesto, la IA no
@@ -43,8 +45,8 @@ el paso 1 existe por eso.
 - [x] **Salida digna al frenar:** el mensaje dice que se puede seguir capturando
       a mano. El resto de la app sigue funcionando.
 - [x] `ai_usage` registra modelo y costo por llamada (migración 0012).
-- [x] Verificado en producción: la primera llamada pasa, la segunda devuelve 503
-      al rebasar el tope.
+- [x] Verificado en producción: el presupuesto global devuelve 503 al rebasarse,
+      y la llamada 16 del día devuelve 429 con el mensaje de cuándo se renueva.
 
 ### Proyección de costo a 60 días
 
@@ -58,16 +60,28 @@ el paso 1 existe por eso.
 Con el tope global en $40 USD el gasto **no puede** rebasar esa cifra al mes,
 pase lo que pase. Ajustar la variable según la meta de captación.
 
-## Paso 2 — Registro seguro ⏳ SIGUE
+## Paso 2 — Registro seguro 🔶 CÓDIGO LISTO, FALTAN 3 PASOS EN EL PANEL
 
-- [ ] **Reactivar el registro.** Hoy está cerrado (Authentication → Sign In /
-      Providers → *Allow new users to sign up*).
-- [ ] **Captcha en el registro.** Sin esto, un bot crea mil cuentas y quema la
-      API en una noche. Supabase soporta hCaptcha y Cloudflare Turnstile.
-- [ ] **Confirmación de correo obligatoria** antes de poder usar la IA.
-- [ ] Verificar que el correo de alta llegue y no caiga en spam.
-- [ ] Considerar lista de espera o códigos de invitación para controlar el ritmo
-      de entrada durante la promoción.
+Hecho en código:
+- [x] **Captcha de Cloudflare Turnstile** en el registro. Degrada solo: sin la
+      variable `VITE_TURNSTILE_SITE_KEY` no se pinta, así que el código ya vive
+      en producción y se activa cuando exista la llave.
+- [x] **Mínimo de 8 caracteres** en la contraseña al registrarse.
+- [x] **Mensajes de error entendibles**: correo sin confirmar, correo ya
+      registrado, registro cerrado. Antes se mostraba el texto crudo de Supabase.
+- [x] El aviso tras registrarse dice a qué correo se envió y que revise spam.
+
+Pendiente, en paneles externos:
+- [ ] **Crear el sitio en Cloudflare Turnstile** (gratis) y poner:
+      - `VITE_TURNSTILE_SITE_KEY` en Netlify (llave pública)
+      - La llave **secreta** en Supabase: Authentication → Attack Protection →
+        Enable Captcha protection → Turnstile
+- [ ] **Reactivar el registro**: Authentication → Sign In / Providers →
+      *Allow new users to sign up*. **Hacerlo hasta el final**, cuando el paso 3
+      (legal) y el 4 (arranque guiado) estén listos.
+- [ ] Probar el alta con un correo real y confirmar que el mensaje llega y no
+      cae en spam.
+- [ ] Considerar códigos de invitación para controlar el ritmo de entrada.
 
 ## Paso 3 — Marco legal ⏳ SIGUE
 
