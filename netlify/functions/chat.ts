@@ -24,7 +24,12 @@ const MODELS = {
   advise: { id: "claude-sonnet-5", inUsd: 2, outUsd: 10, maxTokens: 2000 },
 } as const;
 
-const RATE_LIMIT_PER_HOUR = 20;
+/**
+ * Tope diario: es el único que se le puede explicar a una persona («15 al día»)
+ * y cierra el hueco que dejaba el tope por hora — 20 por hora durante un día
+ * eran 480 llamadas, más que el mes entero.
+ */
+const RATE_LIMIT_PER_DAY = Number(process.env.AI_CALLS_PER_USER_DAY ?? 15);
 /** Tope mensual por persona: evita que un solo usuario agote el presupuesto. */
 const RATE_LIMIT_PER_MONTH = Number(process.env.AI_CALLS_PER_USER_MONTH ?? 400);
 /** Freno de mano global en dólares. Sin esto, el éxito no tiene techo de costo. */
@@ -277,15 +282,14 @@ export const handler: Handler = async (event) => {
     if (!parsed.success) return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Body inválido" }) };
     const { intent, messages } = parsed.data;
 
-    // ── Límites: por hora, por mes y presupuesto global ────────────────────
-    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
-    const { count } = await getAdmin()
-      .from("ai_usage")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("created_at", hourAgo);
-    if ((count ?? 0) >= RATE_LIMIT_PER_HOUR)
-      return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Llegaste al límite de consultas por hora. Vuelve a intentar en un rato." }) };
+    // ── Límites: por día, por mes y presupuesto global ─────────────────────
+    const { data: hoyUsuario, error: errHoy } = await getAdmin().rpc("ai_calls_today", { p_user: userId });
+    if (errHoy) {
+      console.error("no se pudo verificar el consumo diario:", errHoy.message);
+      return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
+    }
+    if (Number(hoyUsuario ?? 0) >= RATE_LIMIT_PER_DAY)
+      return { statusCode: 429, headers: h, body: JSON.stringify({ error: `Llegaste a tus ${RATE_LIMIT_PER_DAY} consultas de hoy. Mañana se renuevan; mientras tanto puedes registrar movimientos a mano.` }) };
 
     const { data: mesUsuario, error: errMes } = await getAdmin().rpc("ai_calls_this_month", { p_user: userId });
     if (errMes) {
@@ -304,7 +308,7 @@ export const handler: Handler = async (event) => {
       return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
     }
     const gastado = Number(gastoMes ?? 0);
-    console.log(`presupuesto: ${gastado.toFixed(5)} de ${MONTHLY_BUDGET_USD} USD · usuario ${mesUsuario} llamadas este mes`);
+    console.log(`presupuesto: ${gastado.toFixed(5)} de ${MONTHLY_BUDGET_USD} USD · usuario ${hoyUsuario}/${RATE_LIMIT_PER_DAY} hoy, ${mesUsuario}/${RATE_LIMIT_PER_MONTH} este mes`);
     if (gastado >= MONTHLY_BUDGET_USD) {
       console.error(`presupuesto de IA agotado: ${gastado} USD de ${MONTHLY_BUDGET_USD}`);
       return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };

@@ -672,6 +672,7 @@ export type Database = {
       import_transactions: { Args: { p_rows: Json }; Returns: number }
       ai_spend_this_month: { Args: Record<string, never>; Returns: number }
       ai_calls_this_month: { Args: { p_user: string }; Returns: number }
+      ai_calls_today: { Args: { p_user: string }; Returns: number }
       advance_date: {
         Args: {
           p_date: string
