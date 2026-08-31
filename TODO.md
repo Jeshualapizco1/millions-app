@@ -1,123 +1,267 @@
-# TODO — Estado de los hallazgos de la auditoría
+# Millions — estado y plan
 
-Auditoría del 30 de agosto de 2026 sobre el código migrado. Este archivo
-reemplaza a la lista original de la migración: todo lo que estaba anotado
-ahí ya se resolvió o quedó registrado abajo con su motivo.
+Tres partes: el **plan de lanzamiento público**, el **análisis de mercado** que
+lo justifica, y el **historial de la auditoría** de agosto de 2026.
+
+---
+
+# 1. Plan de lanzamiento público
+
+**Objetivo:** abrir Millions a otras personas con una promoción de captación de
+**60 días gratis**.
+
+**Lo que ya está resuelto y no hay que construir:** la arquitectura
+multi-usuario. RLS está forzado en todas las tablas y verificado con pruebas que
+confirman que un usuario no puede ver ni tocar los datos de otro
+(`supabase/tests/e2e.mjs`). Suele ser el trabajo caro y ya está hecho.
+
+**La diferencia estructural frente a la competencia:** MonAi guarda los datos en
+el iCloud del propio usuario y su costo por usuario es cero. Millions corre la IA
+en el servidor con nuestra API key, así que **cada usuario cuesta dinero**. Todo
+el paso 1 existe por eso.
+
+## Paso 1 — Bajar el costo por usuario ✅ HECHO
+
+- [x] **Un modelo por tarea.** Capturar es extracción (sacar monto, cuenta y
+      categoría de una frase): pasó de Opus 5 a **Haiku 4.5**. Aconsejar sí
+      razona sobre todo el panorama: pasó a **Sonnet 5**. Medido en producción:
+
+      | Operación | Antes (Opus 5) | Ahora | Ahorro |
+      |---|---|---|---|
+      | Captura | $0.0044 | $0.00077 | 5.7× |
+      | Asesor  | $0.0190 | $0.00438 | 4.3× |
+
+      Un usuario típico (3 capturas + 1 consulta al día) pasa de **~$0.97 a
+      ~$0.20 USD al mes**.
+
+- [x] **Tres frenos de gasto**, todos por variable de entorno:
+      - 20 llamadas por hora y usuario (ya existía)
+      - `AI_CALLS_PER_USER_MONTH` = 400 — que nadie solo agote el presupuesto
+      - `AI_MONTHLY_BUDGET_USD` = 40 — freno de mano global
+- [x] **Falla cerrado.** Si no se puede verificar el presupuesto, la IA no
+      responde. Un control de gasto que ante un error deja pasar no es control.
+- [x] **Salida digna al frenar:** el mensaje dice que se puede seguir capturando
+      a mano. El resto de la app sigue funcionando.
+- [x] `ai_usage` registra modelo y costo por llamada (migración 0012).
+- [x] Verificado en producción: la primera llamada pasa, la segunda devuelve 503
+      al rebasar el tope.
+
+### Proyección de costo a 60 días
+
+| Escenario | Costo aproximado |
+|---|---|
+| 100 usuarios, uso normal | ~$40 USD (~$700 MXN) |
+| 100 usuarios, uso intenso | ~$240 USD (~$4,100 MXN) |
+| 500 usuarios, uso normal | ~$200 USD (~$3,400 MXN) |
+| 1,000 usuarios, uso normal | ~$400 USD (~$6,800 MXN) |
+
+Con el tope global en $40 USD el gasto **no puede** rebasar esa cifra al mes,
+pase lo que pase. Ajustar la variable según la meta de captación.
+
+## Paso 2 — Registro seguro ⏳ SIGUE
+
+- [ ] **Reactivar el registro.** Hoy está cerrado (Authentication → Sign In /
+      Providers → *Allow new users to sign up*).
+- [ ] **Captcha en el registro.** Sin esto, un bot crea mil cuentas y quema la
+      API en una noche. Supabase soporta hCaptcha y Cloudflare Turnstile.
+- [ ] **Confirmación de correo obligatoria** antes de poder usar la IA.
+- [ ] Verificar que el correo de alta llegue y no caiga en spam.
+- [ ] Considerar lista de espera o códigos de invitación para controlar el ritmo
+      de entrada durante la promoción.
+
+## Paso 3 — Marco legal ⏳ SIGUE
+
+- [ ] **Aviso de privacidad.** La LFPDPPP lo exige al tratar datos personales de
+      terceros. Debe decir qué se recoge, para qué, dónde se guarda (Supabase,
+      EEUU), quién lo procesa (Anthropic para la IA) y cómo ejercer derechos
+      ARCO.
+- [ ] **Términos y condiciones**, incluyendo qué pasa al terminar los 60 días.
+- [ ] **Aceptación en el registro**, con la fecha guardada.
+- [ ] **Borrar cuenta a petición del usuario.** Exportar a CSV ya existe.
+
+> **Buena noticia:** Millions no mueve dinero ni custodia fondos, así que **no
+> es una ITF** bajo la Ley Fintech y no requiere registro ante CNBV.
+
+## Paso 4 — Que el usuario nuevo se quede ⏳ SIGUE
+
+- [ ] **Arranque guiado.** La brecha más grande y la más barata de cerrar. Hoy un
+      desconocido entra a un tablero vacío. Cinco preguntas al entrar (cuentas,
+      renta, techo mensual) y la app cobra sentido de inmediato.
+      *Evidencia:* en la cuenta principal hay 0 movimientos fijos, 0
+      presupuestos y 0 metas — media app sin usar por falta de configuración,
+      no de funciones.
+- [ ] **Mostrar los límites del plan gratuito** dentro de la app: cuántas
+      consultas de IA quedan y cuándo termina la promoción.
+- [ ] **Contador de días restantes** de los 60.
+- [ ] Decidir qué pasa el día 61: ¿se bloquea la IA y sigue el registro manual,
+      o se bloquea todo? *Recomendación: dejar la app usable sin IA.*
+
+## Paso 5 — Después del lanzamiento
+
+- [ ] Panel de uso: usuarios activos, costo por usuario, retención.
+- [ ] Escaneo de recibos con foto — la única capacidad de captura que el mercado
+      tiene y nosotros no.
+- [ ] Notificaciones push reales: la ventaja de los créditos mexicanos solo sirve
+      si avisa **antes** del corte, y hoy hay que abrir la app.
+- [ ] Definir precio si la promoción funciona. Referencia: $149 MXN/mes o
+      $1,420 MXN/año (MonAi).
+
+---
+
+# 2. Análisis de mercado
+
+Investigación del 30 de agosto de 2026 sobre 16 apps.
+Informe completo: https://claude.ai/code/artifact/c21562c0-df41-47a7-9af8-4b7924f3effc
+
+## MonAi — el competidor más parecido y el mejor caso de estudio
+
+| | |
+|---|---|
+| **Quién** | Florian Vates, desarrollador indie, Alemania/Austria |
+| **Historia** | Renunció a su empleo en enero de 2026 para dedicarse a esto |
+| **Tracción** | 250,000+ descargas · 4.8/5 · **~$50,000 USD/mes** (90% de MonAi) |
+| **Plataformas** | iOS y Android nativas |
+| **Datos** | En el iCloud del usuario. Sin login, sin servidor, **sin costo por usuario** |
+
+**Precios en México:** $149 MXN/mes · $1,420 MXN/año · básico intro $69/mes o
+$499/año · familiar $89/mes · estudiante $499–649/año.
+**Capa gratuita: ~20 transacciones al mes.**
+
+**Qué hace:** voz con lenguaje natural, registro automático desde Apple Pay, chat
+de IA, listas compartidas, multi-moneda, presupuestos, recurrentes y atajos de
+Siri.
+
+**La lección real:** llegó a $50k/mes **asociándose con un creador de contenido**,
+no agregando funciones. Su producto es más simple que Millions. La distribución
+fue el lever, no el desarrollo.
+
+## El resto del mercado
+
+**Estados Unidos** — YNAB (Utah, $109 USD/año), Monarch Money (California,
+$99.99/año), Copilot Money (Nueva York, $95/año, solo iOS), Quicken Simplifi
+($48–72/año), Rocket Money, PocketGuard, Empower (gratis). **Mint cerró en 2024**
+tras 15 años, y ese hueco explica el auge de Monarch.
+
+**Europa y Asia** — Wallet/BudgetBakers (Praga, ~€4.49/mes, fuerte en modo
+manual), Spendee (Chequia), Money Lover (Hanói), Cleo (Londres: la mejor IA
+conversacional, pero **solo analiza, no registra**).
+
+**Ola de voz 2026** — Finny, Peggy, MonAi, Voxoro. Categoría nueva este año.
+
+**América Latina** — Mobills y Organizze (Brasil), apps de banco. **Fintonic se
+retiró de México en 2025** por falta de rentabilidad. **Finerio** (mexicana,
+pionera del open banking) dejó de vender al consumidor y hoy vende
+infraestructura a bancos.
+
+## Los cuatro hallazgos
+
+1. **La sincronización bancaria no funciona bien en México.** La Ley Fintech de
+   2018 obliga a abrir APIs, pero a ocho años solo se publicaron las reglas de
+   datos abiertos (2020); las de datos transaccionales siguen pendientes. Por eso
+   los gigantes de EEUU no cruzan, Fintonic se fue y Finerio pivotó. **Capturar
+   por voz en lugar de sincronizar no es un plan B: es la estrategia correcta en
+   este mercado.**
+2. **La voz dejó de ser diferenciador único en 2026.** Lo escaso es la
+   combinación: Cleo conversa pero no registra; Finny registra pero no ejecuta
+   transferencias ni paga créditos.
+3. **Nadie modela la tarjeta de crédito mexicana** — día de corte, día de pago,
+   utilización. Ninguna app global lo construirá porque su mercado no lo
+   necesita.
+4. **El mercado cobra $800–$3,700 MXN al año.** Nuestra infraestructura cuesta
+   cero; solo pagamos la IA, y ahora con techo.
+
+## Dónde ganamos / dónde nos ganan
+
+**Ganamos:** créditos a la mexicana · la IA ejecuta además de opinar · datos en
+base propia (nadie puede apagarla como Intuit apagó Mint) · costo cero de
+infraestructura.
+
+**Nos ganan:** sincronización bancaria donde funciona · inversiones y patrimonio
+automático · apps nativas con widgets y push · escaneo de recibos · onboarding ·
+pulido visual (Copilot juega en otra liga).
+
+**Lo que no perseguiría:** la sincronización bancaria. Es donde el mercado es más
+fuerte, México está más trabado, y ya se estrellaron dos empresas financiadas.
+
+---
+
+# 3. Auditoría de agosto de 2026
 
 ## ✅ Resuelto
 
 ### Seguridad
-- **Base de datos abierta al público.** RLS estaba apagado y el rol `anon`
-  tenía todos los privilegios: con el anon key del bundle cualquiera leía y
-  escribía los datos de los 6 usuarios. Se migró a un proyecto propio con RLS
-  forzado en las 11 tablas. Verificado: `GET /rest/v1/accounts` con la llave
-  pública devuelve `permission denied`.
-- **Proxy abierto a la API key de Anthropic.** La acción `chat` no verificaba
-  el JWT y el cliente elegía modelo, `max_tokens` y `system`. Ahora exige
-  autenticación, el modelo y el contexto se fijan en el servidor y hay límite
-  de 20 llamadas por hora y usuario.
-- **Mass-assignment en updates.** Se podía enviar `user_id` ajeno en el body y
-  transferir una fila a otra persona. Eliminado: RLS aplica `WITH CHECK`.
-- **Errores 500 devolvían `e.message` crudo.** Solo se nombra un fallo de
-  configuración, que es accionable y no expone datos.
+- **Base de datos abierta al público.** RLS estaba apagado y el rol `anon` tenía
+  todos los privilegios: con el anon key del bundle cualquiera leía y escribía
+  los datos de los 6 usuarios. Se migró a un proyecto propio con RLS forzado.
+  Verificado: `GET /rest/v1/accounts` con la llave pública devuelve
+  `permission denied`.
+- **Proxy abierto a la API key de Anthropic.** La acción `chat` no verificaba el
+  JWT y el cliente elegía modelo, `max_tokens` y `system`. Ahora exige
+  autenticación y todo se fija en el servidor.
+- **Mass-assignment en updates.** Se podía enviar `user_id` ajeno y transferir
+  una fila a otra persona. Eliminado: RLS aplica `WITH CHECK`.
+- **Errores 500 devolvían `e.message` crudo.**
 
 ### Integridad de datos
-- **Saldos no atómicos.** `updateBalance` hacía GET → suma en JS → PATCH, y
-  `addTx` + `updateBalance` eran dos llamadas: si la segunda fallaba, el saldo
-  quedaba desfasado. Ahora cada movimiento es una RPC atómica en Postgres.
-- **Optimistic updates sin rollback.** Todos los handlers hacían
-  `catch (e) { console.error(e) }`: la UI mostraba éxito y el dato desaparecía
-  al recargar. Ahora hay toasts de error y se revierte el estado.
-- **IDs temporales al servidor.** Borrar un presupuesto recién creado no
-  borraba nada; borrar una transacción aún sin confirmar desfasaba el saldo.
-  Se eliminaron los ids `tmp-`.
-- **Renombrar una cuenta rompía el historial.** `account_name` estaba
-  desnormalizado en cada transacción. Se quitó del esquema: se resuelve por
-  join.
-- **Zona horaria.** `new Date("2026-09-05")` se leía como medianoche UTC y en
-  Culiacán salía un día antes. Todo pasa por `lib/dates.ts`.
-- **Totales que mezclaban períodos.** El dashboard sumaba de toda la vida
-  mientras la comparativa era del mes. Hay selector de período que manda sobre
-  todas las cifras.
-- **Transferencias inflaban gastos e ingresos a la vez.** Ahora son un `kind`
-  propio y quedan fuera de ambos totales, igual que pagos y abonos.
-- **Presupuesto de $0 dejaba la alerta encendida para siempre**
-  (`spent/0 = Infinity`). Rechazado en cliente y por constraint.
+- **Saldos no atómicos** → cada movimiento es una RPC atómica en Postgres.
+- **Optimistic updates sin rollback** → toasts de error y reversión.
+- **IDs temporales al servidor** → eliminados.
+- **Renombrar una cuenta rompía el historial** → `account_name` salió del
+  esquema; se resuelve por join.
+- **Zona horaria**: `new Date("2026-09-05")` salía un día antes en Culiacán.
+- **Totales que mezclaban períodos** → selector de período sobre todas las cifras.
+- **Transferencias inflaban gastos e ingresos a la vez** → `kind` propio.
+- **Presupuesto de $0** dejaba la alerta encendida para siempre.
 
 ### Bugs heredados del monolito
-- `exportCSV` no escapaba comillas dobles → escapado RFC 4180.
-- `daysUntil` nunca alcanzaba "¡Hoy!" y el día 31 se desbordaba en meses de 30.
-- `CreditCard` ocultaba la tasa cuando era `0` (condición falsy).
-- Abonar a una meta no descontaba de ninguna cuenta → ahora sí, opcionalmente.
-- `sw.js` filtraba `/api/`, ruta que no existe, y nunca llamaba `cache.put`:
-  cero offline pese a interceptar todo.
-- Cambiar el tipo de un crédito conservaba los campos del tipo anterior.
+- `exportCSV` no escapaba comillas dobles.
+- `daysUntil` nunca alcanzaba "¡Hoy!" y el día 31 se desbordaba.
+- `CreditCard` ocultaba la tasa cuando era `0`.
+- Abonar a una meta no descontaba de ninguna cuenta.
+- `sw.js` nunca llamaba `cache.put`: cero offline pese a interceptar todo.
+- Cambiar el tipo de un crédito conservaba campos del tipo anterior.
 - El tipo "otro" nunca mostraba mensualidad ni tasa.
-- Faltaba `apple-touch-icon`: iOS usaba una captura de la página como ícono.
+- Faltaba `apple-touch-icon`.
+- **El header y el menú se iban con el scroll** en la PWA de iPhone: el
+  contenedor usaba `minHeight` y crecía, así que scrolleaba la página entera.
+  Ahora header pegado arriba y barra de pestañas fija abajo.
+- **Los avisos de pago no se podían quitar**: la condición seguía siendo cierta.
+  Ahora se descartan por ciclo y un pago vencido vuelve a insistir.
 
-### Funcionalidad que faltaba
-- Transferencias entre cuentas, pagar un crédito en un paso, abonar a meta
-  desde una cuenta, editar transacciones, movimientos recurrentes, filtros y
-  búsqueda en el historial, quitar cuentas (archivar si tienen historial).
-- Confirmación antes de borrar lo que no tiene deshacer.
-- Cambio de contraseña dentro de la app.
+### Funcionalidad añadida
+Transferencias · pagar crédito en un paso · abonar a meta desde una cuenta ·
+editar transacciones · movimientos recurrentes con `pg_cron` · filtros y búsqueda
+en historial · archivar cuentas · confirmación antes de borrar · cambio de
+contraseña · patrimonio neto con tendencia · proyección de cierre de mes · IA que
+propone acciones y la persona confirma · categorías personalizadas · techo de
+gasto mensual con arrastre · importar CSV del banco · registro de errores propio ·
+cola offline idempotente · multi-moneda.
 
 ### Rendimiento y calidad
-- Bundle de 669 KB en un solo archivo → partido en `react`/`supabase`/`charts`
-  con las gráficas diferidas: la carga inicial pasó de ~200 KB a ~129 KB gzip.
-- Historial de la IA acotado: el costo por llamada ya no crece con la sesión.
-- Pruebas: `npm test` (30 unitarias de la lógica pura) y cuatro suites de
-  integración contra el proyecto real en `supabase/tests/`: contrato del
-  frontend, flujos de dinero, motor de recurrentes y ciclo de acciones de la IA.
+- Bundle de 669 KB → partido en `react`/`supabase`/`charts` con gráficas
+  diferidas: carga inicial de ~200 KB a ~129 KB gzip.
+- `npm test`: 43 pruebas unitarias.
+- Seis suites de integración contra el proyecto real en `supabase/tests/`.
+- CI en GitHub Actions con un paso que falla si aparece una llave secreta en el
+  bundle del cliente.
 
-### Análisis y automatización
-- **Patrimonio neto** con tendencia de 6 meses y **proyección de cierre de mes**
-  por ritmo diario más los fijos pendientes.
-- **Movimientos recurrentes** con `pg_cron`: se ponen al corriente si el job no
-  corre, no duplican y respetan la pausa.
-- **Cortes mensuales de patrimonio** (`net_worth_snapshots`): a partir de ahora
-  la tendencia será historia registrada, no reconstrucción.
-- **IA con acciones**: el asesor propone (transferir, pagar crédito, registrar
-  movimiento, crear presupuesto, abonar a meta) y la persona confirma en una
-  tarjeta que muestra el efecto exacto. Nada se ejecuta antes. Las herramientas
-  reciben nombres, no ids, para que el modelo no pueda inventar un UUID.
-- **Categorías personalizadas**: salieron del código a la base, con gestión
-  propia. Se ocultan, no se borran: los movimientos conservan su etiqueta.
+## ⏳ Pendiente (fuera del lanzamiento)
 
-### Infraestructura
-- **CI en GitHub Actions**: pruebas, typecheck, build y un paso que falla si
-  aparece una llave secreta en el bundle del cliente.
-- **Presupuesto total mensual** con aviso anticipado si el ritmo lo va a
-  rebasar, y **arrastre** opcional del sobrante por categoría (un solo mes).
-- **Importar CSV del banco** con parser propio, detección de duplicados y una
-  RPC que escribe hasta 2000 filas en una sola transacción.
-- **Registro de errores** en la propia base (`client_errors`): lo que antes
-  moría en `console.error` queda con su ruta, acción y commit desplegado.
-  Se calla solo ante fallos repetidos y se purga a los 60 días.
-- **Cola offline**: capturar sin señal y sincronizar al reconectar. El id lo
-  decide el teléfono y `apply_transaction` es idempotente, así que un reintento
-  tras una respuesta perdida no duplica el movimiento ni el saldo.
-- **Multi-moneda**: cuentas en USD/EUR/CAD/GBP con el total consolidado a
-  pesos. Las tasas las trae un job diario del BCE a `fx_rates`; el cliente
-  nunca depende de una API externa y sin red usa la última conocida.
+- **Multi-moneda quedó a medias.** Las cuentas convierten, las transacciones no:
+  `Transaction` no guarda moneda, así que un gasto de $50 USD se muestra y se
+  suma como $50 MXN. **No afecta mientras todo esté en pesos, pero hay que
+  arreglarlo antes de usar Revolut en dólares.**
+- **La cola offline solo cubre gastos e ingresos.** Transferencias, pagos y
+  abonos fallan sin red en vez de encolarse.
+- **No hay aviso de versión nueva** en la PWA ni refresco al volver a la app.
+- **Recibos en Storage.**
+- **Recordatorios por correo** (pospuesto; `pg_cron` listo, falta proveedor).
 
-## ⏳ Pendiente
-
-Nada de esto bloquea el uso diario; son mejoras según lo que pida el uso real.
-
-### Requieren una cuenta o llave que no tengo
-- **Recordatorios por correo** antes de cada corte o pago. `pg_cron` ya está
-  listo; falta un proveedor de envío (Resend, Postmark) y su API key.
-
-### Trabajo grande, conviene decidirlo con uso real de por medio
-- **Recibos** en Storage: foto adjunta a la transacción, con RLS por usuario.
 ## 🚫 Descartado
 
-- **Modo equipo / espacios compartidos.** Millions es una app de finanzas
-  personales; el multi-tenant traería una tabla `workspaces` y reescribir todas
-  las políticas RLS por membresía, a cambio de nada que el usuario necesite.
-
-## ℹ️ No aplica
-
-- **"Leaked password protection" de Supabase.** Requiere plan Pro y el
-  proyecto está en Free. El advisor de seguridad seguirá marcándolo.
+- **Modo equipo / espacios compartidos.** Millions es de finanzas personales; el
+  multi-tenant traería una tabla `workspaces` y reescribir todas las políticas
+  RLS a cambio de nada que se use.
+- **"Leaked password protection" de Supabase.** Requiere plan Pro y el proyecto
+  está en Free. El advisor de seguridad seguirá marcándolo.
+- **Sincronización bancaria.** Ver hallazgo 1 del análisis de mercado.
