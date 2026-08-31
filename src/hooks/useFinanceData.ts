@@ -31,18 +31,38 @@ export function useFinanceData() {
   useEffect(() => { goalsRef.current = goals; }, [goals]);
 
   useEffect(() => {
-    Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7), api.getProfile(), api.getFxRates()])
-      .then(([cats, a, t, cr, b, g, rr, up, prof, rates]) => {
-        setProfile(prof);
-        setFx(rates);
-        setCategories(cats);
-        setAccs(a);
-        setTxs(t);
-        setCredits(cr);
-        setBudgets(b);
-        setGoals(g);
-        setRecurring(rr);
-        setUpcoming(up);
+    const cargar = () =>
+      Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7), api.getProfile(), api.getFxRates()]);
+
+    /**
+     * El reloj del teléfono puede ir unos segundos adelantado respecto al
+     * servidor, y entonces el token queda "emitido en el futuro" y la base lo
+     * rechaza. Pasa sobre todo al abrir la PWA tras horas cerrada. Esperar un
+     * momento y reintentar lo resuelve; fallar de golpe obligaba a recargar
+     * a mano sin saber por qué.
+     */
+    const esDesfaseDeReloj = (e: unknown) =>
+      /issued at future|jwt|token is expired|invalid claim/i.test(String((e as Error)?.message ?? e));
+
+    const aplicar = ([cats, a, t, cr, b, g, rr, up, prof, rates]: Awaited<ReturnType<typeof cargar>>) => {
+      setProfile(prof);
+      setFx(rates);
+      setCategories(cats);
+      setAccs(a);
+      setTxs(t);
+      setCredits(cr);
+      setBudgets(b);
+      setGoals(g);
+      setRecurring(rr);
+      setUpcoming(up);
+    };
+
+    cargar()
+      .then(aplicar)
+      .catch(async (e) => {
+        if (!esDesfaseDeReloj(e)) throw e;
+        await new Promise((r) => setTimeout(r, 2500));
+        return cargar().then(aplicar);
       })
       .catch((e) => {
         console.error(e);
