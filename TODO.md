@@ -3,6 +3,10 @@
 Tres partes: el **plan de lanzamiento público**, el **análisis de mercado** que
 lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
+> Para arrancar el proyecto en otra máquina: **[README.md](README.md)**.
+> Última actualización: 31 de agosto de 2026.
+> **Siguiente tarea: paso 3 (aviso de privacidad y términos).**
+
 ---
 
 # 1. Plan de lanzamiento público
@@ -83,15 +87,26 @@ Pendiente, en paneles externos:
       cae en spam.
 - [ ] Considerar códigos de invitación para controlar el ritmo de entrada.
 
-## Paso 3 — Marco legal ⏳ SIGUE
+## Paso 3 — Marco legal ⏳ SIGUIENTE
 
-- [ ] **Aviso de privacidad.** La LFPDPPP lo exige al tratar datos personales de
-      terceros. Debe decir qué se recoge, para qué, dónde se guarda (Supabase,
-      EEUU), quién lo procesa (Anthropic para la IA) y cómo ejercer derechos
-      ARCO.
-- [ ] **Términos y condiciones**, incluyendo qué pasa al terminar los 60 días.
-- [ ] **Aceptación en el registro**, con la fecha guardada.
-- [ ] **Borrar cuenta a petición del usuario.** Exportar a CSV ya existe.
+Es lo único que legalmente falta antes de poder abrir el registro. No depende
+de nada externo, se puede hacer completo en una sesión.
+
+- [ ] **Aviso de privacidad** (lo exige la LFPDPPP al tratar datos de terceros).
+      Debe decir: qué datos se recogen, para qué, que se guardan en Supabase
+      (EEUU), que Anthropic procesa el texto de las consultas de IA, cuánto se
+      conservan, y cómo ejercer derechos ARCO con un correo de contacto.
+- [ ] **Términos y condiciones**: qué es el servicio, que no es asesoría
+      financiera profesional, qué pasa al terminar los 60 días, y que no se
+      custodia dinero.
+- [ ] **Casilla de aceptación en el registro**, guardando la fecha en `profiles`.
+- [ ] **Páginas dentro de la app** (o enlaces) accesibles desde el registro y
+      desde ajustes.
+- [ ] **Borrar cuenta a petición del usuario.** Exportar a CSV ya existe;
+      falta el borrado completo, que la ley también respalda.
+
+> **Buena noticia:** Millions no mueve dinero ni custodia fondos, así que **no
+> es una ITF** bajo la Ley Fintech y no requiere registro ante CNBV.
 
 > **Buena noticia:** Millions no mueve dinero ni custodia fondos, así que **no
 > es una ITF** bajo la Ley Fintech y no requiere registro ante CNBV.
@@ -258,6 +273,27 @@ cola offline idempotente · multi-moneda.
 - Seis suites de integración contra el proyecto real en `supabase/tests/`.
 - CI en GitHub Actions con un paso que falla si aparece una llave secreta en el
   bundle del cliente.
+
+## 🧹 Limpieza de datos — 31 de agosto de 2026
+
+A petición del usuario se vació la base para empezar de cero: movimientos,
+cuentas, créditos, presupuestos, metas, recurrentes, cortes de patrimonio y
+consumo de IA. **Se conservaron las 11 categorías y el perfil.**
+Respaldo previo en `migration/respaldo-antes-de-limpieza-2026-08-31.json`.
+
+## 🐛 Primer fallo capturado en producción
+
+El registro de errores encontró un fallo real el mismo día que se instaló:
+**"JWT issued at future"** desde la PWA de iPhone durante la carga inicial. El
+reloj del teléfono va unos segundos adelantado respecto al servidor, el token
+queda emitido "en el futuro" y la base lo rechaza; el usuario solo veía
+*"No se pudieron cargar tus datos"*. **Arreglado:** ahora espera y reintenta una
+vez antes de rendirse.
+
+## ✅ Los cron corrieron por primera vez (31 de agosto, 6:00–6:15)
+
+Los cuatro exitosos: recurrentes, corte de patrimonio y los dos de tipos de
+cambio.
 
 ## ⏳ Pendiente (fuera del lanzamiento)
 
