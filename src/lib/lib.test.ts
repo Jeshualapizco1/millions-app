@@ -2,7 +2,7 @@
 // Pruebas de la lógica pura. Cada bloque cubre un bug real que se corrigió,
 // para que no vuelva sin que nos enteremos.
 // ============================================================================
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { daysUntilDate, daysUntilDayOfMonth, parseDateOnly } from "./dates";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
 import { fmtShort } from "./format";
@@ -10,7 +10,18 @@ import { netWorthHistory, projectMonth } from "./analytics";
 import { budgetProgress, totalBudgetStatus } from "./budgets";
 import { buildRows, guessColumns, parseAmount, parseCSV, parseDate } from "./csvImport";
 import { fromBase, hasForeign, toBase } from "./currency";
+import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./alerts";
 import type { Account, Budget, Credit, Transaction } from "../types";
+
+// localStorage mínimo: las pruebas corren en Node y solo lo usa lib/alerts.
+// Un stub de seis líneas evita traer jsdom entero para esto.
+const store = new Map<string, string>();
+(globalThis as any).localStorage = {
+  getItem: (k: string) => store.get(k) ?? null,
+  setItem: (k: string, v: string) => void store.set(k, v),
+  removeItem: (k: string) => void store.delete(k),
+  clear: () => store.clear(),
+};
 
 const at = (iso: string) => vi.setSystemTime(new Date(iso));
 afterEach(() => vi.useRealTimers());
@@ -307,5 +318,53 @@ describe("conversión de monedas", () => {
     // 1000 MXN + 100 USD (≈1695 MXN) ≈ 2695
     const h = netWorthHistory([cuenta("a", 1000), cuenta("b", 100, "USD")], [], [], 1, new Date(), fx);
     expect(Math.round(h[0].assets)).toBe(2695);
+  });
+});
+
+describe("avisos descartables", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("descartar oculta ese aviso concreto", () => {
+    const k = creditAlertKey([{ id: "c1", days: 3 }]);
+    expect(isDismissed(k)).toBe(false);
+    dismissAlert(k);
+    expect(isDismissed(k)).toBe(true);
+  });
+
+  it("al llegar el siguiente vencimiento el aviso vuelve solo", () => {
+    // Se descarta faltando 3 días; mañana faltan 2 y la clave ya es otra.
+    dismissAlert(creditAlertKey([{ id: "c1", days: 3 }]));
+    expect(isDismissed(creditAlertKey([{ id: "c1", days: 2 }]))).toBe(false);
+  });
+
+  it("un pago vencido insiste aunque se hubiera descartado antes", () => {
+    dismissAlert(creditAlertKey([{ id: "c1", days: 1 }]));
+    expect(isDismissed(creditAlertKey([{ id: "c1", days: 0 }]))).toBe(false);
+    expect(isDismissed(creditAlertKey([{ id: "c1", days: -2 }]))).toBe(false);
+  });
+
+  it("otro crédito urgente genera su propio aviso", () => {
+    dismissAlert(creditAlertKey([{ id: "c1", days: 3 }]));
+    expect(isDismissed(creditAlertKey([{ id: "c1", days: 3 }, { id: "c2", days: 3 }]))).toBe(false);
+  });
+
+  it("el orden de los créditos no cambia la clave", () => {
+    const a = creditAlertKey([{ id: "c1", days: 3 }, { id: "c2", days: 5 }]);
+    const b = creditAlertKey([{ id: "c2", days: 5 }, { id: "c1", days: 3 }]);
+    expect(a).toBe(b);
+  });
+
+  it("el aviso de presupuesto se reactiva al cambiar de mes", () => {
+    const sept = new Date(2026, 8, 15);
+    const oct = new Date(2026, 9, 15);
+    dismissAlert(budgetAlertKey(["Alimentación"], sept));
+    expect(isDismissed(budgetAlertKey(["Alimentación"], sept))).toBe(true);
+    expect(isDismissed(budgetAlertKey(["Alimentación"], oct))).toBe(false);
+  });
+
+  it("si se pasa otra categoría, vuelve a avisar", () => {
+    const hoy = new Date(2026, 8, 15);
+    dismissAlert(budgetAlertKey(["Alimentación"], hoy));
+    expect(isDismissed(budgetAlertKey(["Alimentación", "Transporte"], hoy))).toBe(false);
   });
 });

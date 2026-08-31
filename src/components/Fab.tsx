@@ -35,7 +35,7 @@ export default function Fab({
   return (
     <>
       {/* FAB */}
-      {!fab && <button onClick={onOpen} style={{ position: "fixed", bottom: `calc(env(safe-area-inset-bottom,0px) + 24px)`, right: 24, width: 60, height: 60, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},#9333ea)`, border: "none", color: "#fff", fontSize: 28, cursor: "pointer", boxShadow: "0 8px 24px #7c6af755", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>＋</button>}
+      {!fab && <button onClick={onOpen} style={{ position: "fixed", bottom: `calc(env(safe-area-inset-bottom,0px) + 80px)`, right: 20, width: 60, height: 60, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},#9333ea)`, border: "none", color: "#fff", fontSize: 28, cursor: "pointer", boxShadow: "0 8px 24px #7c6af755", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>＋</button>}
 
       {/* FAB Sheet */}
       {fab && (

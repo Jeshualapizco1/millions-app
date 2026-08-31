@@ -19,6 +19,7 @@ import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import { logError } from "./lib/errorLog";
 import { hasForeign, toBase } from "./lib/currency";
+import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./lib/alerts";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
 import { esFalloDeRed } from "./lib/offlineQueue";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
@@ -91,6 +92,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [mTotalBudget, setMTotalBudget] = useState(false);
   const [budgetRollover, setBudgetRollover] = useState(false);
   const [mImport, setMImport] = useState(false);
+  const [alertTick, setAlertTick] = useState(0);
 
   const oops = (e: unknown, fallback: string) => {
     console.error(e);
@@ -619,6 +621,22 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     [profile, projection]
   );
 
+  // Avisos: la clave incluye a qué vencimiento corresponde, así que al
+  // descartarlo no vuelve hasta que haya algo nuevo que avisar.
+  const creditKey = useMemo(
+    () => creditAlertKey(urgentCredits.map((c) => ({ id: c.id, days: Math.min(daysUntil(c.payment_day) ?? 99, daysUntilDate(c.next_payment_date) ?? 99) }))),
+    [urgentCredits]
+  );
+  const budgetOver = useMemo(() => budgetProgress.filter((b) => b.pct >= 90).map((b) => b.category), [budgetProgress]);
+  const budgetKey = useMemo(() => budgetAlertKey(budgetOver), [budgetOver]);
+
+  // alertTick fuerza el recálculo al descartar: lo descartado vive fuera de React.
+  const showCreditAlert = urgentCredits.length > 0 && alertTick >= 0 && !isDismissed(creditKey);
+  const showBudgetAlert = budgetOver.length > 0 && alertTick >= 0 && !isDismissed(budgetKey);
+
+  const hideAlert = (key: string) => { dismissAlert(key); setAlertTick((t) => t + 1); };
+
+
   if (booting) return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: C.bg, gap: 16 }}>
       <div style={{ fontSize: 52 }}>💰</div>
@@ -638,9 +656,10 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
   return (
     <CategoriesProvider categories={categories.filter((c) => !c.hidden)}>
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: C.bg }}>
-      {/* Header */}
-      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)" }}>
+    <div style={{ minHeight: "100dvh", background: C.bg }}>
+      {/* Header pegado arriba: en la PWA de iOS scrollea la página entera,
+          asi que sin sticky el encabezado se iba con el scroll. */}
+      <div style={{ position: "sticky", top: 0, zIndex: 30, background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)" }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
           <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{userName}{hasForeign(accs) ? " · totales en MXN" : ""}</div>
@@ -661,39 +680,46 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         </div>
       </div>
 
-      {/* Alert banner */}
-      {urgentCredits.length > 0 && (
-        <div style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => setTab("creditos")}>
+      {/* Avisos: la ✕ los descarta hasta que cambie la situación */}
+      {showCreditAlert && (
+        <div style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 18 }}>🚨</span>
-          <span style={{ fontSize: 13, color: C.red, fontWeight: 600 }}>{urgentCredits.length === 1 ? `Pago próximo: ${urgentCredits[0].name}` : `${urgentCredits.length} pagos próximos`} — Toca para ver</span>
+          <span onClick={() => setTab("creditos")} style={{ flex: 1, fontSize: 13, color: C.red, fontWeight: 600, cursor: "pointer" }}>
+            {urgentCredits.length === 1 ? `Pago próximo: ${urgentCredits[0].name}` : `${urgentCredits.length} pagos próximos`} — Toca para ver
+          </span>
+          <button onClick={() => hideAlert(creditKey)} title="No volver a mostrar este aviso" style={{ background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 15, padding: "2px 6px", lineHeight: 1 }}>✕</button>
         </div>
       )}
 
-      {/* Budget alert */}
-      {budgetProgress.some((b) => b.pct >= 90) && (
-        <div style={{ background: C.amber + "18", borderBottom: `1px solid ${C.amber}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => setTab("metas")}>
+      {showBudgetAlert && (
+        <div style={{ background: C.amber + "18", borderBottom: `1px solid ${C.amber}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 18 }}>⚠️</span>
-          <span style={{ fontSize: 13, color: C.amber, fontWeight: 600 }}>Presupuesto al límite: {budgetProgress.filter((b) => b.pct >= 90).map((b) => b.category).join(", ")} — Toca para ver</span>
+          <span onClick={() => setTab("metas")} style={{ flex: 1, fontSize: 13, color: C.amber, fontWeight: 600, cursor: "pointer" }}>
+            Presupuesto al límite: {budgetOver.join(", ")} — Toca para ver
+          </span>
+          <button onClick={() => hideAlert(budgetKey)} title="No volver a mostrar este aviso" style={{ background: "none", border: "none", color: C.amber, cursor: "pointer", fontSize: 15, padding: "2px 6px", lineHeight: 1 }}>✕</button>
         </div>
       )}
 
-      {/* Nav */}
-      <div style={{ display: "flex", background: C.surface, borderBottom: `1px solid ${C.border}22`, overflowX: "auto" }}>
-        {([["dash", "📊", "Inicio"], ["metas", "🎯", "Metas"], ["creditos", "💳", "Créditos"], ["analisis", "🤖", "Análisis"], ["hist", "📋", "Historial"], ["accs", "🏦", "Cuentas"]] as [Tab, string, string][]).map(([k, icon, label]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ flex: "0 0 16.66%", minWidth: 56, padding: "11px 4px 8px", background: "none", border: "none", cursor: "pointer", borderBottom: tab === k ? `2px solid ${C.accent}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <span style={{ fontSize: 17 }}>{icon}</span>
-            <span style={{ fontSize: 9, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
-          </button>
-        ))}
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 100px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
+      {/* El padding inferior deja libre la barra de pestañas fija */}
+      <div style={{ padding: "16px 14px calc(env(safe-area-inset-bottom,0px) + 150px)", maxWidth: 600, margin: "0 auto", width: "100%" }}>
         {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
         {tab === "metas" && <Metas budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} />}
         {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} />}
         {tab === "accs" && <Cuentas accs={accs} txs={txs} fx={fx} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
+      </div>
+
+      {/* Barra de pestañas fija abajo: en un teléfono el pulgar llega ahí,
+          y así no se pierde al scrollear. */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 30, display: "flex", background: C.surface, borderTop: `1px solid ${C.border}33`, paddingBottom: "env(safe-area-inset-bottom,0px)", boxShadow: "0 -4px 16px #00000055" }}>
+        {([["dash", "📊", "Inicio"], ["metas", "🎯", "Metas"], ["creditos", "💳", "Créditos"], ["analisis", "🤖", "Análisis"], ["hist", "📋", "Historial"], ["accs", "🏦", "Cuentas"]] as [Tab, string, string][]).map(([k, icon, label]) => (
+          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, minWidth: 0, padding: "9px 2px 7px", background: "none", border: "none", cursor: "pointer", borderTop: tab === k ? `2px solid ${C.accent}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <span style={{ fontSize: 18 }}>{icon}</span>
+            <span style={{ fontSize: 9, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* FAB + sheet */}
