@@ -53,6 +53,14 @@ export interface Profile {
   timezone: string;
   /** Techo de gasto mensual global, además de los límites por categoría. */
   monthly_budget: number | null;
+  /** Cuándo aceptó el aviso y los términos. Null = nunca los ha aceptado. */
+  legal_accepted_at: string | null;
+  /** Versión aceptada. Si no coincide con LEGAL_VERSION, hay que volver a pedirla. */
+  legal_version: string | null;
+  /** Cuándo pidió borrar su cuenta. Null = no la ha pedido. */
+  deletion_requested_at: string | null;
+  /** Alta de la cuenta: base del contador de los 60 días de promoción. */
+  created_at: string;
 }
 
 export type CategoryKind = Enums<"category_kind">;

@@ -13,11 +13,14 @@ import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
 import { ACC_COLORS, C } from "./lib/constants";
 import { daysUntil, fmt, monthLabel } from "./lib/format";
-import { daysUntilDate } from "./lib/dates";
+import { daysUntilDate, diasRestantesDeGracia } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import { logError } from "./lib/errorLog";
+import { GRACIA_DIAS, LEGAL_VERSION } from "./lib/legal";
+import Perfil from "./views/Perfil";
+import LegalGate from "./views/LegalGate";
 import { hasForeign, toBase } from "./lib/currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./lib/alerts";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
@@ -41,7 +44,7 @@ import Dashboard, { type Comparison } from "./views/Dashboard";
 import Historial from "./views/Historial";
 import Metas, { type BudgetWithProgress } from "./views/Metas";
 
-type Tab = "dash" | "metas" | "creditos" | "analisis" | "hist" | "accs";
+type Tab = "dash" | "metas" | "creditos" | "analisis" | "hist" | "accs" | "perfil";
 
 type CreditUpsert = Omit<Credit, "id" | "created_at">;
 type GoalUpsert = Omit<Goal, "id" | "created_at" | "account_id" | "completed_at">;
@@ -99,6 +102,44 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     logError(e, { action: fallback, tab });
     push({ kind: "error", text: (e as Error)?.message || fallback });
   };
+
+  // ── Legal y baja de cuenta ────────────────────────────────────────────────
+  const aceptarLegal = async () => {
+    const at = await api.acceptLegal(LEGAL_VERSION);
+    // Se refleja en memoria en vez de recargar: el portón desaparece solo.
+    setProfile((p) => (p ? { ...p, legal_accepted_at: at, legal_version: LEGAL_VERSION } : p));
+  };
+
+  const pedirBorrado = () =>
+    setConfirm({
+      title: "¿Borrar tu cuenta?",
+      message:
+        `Se eliminarán de forma permanente tus ${txs.length} movimientos, tus cuentas, créditos, presupuestos y metas. ` +
+        `Tienes ${GRACIA_DIAS} días para arrepentirte; después no habrá manera de recuperarlos. ` +
+        "Si aún no exportas tus datos, cancela y hazlo primero.",
+      confirmLabel: "Sí, borrar",
+      action: async () => {
+        try {
+          const at = await api.requestAccountDeletion();
+          setProfile((p) => (p ? { ...p, deletion_requested_at: at } : p));
+          push({ kind: "ok", text: `Cuenta programada para borrarse en ${GRACIA_DIAS} días` });
+        } catch (e) {
+          oops(e, "No se pudo programar el borrado");
+        }
+      },
+    });
+
+  const cancelarBorrado = async () => {
+    try {
+      await api.cancelAccountDeletion();
+      setProfile((p) => (p ? { ...p, deletion_requested_at: null } : p));
+      push({ kind: "ok", text: "Tu cuenta ya no se borrará" });
+    } catch (e) {
+      oops(e, "No se pudo cancelar el borrado");
+    }
+  };
+
+  const diasParaBorrado = diasRestantesDeGracia(profile?.deletion_requested_at, GRACIA_DIAS);
 
   // ── Cola offline ──────────────────────────────────────────────────────────
   const { pending, syncing, enqueue, flush } = useOfflineQueue({
@@ -654,15 +695,29 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     </div>
   );
 
+  // Sin constancia de aceptación no se entra. Cubre a las cuentas que existían
+  // antes de que hubiera aviso, y a todas cuando el texto cambie de versión.
+  if (profile && profile.legal_version !== LEGAL_VERSION) return (
+    <LegalGate
+      nuevaVersion={!!profile.legal_accepted_at}
+      onAccept={aceptarLegal}
+      onSignOut={onSignOut}
+    />
+  );
+
   return (
     <CategoriesProvider categories={categories.filter((c) => !c.hidden)}>
     <div style={{ minHeight: "100dvh", background: C.bg }}>
       {/* Header pegado arriba: en la PWA de iOS scrollea la página entera,
           asi que sin sticky el encabezado se iba con el scroll. */}
       <div style={{ position: "sticky", top: 0, zIndex: 30, background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)" }}>
-        <div>
+        {/* El nombre es la entrada a Perfil: la barra de abajo ya tiene seis
+            pestañas y una séptima las dejaba ilegibles en un teléfono. */}
+        <div onClick={() => setTab("perfil")} style={{ cursor: "pointer" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{userName}{hasForeign(accs) ? " · totales en MXN" : ""}</div>
+          <div style={{ fontSize: 11, color: tab === "perfil" ? C.aLight : C.muted, marginTop: 1 }}>
+            👤 {userName}{hasForeign(accs) ? " · totales en MXN" : ""} ›
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ background: `linear-gradient(135deg,${C.accent},#9333ea)`, color: "#fff", borderRadius: 12, padding: "6px 14px", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 12px #7c6af733" }}>{fmt(totBal)}</div>
@@ -675,10 +730,19 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
               {syncing ? "⟳" : "☁"} {pending}
             </button>
           )}
-          <button onClick={() => setMPass(true)} title="Cambiar contraseña" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 12, padding: "6px 10px", cursor: "pointer" }}>🔑</button>
-          <button onClick={onSignOut} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 12, padding: "6px 10px", cursor: "pointer" }}>↩</button>
         </div>
       </div>
+
+      {/* Baja pendiente: este aviso NO se puede descartar. Olvidar que tu
+          cuenta se borra en unos días es exactamente lo que no debe pasar. */}
+      {diasParaBorrado !== null && (
+        <div onClick={() => setTab("perfil")} style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <span style={{ fontSize: 18 }}>🗑️</span>
+          <span style={{ flex: 1, fontSize: 13, color: C.red, fontWeight: 600 }}>
+            Tu cuenta se borrará {diasParaBorrado === 0 ? "hoy" : `en ${diasParaBorrado} ${diasParaBorrado === 1 ? "día" : "días"}`} — Toca para cancelar
+          </span>
+        </div>
+      )}
 
       {/* Avisos: la ✕ los descarta hasta que cambie la situación */}
       {showCreditAlert && (
@@ -709,6 +773,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} />}
         {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} />}
         {tab === "accs" && <Cuentas accs={accs} txs={txs} fx={fx} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
+        {tab === "perfil" && <Perfil profile={profile} email={session.user?.email ?? ""} txs={txs} onChangePassword={() => setMPass(true)} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} onCancelDeletion={cancelarBorrado} />}
       </div>
 
       {/* Barra de pestañas fija abajo: en un teléfono el pulgar llega ahí,

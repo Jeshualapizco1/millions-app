@@ -46,3 +46,23 @@ export const inMonth = (iso: string, year: number, month: number): boolean => {
   const d = new Date(iso);
   return d.getFullYear() === year && d.getMonth() === month;
 };
+
+/**
+ * Días que faltan para que se cumpla un plazo de gracia.
+ *
+ * Recibe un timestamptz (no un DATE), así que `new Date` es lo correcto aquí:
+ * el instante ya trae zona y no hay nada que corregir.
+ *
+ * Redondea hacia arriba para no prometer de menos: si faltan 29.2 días, decir
+ * "29" haría que la cuenta pareciera morir un día antes de lo que morirá.
+ * Nunca devuelve negativo — pasado el plazo es 0, que se lee como "hoy".
+ */
+export const diasRestantesDeGracia = (
+  requestedAt: string | null | undefined,
+  graceDays: number,
+  now: Date = new Date()
+): number | null => {
+  if (!requestedAt) return null;
+  const limite = new Date(requestedAt).getTime() + graceDays * 864e5;
+  return Math.max(0, Math.ceil((limite - now.getTime()) / 864e5));
+};

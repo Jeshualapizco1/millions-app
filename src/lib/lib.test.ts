@@ -3,7 +3,8 @@
 // para que no vuelva sin que nos enteremos.
 // ============================================================================
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { daysUntilDate, daysUntilDayOfMonth, parseDateOnly } from "./dates";
+import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, parseDateOnly } from "./dates";
+import { GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRIVACIDAD, TERMINOS } from "./legal";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
 import { fmtShort } from "./format";
 import { netWorthHistory, projectMonth } from "./analytics";
@@ -366,5 +367,71 @@ describe("avisos descartables", () => {
     const hoy = new Date(2026, 8, 15);
     dismissAlert(budgetAlertKey(["Alimentación"], hoy));
     expect(isDismissed(budgetAlertKey(["Alimentación", "Transporte"], hoy))).toBe(false);
+  });
+});
+
+// ── Plazo de gracia del borrado de cuenta ───────────────────────────────────
+describe("diasRestantesDeGracia", () => {
+  const pedido = "2026-08-01T12:00:00.000Z";
+
+  it("sin solicitud no hay cuenta regresiva", () => {
+    expect(diasRestantesDeGracia(null, 30)).toBe(null);
+    expect(diasRestantesDeGracia(undefined, 30)).toBe(null);
+  });
+
+  it("recién pedido quedan los 30 días completos", () => {
+    expect(diasRestantesDeGracia(pedido, 30, new Date(pedido))).toBe(30);
+  });
+
+  it("a la mitad del plazo van quedando los que faltan", () => {
+    expect(diasRestantesDeGracia(pedido, 30, new Date("2026-08-16T12:00:00.000Z"))).toBe(15);
+  });
+
+  it("redondea hacia arriba para no prometer de menos", () => {
+    // Faltan 29 días y 20 horas: decir 29 mataría la cuenta un día antes.
+    expect(diasRestantesDeGracia(pedido, 30, new Date("2026-08-01T16:00:00.000Z"))).toBe(30);
+    expect(diasRestantesDeGracia(pedido, 30, new Date("2026-08-30T08:00:00.000Z"))).toBe(2);
+  });
+
+  it("el último día es 0, que se lee como 'hoy'", () => {
+    expect(diasRestantesDeGracia(pedido, 30, new Date("2026-08-31T12:00:00.000Z"))).toBe(0);
+  });
+
+  it("pasado el plazo nunca devuelve negativo", () => {
+    expect(diasRestantesDeGracia(pedido, 30, new Date("2026-10-15T12:00:00.000Z"))).toBe(0);
+  });
+});
+
+// ── Textos legales ──────────────────────────────────────────────────────────
+// No prueban la redacción, sino lo que hace inválido a un aviso: que le falten
+// los datos del responsable, o que el texto y la versión se desincronicen.
+describe("legal", () => {
+  it("los documentos citan la versión vigente", () => {
+    const todo = [...PRIVACIDAD.sections, ...TERMINOS.sections].flatMap((s) => s.body).join(" ");
+    expect(todo).toContain(LEGAL_VERSION);
+  });
+
+  it("ambos documentos traen contenido", () => {
+    for (const doc of [PRIVACIDAD, TERMINOS]) {
+      expect(doc.sections.length).toBeGreaterThan(0);
+      expect(doc.sections.every((s) => s.body.length > 0)).toBe(true);
+    }
+  });
+
+  it("el aviso explica el plazo de gracia que de verdad se aplica", () => {
+    const todo = [...PRIVACIDAD.sections, ...TERMINOS.sections].flatMap((s) => s.body).join(" ");
+    expect(todo).toContain(String(GRACIA_DIAS));
+  });
+
+  it("el aviso menciona a los dos encargados que procesan los datos", () => {
+    const privacidad = PRIVACIDAD.sections.flatMap((s) => s.body).join(" ");
+    expect(privacidad).toContain("Supabase");
+    expect(privacidad).toContain("Anthropic");
+  });
+
+  // Este falla a propósito mientras RESPONSABLE / DOMICILIO / CORREO_ARCO
+  // sigan en PENDIENTE: es el recordatorio de que el aviso aún no es válido.
+  it.fails("los datos del responsable ya están llenos", () => {
+    expect(LEGAL_INCOMPLETO).toBe(false);
   });
 });

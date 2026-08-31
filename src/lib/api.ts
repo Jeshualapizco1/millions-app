@@ -302,7 +302,7 @@ export const api = {
   async getProfile(): Promise<Profile> {
     const { data, error } = await sbClient
       .from("profiles")
-      .select("id,name,base_currency,timezone,monthly_budget")
+      .select("id,name,base_currency,timezone,monthly_budget,legal_accepted_at,legal_version,deletion_requested_at,created_at")
       .single();
     if (error) fail(error);
     return { ...data!, monthly_budget: data!.monthly_budget === null ? null : Number(data!.monthly_budget) };
@@ -457,6 +457,25 @@ export const api = {
   // ── Cuenta de usuario ─────────────────────────────────────────────────────
   async changePassword(newPassword: string): Promise<void> {
     const { error } = await sbClient.auth.updateUser({ password: newPassword });
+    if (error) fail(error);
+  },
+
+  /** Deja constancia de que aceptó el aviso y los términos. La fecha la pone Postgres. */
+  async acceptLegal(version: string): Promise<string> {
+    const { data, error } = await sbClient.rpc("accept_legal", { p_version: version });
+    if (error) fail(error);
+    return data as string;
+  },
+
+  /** Pide la baja. No borra nada todavía: el cron purga a los 30 días. */
+  async requestAccountDeletion(): Promise<string> {
+    const { data, error } = await sbClient.rpc("request_account_deletion");
+    if (error) fail(error);
+    return data as string;
+  },
+
+  async cancelAccountDeletion(): Promise<void> {
+    const { error } = await sbClient.rpc("cancel_account_deletion");
     if (error) fail(error);
   },
 };

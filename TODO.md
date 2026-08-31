@@ -5,7 +5,7 @@ lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
 > Para arrancar el proyecto en otra máquina: **[README.md](README.md)**.
 > Última actualización: 31 de agosto de 2026.
-> **Siguiente tarea: paso 3 (aviso de privacidad y términos).**
+> **Siguiente tarea: paso 4 (arranque guiado para el usuario nuevo).**
 
 ---
 
@@ -87,29 +87,56 @@ Pendiente, en paneles externos:
       cae en spam.
 - [ ] Considerar códigos de invitación para controlar el ritmo de entrada.
 
-## Paso 3 — Marco legal ⏳ SIGUIENTE
+## Paso 3 — Marco legal 🔶 CÓDIGO LISTO, FALTAN LOS DATOS DEL RESPONSABLE
 
-Es lo único que legalmente falta antes de poder abrir el registro. No depende
-de nada externo, se puede hacer completo en una sesión.
+Hecho en código (migración `0014_legal_and_account_deletion.sql`):
 
-- [ ] **Aviso de privacidad** (lo exige la LFPDPPP al tratar datos de terceros).
-      Debe decir: qué datos se recogen, para qué, que se guardan en Supabase
-      (EEUU), que Anthropic procesa el texto de las consultas de IA, cuánto se
-      conservan, y cómo ejercer derechos ARCO con un correo de contacto.
-- [ ] **Términos y condiciones**: qué es el servicio, que no es asesoría
-      financiera profesional, qué pasa al terminar los 60 días, y que no se
-      custodia dinero.
-- [ ] **Casilla de aceptación en el registro**, guardando la fecha en `profiles`.
-- [ ] **Páginas dentro de la app** (o enlaces) accesibles desde el registro y
-      desde ajustes.
-- [ ] **Borrar cuenta a petición del usuario.** Exportar a CSV ya existe;
-      falta el borrado completo, que la ley también respalda.
+- [x] **Aviso de privacidad** y **términos y condiciones** completos, en
+      `src/lib/legal.ts`. El aviso cubre lo que exige la LFPDPPP: qué datos se
+      recogen, para qué, que viven en Supabase (EEUU), que Anthropic procesa el
+      texto de las consultas, cuánto se conservan y cómo ejercer derechos ARCO.
+      Los términos dicen que no es asesoría financiera, qué pasa a los 60 días
+      y que no se custodia dinero.
+- [x] **Casilla de aceptación en el registro**, sin premarcar. La versión viaja
+      en el metadata del `signUp` y el trigger `handle_new_user` sella la fecha
+      con `now()` del servidor — si la pusiera el cliente sería falsificable.
+- [x] **Versionado del aviso.** `profiles.legal_version` guarda qué versión se
+      aceptó. Al cambiar el texto se sube `LEGAL_VERSION` y la app vuelve a
+      pedir la aceptación; sin esto las constancias dirían que alguien aceptó
+      algo que nunca vio.
+- [x] **Portón para cuentas que ya existían** (`LegalGate`): sin constancia no
+      se entra. Deja cerrar sesión, porque un muro sin salida convierte
+      "no acepto" en "no puedes ni salir".
+- [x] **Documentos accesibles siempre**: desde el registro, desde la pantalla de
+      inicio de sesión y desde Perfil.
+- [x] **Borrar cuenta con 30 días de gracia.** `request_account_deletion` marca
+      la fecha, la cuenta sigue usable, un aviso no descartable recuerda el
+      plazo y se puede cancelar de un toque. El cron `millions-purge-accounts`
+      (6:30 AM Mazatlán) borra de `auth.users` y las 12 tablas caen por
+      `ON DELETE CASCADE`.
+- [x] 10 pruebas nuevas: el plazo de gracia y la integridad de los textos.
+
+Pendiente:
+
+- [ ] **Llenar `RESPONSABLE`, `DOMICILIO` y `CORREO_ARCO`** en `src/lib/legal.ts`.
+      Sin los tres, el aviso es inválido. Hay un test marcado `it.fails` que
+      pasará a verde en cuanto se llenen: es el recordatorio.
+- [ ] **Aplicar la migración 0014** al proyecto de Supabase.
+- [ ] Que un abogado revise los textos antes de abrir el registro.
 
 > **Buena noticia:** Millions no mueve dinero ni custodia fondos, así que **no
 > es una ITF** bajo la Ley Fintech y no requiere registro ante CNBV.
 
-> **Buena noticia:** Millions no mueve dinero ni custodia fondos, así que **no
-> es una ITF** bajo la Ley Fintech y no requiere registro ante CNBV.
+## Perfil — hecho
+
+Vista nueva (`src/views/Perfil.tsx`), alcanzable tocando el nombre en el header.
+No se agregó una séptima pestaña: la barra inferior ya tenía seis a 9px y una
+más las dejaba ilegibles en un teléfono. A cambio, el header quedó **más**
+limpio que antes — los botones 🔑 y ↩ se mudaron adentro de Perfil.
+
+Contiene: nombre, correo y antigüedad · cambiar contraseña · cerrar sesión ·
+exportar todo a CSV (el derecho de acceso ARCO) · aviso y términos · constancia
+de qué versión se aceptó y cuándo · borrar cuenta.
 
 ## Paso 4 — Que el usuario nuevo se quede ⏳ SIGUE
 

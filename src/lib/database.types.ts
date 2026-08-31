@@ -442,7 +442,10 @@ export type Database = {
         Row: {
           base_currency: string
           created_at: string
+          deletion_requested_at: string | null
           id: string
+          legal_accepted_at: string | null
+          legal_version: string | null
           monthly_budget: number | null
           name: string | null
           timezone: string
@@ -451,7 +454,10 @@ export type Database = {
         Insert: {
           base_currency?: string
           created_at?: string
+          deletion_requested_at?: string | null
           id: string
+          legal_accepted_at?: string | null
+          legal_version?: string | null
           monthly_budget?: number | null
           name?: string | null
           timezone?: string
@@ -460,7 +466,10 @@ export type Database = {
         Update: {
           base_currency?: string
           created_at?: string
+          deletion_requested_at?: string | null
           id?: string
+          legal_accepted_at?: string | null
+          legal_version?: string | null
           monthly_budget?: number | null
           name?: string | null
           timezone?: string
@@ -669,6 +678,9 @@ export type Database = {
         Returns: Database["public"]["Tables"]["transactions"]["Row"]
       }
       reverse_transaction: { Args: { p_id: string }; Returns: undefined }
+      accept_legal: { Args: { p_version: string }; Returns: string }
+      request_account_deletion: { Args: Record<string, never>; Returns: string }
+      cancel_account_deletion: { Args: Record<string, never>; Returns: undefined }
       import_transactions: { Args: { p_rows: Json }; Returns: number }
       ai_spend_this_month: { Args: Record<string, never>; Returns: number }
       ai_calls_this_month: { Args: { p_user: string }; Returns: number }
