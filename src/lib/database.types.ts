@@ -613,6 +613,7 @@ export type Database = {
           p_account_id: string
           p_amount: number
           p_category_id?: string
+          p_client_id?: string
           p_date?: string
           p_description: string
           p_kind: Database["public"]["Enums"]["tx_kind"]

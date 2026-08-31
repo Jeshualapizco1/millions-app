@@ -181,6 +181,9 @@ export const api = {
     amount: number;
     description: string;
     category?: string | null;
+    date?: string;
+    /** Id decidido por el cliente: hace idempotente el reintento de la cola. */
+    clientId?: string;
   }, accs: Account[]): Promise<Transaction> {
     const { data, error } = await sbClient.rpc("apply_transaction", {
       p_account_id: p.accountId,
@@ -188,6 +191,8 @@ export const api = {
       p_amount: p.amount,
       p_description: p.description,
       p_category_id: (await categoryId(p.category)) ?? undefined,
+      p_date: p.date,
+      p_client_id: p.clientId,
     });
     if (error) fail(error);
     return normTxLocal(data!, accs, catCache ?? []);

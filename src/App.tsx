@@ -18,6 +18,8 @@ import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import { logError } from "./lib/errorLog";
+import { useOfflineQueue } from "./hooks/useOfflineQueue";
+import { esFalloDeRed } from "./lib/offlineQueue";
 import AccountModal, { type AccountFormState } from "./modals/AccountModal";
 import BudgetModal from "./modals/BudgetModal";
 import GoalModal, { AddToGoalModal, type GoalFormState } from "./modals/GoalModal";
@@ -95,20 +97,53 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     push({ kind: "error", text: (e as Error)?.message || fallback });
   };
 
+  // ── Cola offline ──────────────────────────────────────────────────────────
+  const { pending, syncing, enqueue, flush } = useOfflineQueue({
+    onSynced: async (n) => {
+      const [a, t] = await Promise.all([api.getAccounts(), api.getTxs()]);
+      setAccs(a);
+      setTxs(t);
+      push({ kind: "ok", text: `${n} ${n === 1 ? "movimiento sincronizado" : "movimientos sincronizados"}` });
+    },
+    onDropped: (p) =>
+      push({ kind: "error", text: `No se pudo guardar "${p.description}" (${fmt(p.amount)}). Regístralo de nuevo.` }, 9000),
+  });
+
   // ── Transactions (una RPC atómica por operación; sin ids temporales) ───────
   const applyTx = async (tx: ParsedTx): Promise<{ ok: boolean; error?: string }> => {
     const cur = accsRef.current;
     const acc = cur.find((a) => tx.accountName && a.name.toLowerCase().includes(tx.accountName.toLowerCase()));
     if (!acc) return { ok: false, error: `No encontré la cuenta "${tx.accountName ?? ""}". Cuentas: ${cur.map((a) => a.name).join(", ")}` };
+    // Id decidido aquí: si hay que encolarlo, el reintento no lo duplica.
+    const clientId = crypto.randomUUID();
+    const date = new Date().toISOString();
+    const category = tx.category || "Otros";
+    const delta = tx.type === "gasto" ? -tx.amount : tx.amount;
+
     try {
       const saved = await api.applyTx(
-        { accountId: acc.id, kind: tx.type, amount: tx.amount, description: tx.description, category: tx.category || "Otros" },
+        { accountId: acc.id, kind: tx.type, amount: tx.amount, description: tx.description, category, clientId, date },
         cur
       );
       setTxs((p) => [saved, ...p]);
-      setAccs((p) => p.map((a) => (a.id === acc.id ? { ...a, balance: a.balance + (tx.type === "gasto" ? -tx.amount : tx.amount) } : a)));
+      setAccs((p) => p.map((a) => (a.id === acc.id ? { ...a, balance: a.balance + delta } : a)));
       return { ok: true };
     } catch (e: any) {
+      // Sin red no se pierde la captura: se guarda y sale sola al reconectar.
+      if (esFalloDeRed(e)) {
+        try {
+          await enqueue({ id: clientId, accountId: acc.id, accountName: acc.name, kind: tx.type, amount: tx.amount, description: tx.description, category, date });
+          setTxs((p) => [
+            { id: clientId, description: tx.description, amount: tx.amount, kind: tx.type, type: tx.type, category, categoryId: null, accountId: acc.id, accountName: acc.name, toAccountName: null, date },
+            ...p,
+          ]);
+          setAccs((p) => p.map((a) => (a.id === acc.id ? { ...a, balance: a.balance + delta } : a)));
+          push({ kind: "ok", text: "Guardado sin conexión. Se enviará al volver la red." }, 5000);
+          return { ok: true };
+        } catch (qe) {
+          logError(qe, { action: "encolar movimiento offline" });
+        }
+      }
       console.error(e);
       return { ok: false, error: e?.message || "No se pudo registrar" };
     }
@@ -610,6 +645,15 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ background: `linear-gradient(135deg,${C.accent},#9333ea)`, color: "#fff", borderRadius: 12, padding: "6px 14px", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 12px #7c6af733" }}>{fmt(totBal)}</div>
+          {pending > 0 && (
+            <button
+              onClick={() => flush()}
+              title="Movimientos guardados sin conexión. Toca para intentar enviarlos."
+              style={{ background: C.amber + "22", border: `1px solid ${C.amber}55`, borderRadius: 10, color: C.amber, fontSize: 12, fontWeight: 700, padding: "6px 10px", cursor: "pointer" }}
+            >
+              {syncing ? "⟳" : "☁"} {pending}
+            </button>
+          )}
           <button onClick={() => setMPass(true)} title="Cambiar contraseña" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 12, padding: "6px 10px", cursor: "pointer" }}>🔑</button>
           <button onClick={onSignOut} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 10, color: C.muted, fontSize: 12, padding: "6px 10px", cursor: "pointer" }}>↩</button>
         </div>
