@@ -55,17 +55,21 @@ export type Database = {
       }
       ai_usage: {
         Row: {
+          cost_usd: number
           created_at: string
           id: number
           intent: string
+          model: string | null
           tokens_in: number
           tokens_out: number
           user_id: string
         }
         Insert: {
+          cost_usd?: number
           created_at?: string
           id?: never
           intent: string
+          model?: string | null
           tokens_in?: number
           tokens_out?: number
           user_id: string
@@ -666,6 +670,8 @@ export type Database = {
       }
       reverse_transaction: { Args: { p_id: string }; Returns: undefined }
       import_transactions: { Args: { p_rows: Json }; Returns: number }
+      ai_spend_this_month: { Args: Record<string, never>; Returns: number }
+      ai_calls_this_month: { Args: { p_user: string }; Returns: number }
       advance_date: {
         Args: {
           p_date: string

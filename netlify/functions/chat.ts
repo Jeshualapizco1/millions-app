@@ -9,8 +9,29 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "../../src/lib/database.types";
 
-const MODEL = "claude-opus-5";
+/**
+ * Un modelo por tarea, no el más caro para todo.
+ *
+ * Capturar un movimiento es extracción: sacar monto, cuenta y categoría de una
+ * frase. Haiku lo hace igual de bien que Opus por una quinta parte. Aconsejar
+ * sí requiere razonar sobre todo el panorama, y ahí Sonnet 5 da la calidad
+ * necesaria a la mitad del costo de Opus.
+ *
+ * Precios en USD por millón de tokens.
+ */
+const MODELS = {
+  capture: { id: "claude-haiku-4-5", inUsd: 1, outUsd: 5, maxTokens: 1000 },
+  advise: { id: "claude-sonnet-5", inUsd: 2, outUsd: 10, maxTokens: 2000 },
+} as const;
+
 const RATE_LIMIT_PER_HOUR = 20;
+/** Tope mensual por persona: evita que un solo usuario agote el presupuesto. */
+const RATE_LIMIT_PER_MONTH = Number(process.env.AI_CALLS_PER_USER_MONTH ?? 400);
+/** Freno de mano global en dólares. Sin esto, el éxito no tiene techo de costo. */
+const MONTHLY_BUDGET_USD = Number(process.env.AI_MONTHLY_BUDGET_USD ?? 50);
+
+const costOf = (m: { inUsd: number; outUsd: number }, tokensIn: number, tokensOut: number) =>
+  (tokensIn / 1e6) * m.inUsd + (tokensOut / 1e6) * m.outUsd;
 
 /**
  * Cliente de servidor (secret key): salta RLS, por eso TODA query filtra por
@@ -256,7 +277,7 @@ export const handler: Handler = async (event) => {
     if (!parsed.success) return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Body inválido" }) };
     const { intent, messages } = parsed.data;
 
-    // ── Rate limit por usuario ──────────────────────────────────────────────
+    // ── Límites: por hora, por mes y presupuesto global ────────────────────
     const hourAgo = new Date(Date.now() - 3600_000).toISOString();
     const { count } = await getAdmin()
       .from("ai_usage")
@@ -264,11 +285,25 @@ export const handler: Handler = async (event) => {
       .eq("user_id", userId)
       .gte("created_at", hourAgo);
     if ((count ?? 0) >= RATE_LIMIT_PER_HOUR)
-      return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Límite de consultas por hora alcanzado. Intenta más tarde." }) };
+      return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Llegaste al límite de consultas por hora. Vuelve a intentar en un rato." }) };
+
+    const { data: mesUsuario } = await getAdmin().rpc("ai_calls_this_month", { p_user: userId });
+    if (Number(mesUsuario ?? 0) >= RATE_LIMIT_PER_MONTH)
+      return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Llegaste al límite de consultas de este mes. Se renueva el día 1." }) };
+
+    // Freno de mano global: si el mes ya costó lo presupuestado, la IA se
+    // apaga sola. El resto de la app sigue funcionando sin ella.
+    const { data: gastoMes } = await getAdmin().rpc("ai_spend_this_month");
+    if (Number(gastoMes ?? 0) >= MONTHLY_BUDGET_USD) {
+      console.error(`presupuesto de IA agotado: ${gastoMes} USD de ${MONTHLY_BUDGET_USD}`);
+      return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
+    }
 
     // ── Contexto en servidor + llamada a Anthropic ──────────────────────────
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error("Configuración incompleta: falta ANTHROPIC_API_KEY en este entorno");
+
+    const modelo = MODELS[intent];
 
     const system = await buildContext(intent, userId);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -279,17 +314,15 @@ export const handler: Handler = async (event) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: intent === "capture" ? 1000 : 2000,
-        // Las funciones de Netlify cortan a los 10 s. Con esfuerzo alto el asesor
-        // rozaba ese límite (7.8 s medidos) y a veces lo pasaba, devolviendo 504.
-        // 'medium' responde holgado dentro del margen y la calidad se sostiene:
-        // son tres párrafos sobre datos ya resumidos, no un análisis abierto.
-        output_config: { effort: intent === "capture" ? "low" : "medium" },
+        model: modelo.id,
+        max_tokens: modelo.maxTokens,
         system,
         messages,
-        // Solo el asesor propone acciones; la captura devuelve JSON plano.
-        ...(intent === "advise" ? { tools: TOOLS } : {}),
+        // Las funciones de Netlify cortan a los 10 s, así que el asesor va a
+        // esfuerzo medio: responde holgado dentro del margen y la calidad se
+        // sostiene, son tres párrafos sobre datos ya resumidos.
+        // Haiku no admite output_config.effort, por eso solo se manda en advise.
+        ...(intent === "advise" ? { output_config: { effort: "medium" }, tools: TOOLS } : {}),
       }),
     });
     const data: any = await res.json();
@@ -302,11 +335,15 @@ export const handler: Handler = async (event) => {
     const text = blocks.filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
     const toolUse = blocks.find((b) => b.type === "tool_use");
 
+    const tokensIn = data.usage?.input_tokens ?? 0;
+    const tokensOut = data.usage?.output_tokens ?? 0;
     await getAdmin().from("ai_usage").insert({
       user_id: userId,
       intent,
-      tokens_in: data.usage?.input_tokens ?? 0,
-      tokens_out: data.usage?.output_tokens ?? 0,
+      model: modelo.id,
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      cost_usd: costOf(modelo, tokensIn, tokensOut),
     });
 
     // Si propuso una acción, viaja al cliente SIN ejecutarse. `raw` lleva el
