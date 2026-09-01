@@ -20,11 +20,6 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-- [ ] **B11 Inyección de prompt con datos propios.** `chat.ts:255-283` interpola
-      nombres y `dream` (2000 chars) sin delimitar. *Fix:* bloque `<datos>` con
-      instrucción de tratarlo como datos; recortar `dream` a 300.
-- [ ] **B12 Cuentas archivadas aceptan movimientos.** Ninguna RPC verifica
-      `archived_at is null`; el snapshot las excluye y el patrimonio se desfasa.
 - [ ] **B14 ✔ `authenticated` tiene `TRUNCATE`, `TRIGGER` y `REFERENCES` en
       las 15 tablas de `public`.** Viene del `grant all` por omisión de Supabase
       y `TRUNCATE` **no pasa por RLS**. PostgREST no expone `truncate`, así que

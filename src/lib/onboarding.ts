@@ -223,7 +223,10 @@ export function contextoParaAsesor(r: Partial<Respuestas>): string {
   if (r.current_tool && herramientas[r.current_tool]) partes.push(`Antes de Millions ${herramientas[r.current_tool]}.`);
 
   // En sus palabras: es lo que mejor calibra el tono de la respuesta.
-  const sueno = (r.dream ?? "").trim();
+  // Recortado y en una sola línea: es texto libre que escribió la persona y
+  // va dentro del prompt; 300 caracteres bastan para el tono y no dan para
+  // instrucciones largas disfrazadas de sueño.
+  const sueno = (r.dream ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
   if (sueno) partes.push(`Cuando le preguntamos qué cambiaría en su vida al tener el dinero bajo control, respondió: "${sueno}".`);
 
   if (!partes.length) return "";
