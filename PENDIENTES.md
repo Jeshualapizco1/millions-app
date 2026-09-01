@@ -28,12 +28,6 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## D. Mejoras de funcionamiento
 
-- [ ] **D1 Refresco al volver a la app.** `useFinanceData` carga una vez y nunca
-      más; los recurrentes del cron de las 6:00 no aparecen hasta recargar.
-      `visibilitychange` que recargue si pasaron > 5 min.
-- [ ] **D2 Corte y pago de tarjetas dentro de "Próximos pagos".** Hoy
-      `api.getUpcoming(7)` solo cubre `recurring_rules`; los créditos van en un
-      banner aparte. Es el diferenciador del producto.
 - [ ] **D5 Feedback de éxito y anti doble-tap.** `saveNewAcc`, `saveNewCredit`,
       `saveNewGoal`, `saveBudget`, `saveEditAcc` sin toast; `saveTxManual` sin
       `loading`.

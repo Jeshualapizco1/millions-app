@@ -9,6 +9,8 @@ import CategoriesModal from "./modals/CategoriesModal";
 import { Toasts, useToasts } from "./components/Toast";
 import { useAI, type ParsedNewAcc, type ParsedTx } from "./hooks/useAI";
 import { useFinanceData } from "./hooks/useFinanceData";
+import { useRefrescoAlVolver } from "./hooks/useRefrescoAlVolver";
+import { impactoNeto, proximos } from "./lib/upcoming";
 import { importId } from "./lib/csvImport";
 import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
@@ -65,7 +67,7 @@ const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amou
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx, booting, loadError, accsRef, txsRef, creditsRef, goalsRef } = useFinanceData();
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx, booting, loadError, accsRef, txsRef, creditsRef, goalsRef, recargar } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
   const { toasts, push, dismiss } = useToasts();
 
@@ -708,6 +710,12 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     push({ kind: "ok", text: amount ? `Techo mensual fijado en ${fmt(amount)}` : "Techo mensual quitado" });
   };
 
+  // Al volver a la app tras un rato, los datos se recargan solos: el cron de
+  // las 6:00 registra los fijos y antes no aparecían hasta recargar a mano.
+  // Con la cola vacía como condición: recargar borraría de la lista lo que
+  // todavía no ha salido del teléfono.
+  useRefrescoAlVolver({ refrescar: recargar, puedeRefrescar: () => pending === 0 });
+
   const actionContext = () => ({ accs: accsRef.current, credits: creditsRef.current, goals: goalsRef.current });
 
   /** Tras ejecutar una acción del asesor, recargar lo que pudo cambiar. */
@@ -763,10 +771,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     return projectMonth(monthTxs, upcoming, now);
   }, [txs, upcoming]);
 
-  const upcomingNet = useMemo(
-    () => upcoming.reduce((s, u) => s + (u.kind === "ingreso" ? u.amount : -u.amount), 0),
-    [upcoming]
-  );
+  // Fijos + cortes y pagos de tarjeta, en una sola lista ordenada. Los
+  // créditos estaban solo en el banner rojo de arriba, que se puede descartar:
+  // avisar antes del corte es el diferenciador y no puede vivir únicamente ahí.
+  const proximosItems = useMemo(() => proximos(upcoming, credits, 7), [upcoming, credits]);
+  const upcomingNet = useMemo(() => impactoNeto(proximosItems), [proximosItems]);
 
   const urgentCredits = useMemo(() => credits.filter((c) => {
     const d1 = daysUntil(c.payment_day);
@@ -992,7 +1001,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {/* El padding inferior deja libre la barra de pestañas fija */}
       <div style={{ padding: "16px 14px calc(env(safe-area-inset-bottom,0px) + 150px)", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} nombre={userName} onArranque={() => setTab("arranque")} onAddCredit={() => { setTab("creditos"); setMCredit(true); }} onCapture={() => { setFab(true); startMic(); }} />}
+        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} proximos={proximosItems} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} nombre={userName} onArranque={() => setTab("arranque")} onAddCredit={() => { setTab("creditos"); setMCredit(true); }} onCapture={() => { setFab(true); startMic(); }} />}
         {tab === "metas" && <Metas budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} aiUso={aiUso} />}

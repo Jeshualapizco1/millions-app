@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { logError } from "../lib/errorLog";
 import type { Account, Budget, Category, Credit, Goal, Profile, RecurringRule, Transaction, Upcoming } from "../types";
@@ -30,9 +30,36 @@ export function useFinanceData() {
   useEffect(() => { budgetsRef.current = budgets; }, [budgets]);
   useEffect(() => { goalsRef.current = goals; }, [goals]);
 
+  const cargar = useCallback(() =>
+    Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7), api.getProfile(), api.getFxRates()]), []);
+
+  const aplicar = useCallback(([cats, a, t, cr, b, g, rr, up, prof, rates]: Awaited<ReturnType<typeof cargar>>) => {
+    setProfile(prof);
+    setFx(rates);
+    setCategories(cats);
+    setAccs(a);
+    setTxs(t);
+    setCredits(cr);
+    setBudgets(b);
+    setGoals(g);
+    setRecurring(rr);
+    setUpcoming(up);
+  }, []);
+
+  /**
+   * Recarga en segundo plano, al volver a la app. Si falla no se grita: los
+   * datos en pantalla simplemente siguen siendo los de antes, que es mucho
+   * mejor que un error encima de una app que funciona. Queda en el registro.
+   */
+  const recargar = useCallback(async () => {
+    try {
+      aplicar(await cargar());
+    } catch (e) {
+      logError(e, { action: "recarga al volver a la app" });
+    }
+  }, [cargar, aplicar]);
+
   useEffect(() => {
-    const cargar = () =>
-      Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7), api.getProfile(), api.getFxRates()]);
 
     /**
      * El reloj del teléfono puede ir unos segundos adelantado respecto al
@@ -43,19 +70,6 @@ export function useFinanceData() {
      */
     const esDesfaseDeReloj = (e: unknown) =>
       /issued at future|jwt|token is expired|invalid claim/i.test(String((e as Error)?.message ?? e));
-
-    const aplicar = ([cats, a, t, cr, b, g, rr, up, prof, rates]: Awaited<ReturnType<typeof cargar>>) => {
-      setProfile(prof);
-      setFx(rates);
-      setCategories(cats);
-      setAccs(a);
-      setTxs(t);
-      setCredits(cr);
-      setBudgets(b);
-      setGoals(g);
-      setRecurring(rr);
-      setUpcoming(up);
-    };
 
     cargar()
       .then(aplicar)
@@ -70,11 +84,11 @@ export function useFinanceData() {
         setLoadError(e?.message || "No se pudieron cargar tus datos");
       })
       .finally(() => setBooting(false));
-  }, []);
+  }, [cargar, aplicar]);
 
   return {
     accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals,
     recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx,
-    booting, loadError, accsRef, txsRef, creditsRef, budgetsRef, goalsRef,
+    booting, loadError, accsRef, txsRef, creditsRef, budgetsRef, goalsRef, recargar,
   };
 }

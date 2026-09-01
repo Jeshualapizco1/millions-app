@@ -14,9 +14,9 @@ import Vacio from "./Vacio";
 import { C, S } from "../lib/constants";
 import { fmt } from "../lib/format";
 import { PERIODS, type PeriodKey } from "../lib/periods";
-import { daysUntilDate } from "../lib/dates";
+import { iconoDe, type Proximo } from "../lib/upcoming";
 import { fmtCurrency, toBase, type FxRates } from "../lib/currency";
-import type { Account, Transaction, Upcoming } from "../types";
+import type { Account, Transaction } from "../types";
 import type { NetWorthPoint, Projection } from "../lib/analytics";
 
 export interface Comparison {
@@ -34,7 +34,7 @@ export default function Dashboard({
   totI,
   totG,
   totalDebt,
-  upcoming,
+  proximos,
   upcomingNet,
   netWorth,
   projection,
@@ -59,7 +59,7 @@ export default function Dashboard({
   totI: number;
   totG: number;
   totalDebt: number;
-  upcoming: Upcoming[];
+  proximos: Proximo[];
   upcomingNet: number;
   netWorth: NetWorthPoint[];
   projection: Projection;
@@ -211,25 +211,28 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Lo que viene: movimientos fijos ya proyectados por el servidor */}
-      {upcoming.length > 0 && (
+      {/* Lo que viene: fijos del servidor + cortes y pagos de tarjeta */}
+      {proximos.length > 0 && (
         <div style={S.card}>
           <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Próximos 7 días</div>
-          <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>Movimientos fijos que se registrarán solos</div>
-          {upcoming.map((u, i) => {
-            const dias = daysUntilDate(u.due);
-            const cuando = dias === null ? "" : dias <= 0 ? "Hoy" : dias === 1 ? "Mañana" : `En ${dias} días`;
+          <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>Movimientos fijos, cortes y pagos de tus créditos</div>
+          {proximos.map((u) => {
+            const cuando = u.dias < 0 ? `Vencido hace ${Math.abs(u.dias)} ${Math.abs(u.dias) === 1 ? "día" : "días"}` : u.dias === 0 ? "Hoy" : u.dias === 1 ? "Mañana" : `En ${u.dias} días`;
             return (
-              <div key={`${u.ruleId}-${i}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${C.border}22` }}>
+              <div key={u.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${C.border}22` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                  <span style={{ fontSize: 16 }}>🔁</span>
+                  <span style={{ fontSize: 16 }}>{iconoDe(u.tipo)}</span>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}</div>
-                    <div style={{ fontSize: 11, color: dias !== null && dias <= 1 ? C.amber : C.muted }}>{cuando}</div>
+                    <div style={{ fontSize: 11, color: u.dias <= 1 ? C.amber : C.muted }}>
+                      {cuando}{u.tipo === "fijo" ? " · se registra solo" : ""}
+                    </div>
                   </div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: u.kind === "gasto" ? C.red : C.green }}>
-                  {u.kind === "gasto" ? "-" : "+"}{fmt(u.amount)}
+                {/* Un corte no mueve dinero: se avisa, no se cobra. Y un crédito
+                    sin mensualidad fija tampoco tiene monto que mostrar. */}
+                <div style={{ fontSize: 13, fontWeight: 700, color: u.amount === 0 ? C.muted : u.kind === "gasto" ? C.red : C.green }}>
+                  {u.amount === 0 ? (u.tipo === "corte" ? "corte" : "—") : `${u.kind === "gasto" ? "-" : "+"}${fmt(u.amount)}`}
                 </div>
               </div>
             );

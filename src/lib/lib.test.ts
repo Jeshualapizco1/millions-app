@@ -14,6 +14,7 @@ import { buildRows, guessColumns, importId, parseAmount, parseCSV, parseDate } f
 import { fromBase, hasForeign, SELECTOR_DE_MONEDA_ACTIVO, toBase } from "./currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./alerts";
 import { findByName } from "./names";
+import { impactoNeto, proximos, proximosDeCreditos } from "./upcoming";
 import { esFalloDeRed, esFalloDeSesion } from "./offlineQueue";
 import { consultasRestantes, textoAiUso } from "./aiUso";
 import { BodySchema } from "../../netlify/lib/chatSchema";
@@ -857,5 +858,51 @@ describe("números que vienen de un formulario", () => {
     expect(numero("1250.75")).toBe(1250.75);
     expect(numero("-300")).toBe(-300);
     expect(numero(42)).toBe(42);
+  });
+});
+
+// ── Lo que viene: fijos + cortes y pagos de tarjeta ─────────────────────────
+describe("próximos 7 días", () => {
+  const tarjeta = {
+    id: "c1", name: "BBVA Oro", type: "tarjeta", institution: null, total_debt: 12000,
+    credit_limit: 50000, monthly_payment: 3000, cut_day: 12, payment_day: 20,
+    next_payment_date: null, interest_rate: null, notes: null, created_at: "",
+  } as any;
+
+  it("saca el corte y el pago de una tarjeta como dos avisos distintos", () => {
+    vi.useFakeTimers(); at("2026-09-10T10:00:00");
+    const r = proximosDeCreditos([tarjeta], 15, new Date());
+    expect(r.map((x) => [x.tipo, x.due, x.dias, x.amount])).toEqual([
+      ["corte", "2026-09-12", 2, 0],
+      ["pago", "2026-09-20", 10, 3000],
+    ]);
+  });
+
+  it("no muestra lo que cae fuera de la ventana", () => {
+    vi.useFakeTimers(); at("2026-09-10T10:00:00");
+    expect(proximosDeCreditos([tarjeta], 7, new Date()).map((x) => x.tipo)).toEqual(["corte"]);
+  });
+
+  it("un crédito sin día del mes usa su fecha, aunque esté vencida", () => {
+    vi.useFakeTimers(); at("2026-09-10T10:00:00");
+    const auto = { ...tarjeta, id: "c2", name: "Auto", type: "auto", cut_day: null, payment_day: null, next_payment_date: "2026-09-05", monthly_payment: 4500 };
+    const r = proximosDeCreditos([auto], 7, new Date());
+    expect(r).toHaveLength(1);
+    expect(r[0].dias).toBe(-5);
+  });
+
+  it("mezcla los fijos con los créditos y ordena por fecha", () => {
+    vi.useFakeTimers(); at("2026-09-10T10:00:00");
+    const fijos = [{ ruleId: "r1", name: "Renta", kind: "gasto" as const, amount: 9000, accountId: "a", due: "2026-09-15" }];
+    expect(proximos(fijos, [tarjeta], 15, new Date()).map((x) => x.name)).toEqual([
+      "Corte de BBVA Oro", "Renta", "Pago de BBVA Oro",
+    ]);
+  });
+
+  it("el corte no cuenta en el impacto neto: avisa, no cobra", () => {
+    vi.useFakeTimers(); at("2026-09-10T10:00:00");
+    const fijos = [{ ruleId: "r1", name: "Nómina", kind: "ingreso" as const, amount: 20000, accountId: "a", due: "2026-09-15" }];
+    // 20000 de nómina − 3000 del pago de la tarjeta; el corte no suma nada
+    expect(impactoNeto(proximos(fijos, [tarjeta], 15, new Date()))).toBe(17000);
   });
 });
