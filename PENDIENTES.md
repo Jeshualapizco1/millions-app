@@ -20,8 +20,6 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-- [ ] **B1 ✔ "Deshacer" un borrado cambia la fecha.** `src/App.tsx:285` no
-      pasa `date`; un gasto de agosto vuelve fechado hoy. *Fix:* `date: tx.date`.
 - [ ] **B2 El asesor calcula el mes sobre 60 movimientos y vive en UTC.**
       `chat.ts:186-192` `limit(60)` alimenta `monthG`, `catMap`, `ritmo`,
       `cierre`; `:202-206, 234-242, 271` usan la hora del servidor. Después de

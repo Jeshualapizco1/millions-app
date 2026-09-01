@@ -287,7 +287,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   /** Deshacer de un borrado: vuelve a aplicar el movimiento. */
   const redoTx = async (tx: Transaction) => {
     try {
-      const saved = await api.applyTx({ accountId: tx.accountId, kind: tx.kind, amount: tx.amount, description: tx.description, category: tx.category }, accsRef.current);
+      // Con su fecha original: sin `date`, un gasto de agosto volvía fechado hoy.
+      const saved = await api.applyTx({ accountId: tx.accountId, kind: tx.kind, amount: tx.amount, description: tx.description, category: tx.category, date: tx.date }, accsRef.current);
       setTxs((p) => [saved, ...p].sort((a, b) => b.date.localeCompare(a.date)));
       setAccs((p) => p.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance + (tx.type === "gasto" ? -tx.amount : tx.amount) } : a)));
     } catch (e) {
