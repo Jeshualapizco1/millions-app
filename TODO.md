@@ -247,6 +247,58 @@ de qué versión se aceptó y cuándo · borrar cuenta.
 
 ## Paso 4 — Que el usuario nuevo se quede 🔨 EN CURSO
 
+### El arranque quedó en dos mitades, en este orden
+
+**Decisión del 1 de septiembre por la tarde:** el arranque de configuración se
+construyó primero, y al revisarlo salió su problema de fondo — pedir saldos y
+sueldo en el primer minuto es pedir números que nadie trae a la mano, antes de
+haberle dado nada a cambio. No se tiró: se le antepuso una mitad sin fricción.
+
+1. **Qué busca la persona** (`src/views/Onboarding.tsx`, migración `0016`).
+   Cinco preguntas de un toque, cero datos duros: qué te trajo · qué te cuesta
+   hoy (varias) · cómo llevas tus cuentas · qué cambiaría en tu vida (texto
+   libre, opcional) · cómo llegaste a Millions. La última va al final por ser la
+   única administrativa: abrir con "¿cómo nos encontraste?" hace que la
+   conversación arranque siendo sobre nosotros y no sobre la persona.
+
+2. **Pantalla de cierre con confeti.** Le devuelve sus propias respuestas, su
+   frase entrecomillada incluida. Cada párrafo sale de una respuesta concreta y
+   **si no contestó algo, ese párrafo no aparece**: un relleno genérico
+   delataría que en realidad nadie leyó nada. Contesta un solo dolor y no los
+   seis, porque es una felicitación y no un folleto de funciones.
+   `src/components/Confeti.tsx` dispara desde las dos esquinas de abajo con la
+   Web Animations API — sin librería (canvas-confetti pesa ~7 KB gzip para tres
+   segundos que ocurren una vez en la vida de la cuenta) y respetando
+   `prefers-reduced-motion`.
+
+3. **Configurar las cuentas**, desde un botón de esa pantalla. La configuración
+   dejó de ser el peaje de entrada y pasó a ser una oferta, cuando la persona ya
+   se sintió escuchada. Se puede decir "prefiero explorar primero".
+
+`profiles.onboarded_at` marca el final del recorrido **entero**, no el de las
+preguntas: `save_onboarding` solo guarda respuestas y `complete_onboarding()`
+es quien marca. Si se marcara al contestar, quien cerrara la app en la pantalla
+de cierre nunca vería la parte de configurar.
+
+**El asesor recibe las respuestas** en su system prompt (`contextoParaAsesor`),
+traducidas a lenguaje natural: al prompt nunca le llega `salir_deudas`. Responde
+sabiendo la meta y el dolor desde la primera consulta.
+
+**El asesor quedó acotado a finanzas.** Política, salud, nutrición, tareas o
+programar quedan fuera; al declinar da una frase amable y ofrece algo concreto
+con sus datos, en vez de un sermón. Cubre el disfraz ("¿qué opinas de la
+elección, para mi cartera?") y los intentos de cambiarle el papel.
+
+`user_survey` con RLS forzado y las tres políticas atadas a `auth.uid()`.
+Verificado en producción: el dueño ve su fila, otro usuario ve cero, no puede
+modificar la ajena, y `anon` ni siquiera tiene el `grant` para intentarlo.
+
+**11 pruebas nuevas** (85 en total). No prueban la redacción sino la promesa:
+que el cierre repita lo que de verdad contestó, que no invente cuando no
+contestó, y que una llave desconocida se ignore en vez de pintar "undefined".
+
+### La segunda mitad
+
 - [x] **Arranque guiado** — hecho el 1 de septiembre. `src/views/Arranque.tsx`,
       tres pantallas: qué cuentas tienes y con cuánto · cuánto entra al mes y a
       qué cuenta · techo mensual de gasto. Al terminar, la persona ya tiene

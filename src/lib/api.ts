@@ -7,6 +7,7 @@ import type { Tables } from "./database.types";
 import { sbClient } from "./supabase";
 import type { FxRates } from "./currency";
 import type { Account, Budget, Category, CategoryKind, ChatMsg, Profile, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
+import type { Respuestas } from "./onboarding";
 
 const fail = (error: { message: string } | null): never => {
   throw new Error(error?.message || "Error de servidor");
@@ -483,5 +484,28 @@ export const api = {
   async cancelAccountDeletion(): Promise<void> {
     const { error } = await sbClient.rpc("cancel_account_deletion");
     if (error) fail(error);
+  },
+
+  /**
+   * Guarda lo que la persona contestó en la primera mitad del arranque.
+   *
+   * No marca el perfil: eso es `completeOnboarding`, y son momentos distintos
+   * —entre uno y otro falta que vea su pantalla de cierre y decida si
+   * configura sus cuentas—.
+   *
+   * `completed: false` es quien tocó "Ahora no": queda constancia de que ya lo
+   * vio, pero sus respuestas vacías no deben contar en las estadísticas.
+   */
+  async saveOnboarding(r: Respuestas, completed = true): Promise<string> {
+    const { data, error } = await sbClient.rpc("save_onboarding", {
+      p_goal: r.goal ?? undefined,
+      p_pains: r.pains,
+      p_current_tool: r.current_tool ?? undefined,
+      p_dream: r.dream.trim() || undefined,
+      p_source: r.source ?? undefined,
+      p_completed: completed,
+    });
+    if (error) fail(error);
+    return data as string;
   },
 };

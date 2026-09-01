@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate, parseDateOnly } from "./dates";
 import { COBRO_INCOMPLETO, GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRUEBA_DIAS, PRIVACIDAD, TERMINOS } from "./legal";
+import { bienvenida, contextoParaAsesor, PREGUNTAS, RESPUESTAS_VACIAS, type Respuestas } from "./onboarding";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
 import { fmtShort } from "./format";
 import { netWorthHistory, projectMonth } from "./analytics";
@@ -573,5 +574,94 @@ describe("findByName", () => {
     // Cadena vacía: `includes("")` es true para todas, así que sin la guarda
     // de ambigüedad se habría quedado con la primera de la lista.
     expect(() => findByName(cuentas, "", "la cuenta")).toThrow();
+  });
+});
+
+// ── Arranque guiado ─────────────────────────────────────────────────────────
+// Lo que se prueba no es la redacción sino la promesa del arranque: que la
+// pantalla de cierre repita lo que la persona de verdad contestó, y que no
+// invente nada cuando no contestó. Un "bienvenido" genérico disfrazado de
+// personalizado es peor que no tener arranque.
+describe("arranque guiado", () => {
+  const lleno: Respuestas = {
+    goal: "salir_deudas",
+    pains: ["fechas_pago", "varias_tarjetas"],
+    current_tool: "en_mi_cabeza",
+    dream: "Dormir sin pensar en la quincena",
+    source: "tiktok",
+  };
+
+  it("el cuestionario guarda cada respuesta en un campo distinto", () => {
+    const campos = PREGUNTAS.map((p) => p.field);
+    expect(new Set(campos).size).toBe(campos.length);
+  });
+
+  it("'cómo llegaste' va al final: es la única administrativa", () => {
+    expect(PREGUNTAS[PREGUNTAS.length - 1].field).toBe("source");
+  });
+
+  it("toda opción trae llave, y las llaves no se repiten dentro de su pregunta", () => {
+    for (const p of PREGUNTAS) {
+      const keys = (p.options ?? []).map((o) => o.key);
+      expect(keys.every((k) => k.length > 0)).toBe(true);
+      expect(new Set(keys).size).toBe(keys.length);
+      // Solo la de texto libre puede no traer opciones.
+      if (p.kind !== "texto") expect(keys.length).toBeGreaterThan(1);
+    }
+  });
+
+  it("el cierre saluda por nombre y responde a la meta y al primer dolor", () => {
+    const b = bienvenida("Jeshua", lleno);
+    expect(b.titulo).toContain("Jeshua");
+    const todo = b.parrafos.join(" ");
+    expect(todo).toContain("tarjeta mexicana");   // viene de goal
+    expect(todo).toContain("corte");              // viene del primer dolor
+  });
+
+  it("le devuelve su respuesta abierta tal como la escribió", () => {
+    const b = bienvenida("Ana", lleno);
+    expect(b.parrafos.join("\n")).toContain("Dormir sin pensar en la quincena");
+  });
+
+  it("contesta un solo dolor, no los seis: es una felicitación, no un folleto", () => {
+    const b = bienvenida("Ana", { ...lleno, pains: ["fechas_pago", "varias_tarjetas", "gasto_mas"] });
+    const menciones = b.parrafos.filter((t) => t.startsWith("Nos dijiste"));
+    expect(menciones.length).toBe(1);
+  });
+
+  it("sin respuestas no inventa: solo felicita y dice cómo empezar", () => {
+    const b = bienvenida("Ana", RESPUESTAS_VACIAS);
+    const todo = b.parrafos.join(" ");
+    expect(todo).not.toContain("Nos dijiste");
+    expect(todo).not.toContain("undefined");
+    expect(b.parrafos.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("una respuesta abierta en blanco no pinta el párrafo de la cita", () => {
+    const conCita = bienvenida("Ana", lleno).parrafos.filter((t) => t.startsWith("Y esto que escribiste"));
+    expect(conCita.length).toBe(1);
+    const enBlanco = bienvenida("Ana", { ...lleno, dream: "   " }).parrafos.filter((t) => t.startsWith("Y esto que escribiste"));
+    expect(enBlanco.length).toBe(0);
+  });
+
+  it("el contexto del asesor traduce las llaves a lenguaje natural", () => {
+    const ctx = contextoParaAsesor(lleno);
+    expect(ctx).toContain("salir de deudas");
+    expect(ctx).toContain("Dormir sin pensar en la quincena");
+    // Las llaves internas no deben filtrarse al prompt.
+    expect(ctx).not.toContain("salir_deudas");
+    expect(ctx).not.toContain("fechas_pago");
+  });
+
+  it("sin arranque contestado el asesor no recibe una sección vacía", () => {
+    expect(contextoParaAsesor(RESPUESTAS_VACIAS)).toBe("");
+    expect(contextoParaAsesor({})).toBe("");
+  });
+
+  it("una llave desconocida se ignora en vez de romper el mensaje", () => {
+    const b = bienvenida("Ana", { ...RESPUESTAS_VACIAS, goal: "inventada", pains: ["tampoco_existe"] });
+    const todo = b.parrafos.join(" ");
+    expect(todo).not.toContain("undefined");
+    expect(contextoParaAsesor({ goal: "inventada", pains: ["tampoco_existe"] })).toBe("");
   });
 });

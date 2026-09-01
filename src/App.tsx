@@ -23,6 +23,8 @@ import { GRACIA_DIAS, LEGAL_VERSION, PRUEBA_DIAS } from "./lib/legal";
 import Perfil from "./views/Perfil";
 import LegalGate from "./views/LegalGate";
 import Arranque, { type ArranqueResult } from "./views/Arranque";
+import Onboarding from "./views/Onboarding";
+import { RESPUESTAS_VACIAS, type Respuestas } from "./lib/onboarding";
 import FinDePrueba from "./views/FinDePrueba";
 import { hasForeign, toBase } from "./lib/currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./lib/alerts";
@@ -150,6 +152,26 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const avisarPrueba = diasDePrueba !== null && diasDePrueba > 0 && diasDePrueba <= 7;
 
   // ── Arranque guiado ───────────────────────────────────────────────────────
+  // Dos mitades, en este orden. Primero QUE BUSCA la persona: cinco preguntas
+  // de un toque, sin un solo dato duro. Despues, y solo si quiere, configurar
+  // sus cuentas. Al reves seria pedirle saldos y sueldo en el primer minuto
+  // —numeros que nadie trae a la mano— antes de haberle dado nada a cambio.
+  //
+  // profiles.onboarded_at marca el final del recorrido entero, no el de las
+  // preguntas: si se marcara al contestarlas, quien cerrara la app en la
+  // pantalla de cierre nunca veria la parte de configurar.
+  const [faseArranque, setFaseArranque] = useState<"preguntas" | "configurar">("preguntas");
+
+  const guardarRespuestas = async (r: Respuestas) => {
+    await api.saveOnboarding(r, true);
+  };
+
+  /** "Ahora no" en las preguntas: no se le insiste con la configuracion. */
+  const saltarPreguntas = async () => {
+    await api.saveOnboarding(RESPUESTAS_VACIAS, false);
+    await cerrarArranque();
+  };
+
   const cerrarArranque = async () => {
     const at = await api.completeOnboarding();
     setProfile((p) => (p ? { ...p, onboarded_at: at } : p));
@@ -794,8 +816,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   );
 
   // Va después del portón legal a propósito: primero se acepta el aviso, y
-  // solo entonces tiene sentido pedirle datos a alguien.
-  if (profile && !profile.onboarded_at) return (
+  // solo entonces tiene sentido pedirle datos a alguien. Y después del muro de
+  // pago: no tiene caso configurar una app que no se va a poder usar.
+  if (profile && !profile.onboarded_at) return faseArranque === "preguntas" ? (
+    <Onboarding
+      nombre={userName}
+      onFinish={guardarRespuestas}
+      onSkip={saltarPreguntas}
+      onConfigurar={() => setFaseArranque("configurar")}
+      onExplorar={cerrarArranque}
+    />
+  ) : (
     <Arranque
       nombre={userName}
       cuentasExistentes={accs.map((a) => a.name)}

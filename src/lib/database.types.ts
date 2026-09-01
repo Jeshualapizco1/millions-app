@@ -480,6 +480,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_survey: {
+        Row: {
+          completed: boolean
+          created_at: string
+          current_tool: string | null
+          dream: string | null
+          goal: string | null
+          pains: string[]
+          source: string | null
+          survey_version: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          current_tool?: string | null
+          dream?: string | null
+          goal?: string | null
+          pains?: string[]
+          source?: string | null
+          survey_version?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          current_tool?: string | null
+          dream?: string | null
+          goal?: string | null
+          pains?: string[]
+          source?: string | null
+          survey_version?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       recurring_rules: {
         Row: {
           account_id: string
@@ -685,6 +724,17 @@ export type Database = {
       request_account_deletion: { Args: Record<string, never>; Returns: string }
       cancel_account_deletion: { Args: Record<string, never>; Returns: undefined }
       complete_onboarding: { Args: Record<string, never>; Returns: string }
+      save_onboarding: {
+        Args: {
+          p_completed?: boolean
+          p_current_tool?: string
+          p_dream?: string
+          p_goal?: string
+          p_pains?: string[]
+          p_source?: string
+        }
+        Returns: string
+      }
       import_transactions: { Args: { p_rows: Json }; Returns: number }
       ai_spend_this_month: { Args: Record<string, never>; Returns: number }
       ai_calls_this_month: { Args: { p_user: string }; Returns: number }
