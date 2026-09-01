@@ -8,6 +8,10 @@ lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
 ## Para retomar desde otra máquina
 
+**Desde el 1 de septiembre por la tarde, la lista operativa vive en
+[PENDIENTES.md](PENDIENTES.md)** (auditoría completa y plan de migración a
+App Store / Play Store). Este archivo conserva el plan, el mercado y la historia.
+
 **Lo primero, y no es programación:** nada de lo pendiente avanza sin cinco
 valores que solo tú tienes. Están listados en el README bajo *Lo que falta para
 abrir el registro*, y los dos `it.fails` de `npm test` son su recordatorio.

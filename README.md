@@ -226,6 +226,9 @@ Los dos `it.fails` de `npm test` son el recordatorio de los cinco valores.
 
 ## Documentos
 
+- **[PENDIENTES.md](PENDIENTES.md)** — lista viva de bugs, mejoras y plan de
+  tiendas. Cada commit que cierra un punto lo borra. Empieza por aquí.
+- **[CLAUDE.md](CLAUDE.md)** — instrucciones que carga cada sesión de Claude Code.
 - **[TODO.md](TODO.md)** — plan de lanzamiento público, análisis de mercado y
   el historial de la auditoría. Es el documento vivo del proyecto.
 - **[millions-context.md](millions-context.md)** — modelo de datos y decisiones
