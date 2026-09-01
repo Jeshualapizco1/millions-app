@@ -20,18 +20,7 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-- [ ] **B14 ✔ `authenticated` tiene `TRUNCATE`, `TRIGGER` y `REFERENCES` en
-      las 15 tablas de `public`.** Viene del `grant all` por omisión de Supabase
-      y `TRUNCATE` **no pasa por RLS**. PostgREST no expone `truncate`, así que
-      hoy no es explotable desde la API, pero es privilegio sin uso. *Fix:*
-      `revoke truncate, trigger, references on all tables in schema public from
-      authenticated` más el `alter default privileges` correspondiente, en la
-      misma migración que B13. (Encontrado al hacer A1; `profiles` ya quedó
-      limpia en la 0017.)
-- [ ] **B13 Advisors de Supabase.** 14 FKs sin índice (`transactions.category_id
-      | credit_id | goal_id | recurring_id`, `recurring_rules.*`, `budgets.category_id`,
-      `credit_payments.*`, `goal_contributions.*`) y 18 políticas con
-      `auth.uid()` sin `(select ...)`. Una migración.
+Cerrados B1–B14 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## C. Bugs bajos
 
