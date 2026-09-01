@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import ErrorBox from "../components/ErrorBox";
 import Modal from "../components/Modal";
-import { C, S } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import { fmt } from "../lib/format";
 import { buildRows, guessColumns, parseCSV, type ColumnMap, type ParsedRow } from "../lib/csvImport";
 import type { Account, Transaction } from "../types";
@@ -85,8 +86,8 @@ export default function ImportCsvModal({
 
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Importar del banco</div>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 4 }}>Importar del banco</div>
+      <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>
         Sube el CSV de tu estado de cuenta o pega su contenido. Nada se guarda hasta que revises la vista previa.
       </div>
 
@@ -98,7 +99,7 @@ export default function ImportCsvModal({
         style={{ ...S.inp, marginBottom: 10, padding: "9px 11px" }}
       />
       <textarea
-        style={{ ...S.inp, marginBottom: 12, minHeight: 70, fontFamily: "monospace", fontSize: 12, resize: "vertical" }}
+        style={{ ...S.inp, marginBottom: 12, minHeight: 70, fontFamily: "monospace", fontSize: T.sm, resize: "vertical" }}
         placeholder="…o pega aquí las filas"
         value={raw}
         onChange={(e) => { setRaw(e.target.value); setTouched(false); setMap({}); setSkips({}); }}
@@ -107,10 +108,10 @@ export default function ImportCsvModal({
       {grid.length > 0 && (
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-            <button onClick={() => setHasHeader(!hasHeader)} style={{ padding: "6px 12px", borderRadius: 999, border: `1px solid ${hasHeader ? C.accent : C.border}`, background: hasHeader ? C.accent + "22" : "transparent", color: hasHeader ? C.aLight : C.muted, fontSize: 12, cursor: "pointer" }}>
+            <button onClick={() => setHasHeader(!hasHeader)} style={{ padding: "6px 12px", borderRadius: R.pill, border: `1px solid ${hasHeader ? C.accent : C.border}`, background: hasHeader ? C.accent + "22" : "transparent", color: hasHeader ? C.aLight : C.muted, fontSize: T.sm, cursor: "pointer" }}>
               {hasHeader ? "☑" : "⬜"} Primera fila son títulos
             </button>
-            <button onClick={() => setDayFirst(!dayFirst)} style={{ padding: "6px 12px", borderRadius: 999, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontSize: 12, cursor: "pointer" }}>
+            <button onClick={() => setDayFirst(!dayFirst)} style={{ padding: "6px 12px", borderRadius: R.pill, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontSize: T.sm, cursor: "pointer" }}>
               Fechas: {dayFirst ? "día/mes" : "mes/día"}
             </button>
           </div>
@@ -135,23 +136,23 @@ export default function ImportCsvModal({
       {ready && rows.length > 0 && (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{willImport.length} de {rows.length} movimientos</span>
-            <span style={{ fontSize: 12, color: neto >= 0 ? C.green : C.red, fontWeight: 700 }}>{neto >= 0 ? "+" : ""}{fmt(neto)}</span>
+            <span style={{ fontSize: T.md, fontWeight: 700 }}>{willImport.length} de {rows.length} movimientos</span>
+            <span style={{ fontSize: T.sm, color: neto >= 0 ? C.green : C.red, fontWeight: 700 }}>{neto >= 0 ? "+" : ""}{fmt(neto)}</span>
           </div>
           {dupes > 0 && (
-            <div style={{ fontSize: 11, color: C.amber, marginBottom: 8 }}>
+            <div style={{ fontSize: T.xs, color: C.amber, marginBottom: 8 }}>
               {dupes} {dupes === 1 ? "parece repetido" : "parecen repetidos"} y {dupes === 1 ? "viene" : "vienen"} desmarcado{dupes === 1 ? "" : "s"}. Puedes incluirlos si de verdad ocurrieron dos veces.
             </div>
           )}
-          <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${C.border}44`, borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${C.border}44`, borderRadius: R.md, marginBottom: 16 }}>
             {rows.map((r, i) => {
               const skip = skips[i] ?? r.skip;
               return (
                 <div key={i} onClick={() => setSkips((s) => ({ ...s, [i]: !skip }))} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: `1px solid ${C.border}22`, cursor: "pointer", opacity: skip ? 0.4 : 1 }}>
-                  <span style={{ fontSize: 13 }}>{skip ? "⬜" : "☑️"}</span>
+                  <span style={{ fontSize: T.md }}>{skip ? "⬜" : "☑️"}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.description}</div>
-                    <div style={{ fontSize: 11, color: r.duplicate ? C.amber : C.muted }}>
+                    <div style={{ fontSize: T.xs, color: r.duplicate ? C.amber : C.muted }}>
                       {r.date.toLocaleDateString("es-MX")}{r.duplicate ? " · ya existe uno igual" : ""}
                     </div>
                   </div>
@@ -166,10 +167,10 @@ export default function ImportCsvModal({
       )}
 
       {grid.length > 0 && !ready && (
-        <div style={{ fontSize: 12, color: C.amber, marginBottom: 16 }}>Indica qué columna tiene la fecha, la descripción y el monto.</div>
+        <div style={{ fontSize: T.sm, color: C.amber, marginBottom: 16 }}>Indica qué columna tiene la fecha, la descripción y el monto.</div>
       )}
 
-      {error && <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: C.red, marginBottom: 14 }}>{error}</div>}
+      {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...S.btn(), flex: 2, opacity: loading || !willImport.length ? 0.6 : 1 }} disabled={loading || !willImport.length} onClick={run}>

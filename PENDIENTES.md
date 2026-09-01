@@ -36,11 +36,6 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## E. Mejoras visuales
 
-- [ ] **E1 Escala tipográfica y de radios en `constants.ts`.** Hay 27 tamaños
-      entre 9 y 56 px (con 13.5, 14.5…) y 11 radios. Colapsar a `T` = 11/13/15/
-      17/22/32 y `R` = 10/16/24, extraídos de lo que ya está en pantalla, y
-      reemplazar. Primero sin cambiar un pixel visible; es la base para el
-      rediseño del diseñador.
 - [ ] **E2 Iconos SVG (Lucide inline) en tab bar y acciones** (`App.tsx:923`,
       `TxRow.tsx`, `Metas.tsx`, `Perfil.tsx`). Los emoji de categorías, cuentas
       y metas se quedan: son datos del usuario.
@@ -49,10 +44,6 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
       confirmación antes de descartar un formulario con cambios. `Fab.tsx:61` igual.
 - [ ] **E7 Skeletons** en dashboard y gráficas (`Dashboard.tsx:10`, `App.tsx:771`);
       spinner en botones en vez de `"..."` (`AuthScreen.tsx:100`, `LegalGate.tsx:99`).
-- [ ] **E9 Estilos duplicados fuera de `S`:** `AuthScreen.tsx:19`,
-      `CreditForm.tsx:50` redefinen `inp`/`lbl`; botón Gasto/Ingreso copiado en
-      `ManualTxModal.tsx:38`, `EditTxModal.tsx:62`, `RecurringModal.tsx:67`; caja
-      de error copiada 9 veces. Un componente para cada uno.
 
 ## F. Accesibilidad (cero `aria`, `htmlFor`, `h1`, `nav`, `main`, `focus-visible`)
 

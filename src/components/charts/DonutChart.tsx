@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import Chart from "chart.js/auto";
-import { C } from "../../lib/constants";
+import { C, T } from "../../lib/constants";
 import { fmt } from "../../lib/format";
 
 export interface DonutDatum {
@@ -23,6 +23,6 @@ export default function DonutChart({ data }: { data: DonutDatum[] }) {
     });
     return () => ch.current?.destroy();
   }, [data]);
-  if (!data.length) return <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 24 }}>Sin gastos aún</div>;
+  if (!data.length) return <div style={{ color: C.muted, fontSize: T.md, textAlign: "center", padding: 24 }}>Sin gastos aún</div>;
   return <canvas ref={ref} style={{ maxHeight: 160 }} />;
 }

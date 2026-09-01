@@ -1,6 +1,7 @@
 import { useState } from "react";
+import ErrorBox from "../components/ErrorBox";
 import Confeti from "../components/Confeti";
-import { C, S } from "../lib/constants";
+import { C, S, T } from "../lib/constants";
 import { bienvenida, PREGUNTAS, RESPUESTAS_VACIAS, type Respuestas } from "../lib/onboarding";
 
 /**
@@ -124,11 +125,11 @@ export default function Onboarding({
         <button
           onClick={explorar}
           disabled={guardando}
-          style={{ width: "100%", background: "none", border: "none", color: C.muted, fontSize: 13, padding: 14, cursor: "pointer", opacity: guardando ? 0.6 : 1 }}
+          style={{ width: "100%", background: "none", border: "none", color: C.muted, fontSize: T.md, padding: 14, cursor: "pointer", opacity: guardando ? 0.6 : 1 }}
         >
           Prefiero explorar primero
         </button>
-        {error && <div style={{ fontSize: 13, color: C.red, fontWeight: 600, textAlign: "center", marginTop: 4 }}>{error}</div>}
+        {error && <div style={{ fontSize: T.md, color: C.red, fontWeight: 600, textAlign: "center", marginTop: 4 }}>{error}</div>}
       </Marco>
     );
   }
@@ -156,11 +157,11 @@ export default function Onboarding({
       </div>
 
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 8 }}>
+        <div style={{ fontSize: T.sm, color: C.muted, fontWeight: 600, marginBottom: 8 }}>
           Pregunta {paso + 1} de {total}
         </div>
         <div style={{ fontSize: 21, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{p.title}</div>
-        <div style={{ fontSize: 13, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>{p.hint}</div>
+        <div style={{ fontSize: T.md, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>{p.hint}</div>
       </div>
 
       {p.kind === "texto" ? (
@@ -245,28 +246,14 @@ export default function Onboarding({
         </div>
       )}
 
-      {error && (
-        <div
-          style={{
-            background: C.red + "18",
-            border: `1px solid ${C.red}44`,
-            borderRadius: 10,
-            padding: "10px 14px",
-            fontSize: 13,
-            color: C.red,
-            marginTop: 14,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <ErrorBox style={{ marginTop: 14, marginBottom: 0 }}>{error}</ErrorBox>}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
         {paso > 0 ? (
           <button
             onClick={() => setPaso(paso - 1)}
             disabled={guardando}
-            style={{ background: "none", border: "none", color: C.muted, fontSize: 13, padding: 14, cursor: "pointer" }}
+            style={{ background: "none", border: "none", color: C.muted, fontSize: T.md, padding: 14, cursor: "pointer" }}
           >
             ‹ Atrás
           </button>
@@ -276,7 +263,7 @@ export default function Onboarding({
         <button
           onClick={() => void saltar()}
           disabled={guardando}
-          style={{ background: "none", border: "none", color: C.muted, fontSize: 13, padding: 14, cursor: "pointer", textDecoration: "underline" }}
+          style={{ background: "none", border: "none", color: C.muted, fontSize: T.md, padding: 14, cursor: "pointer", textDecoration: "underline" }}
         >
           Ahora no
         </button>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import LegalModal from "../modals/LegalModal";
-import { C, S } from "../lib/constants";
+import { C, S, T } from "../lib/constants";
 import { exportCSV } from "../lib/csv";
 import { CONTACTO_PAGO, COBRO_INCOMPLETO, PRECIO_TEXTO, PRUEBA_DIAS } from "../lib/legal";
 import type { Transaction } from "../types";
@@ -30,10 +30,10 @@ export default function FinDePrueba({
     <div style={{ minHeight: "100dvh", background: C.bg, color: C.text, display: "flex", flexDirection: "column" }}>
       <div style={{ maxWidth: 480, width: "100%", margin: "0 auto", padding: "calc(env(safe-area-inset-top,0px) + 40px) 20px 32px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ fontSize: 46, textAlign: "center", marginBottom: 16 }}>🔒</div>
-        <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5, textAlign: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: T.hero, fontWeight: 800, letterSpacing: -0.5, textAlign: "center", marginBottom: 10 }}>
           Se terminaron tus {PRUEBA_DIAS} días
         </div>
-        <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.55, textAlign: "center", marginBottom: 26 }}>
+        <div style={{ fontSize: T.base, color: C.muted, lineHeight: 1.55, textAlign: "center", marginBottom: 26 }}>
           Tus {txs.length} movimientos siguen aquí, intactos. Para volver a usar la
           aplicación necesitas un plan de pago.
         </div>
@@ -41,7 +41,7 @@ export default function FinDePrueba({
         <div style={{ ...S.card, textAlign: "center" }}>
           {COBRO_INCOMPLETO ? (
             // Sin precio ni contacto reales, decirlo es mejor que inventarlo.
-            <div style={{ fontSize: 13, color: C.amber, lineHeight: 1.5 }}>
+            <div style={{ fontSize: T.md, color: C.amber, lineHeight: 1.5 }}>
               Falta configurar el precio y el medio de contratación
               (<code>PRECIO_TEXTO</code> y <code>CONTACTO_PAGO</code> en <code>src/lib/legal.ts</code>).
             </div>
@@ -67,8 +67,8 @@ export default function FinDePrueba({
             ⬇ Exportar mis movimientos a CSV
           </button>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <button style={{ ...S.btnO, flex: 1, fontSize: 13 }} onClick={() => setVerDoc("privacidad")}>🔒 Aviso</button>
-            <button style={{ ...S.btnO, flex: 1, fontSize: 13 }} onClick={() => setVerDoc("terminos")}>📄 Términos</button>
+            <button style={{ ...S.btnO, flex: 1, fontSize: T.md }} onClick={() => setVerDoc("privacidad")}>🔒 Aviso</button>
+            <button style={{ ...S.btnO, flex: 1, fontSize: T.md }} onClick={() => setVerDoc("terminos")}>📄 Términos</button>
           </div>
           <button style={{ ...S.btnO, width: "100%" }} onClick={onSignOut}>↩ Cerrar sesión</button>
         </div>

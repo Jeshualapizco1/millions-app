@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Modal from "../components/Modal";
-import { C } from "../lib/constants";
+import { C, R, T } from "../lib/constants";
 import { LEGAL_DOCS, LEGAL_VERSION, type LegalDoc } from "../lib/legal";
 
 /**
@@ -26,7 +26,7 @@ export default function LegalModal({
   return (
     <Modal onClose={onClose}>
       <div style={{ color: C.text }}>
-        <div style={{ display: "flex", background: C.surface, borderRadius: 12, padding: 4, marginBottom: 18 }}>
+        <div style={{ display: "flex", background: C.surface, borderRadius: R.md, padding: 4, marginBottom: 18 }}>
           {LEGAL_DOCS.map((d) => (
             <button
               key={d.key}
@@ -34,12 +34,12 @@ export default function LegalModal({
               style={{
                 flex: 1,
                 padding: "9px 6px",
-                borderRadius: 10,
+                borderRadius: R.sm,
                 border: "none",
                 background: activo === d.key ? C.accent : "transparent",
                 color: activo === d.key ? "#fff" : C.muted,
                 fontWeight: 700,
-                fontSize: 13,
+                fontSize: T.md,
                 cursor: "pointer",
               }}
             >
@@ -49,13 +49,13 @@ export default function LegalModal({
         </div>
 
         <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 4 }}>{actual.title}</div>
-        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Versión {LEGAL_VERSION}</div>
+        <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 14 }}>Versión {LEGAL_VERSION}</div>
 
         <p style={{ fontSize: 13.5, lineHeight: 1.6, color: C.text, margin: "0 0 20px" }}>{actual.intro}</p>
 
         {actual.sections.map((s) => (
           <div key={s.title} style={{ marginBottom: 18 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: C.aLight, marginBottom: 7 }}>{s.title}</div>
+            <div style={{ fontWeight: 700, fontSize: T.base, color: C.aLight, marginBottom: 7 }}>{s.title}</div>
             {s.body.map((p, i) => (
               <p key={i} style={{ fontSize: 13.5, lineHeight: 1.6, color: C.muted, margin: "0 0 8px" }}>{p}</p>
             ))}
@@ -64,7 +64,7 @@ export default function LegalModal({
 
         <button
           onClick={onClose}
-          style={{ width: "100%", background: C.accent, color: "#fff", border: "none", borderRadius: 12, padding: "13px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 6 }}
+          style={{ width: "100%", background: C.accent, color: "#fff", border: "none", borderRadius: R.md, padding: "13px", fontSize: T.base, fontWeight: 700, cursor: "pointer", marginTop: 6 }}
         >
           Cerrar
         </button>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ACC_ICONS, C, S } from "../lib/constants";
+import { C, R, S, T, ACC_ICONS } from "../lib/constants";
 import { fmt } from "../lib/format";
 
 /** Lo que el arranque entrega de una sola vez, ya validado. */
@@ -114,15 +114,15 @@ export default function Arranque({
           ))}
         </div>
 
-        {paso === 1 && <div style={{ fontSize: 13, color: C.muted, marginBottom: 6 }}>Hola, {nombre} 👋</div>}
-        <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5, marginBottom: 8 }}>{titulo}</div>
+        {paso === 1 && <div style={{ fontSize: T.md, color: C.muted, marginBottom: 6 }}>Hola, {nombre} 👋</div>}
+        <div style={{ fontSize: T.hero, fontWeight: 800, letterSpacing: -0.5, marginBottom: 8 }}>{titulo}</div>
         <div style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.5, marginBottom: 22 }}>{bajada}</div>
 
         <div style={{ flex: 1 }}>
           {paso === 1 && (
             <>
               {cuentasExistentes.length > 0 && (
-                <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+                <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 12 }}>
                   Ya tienes: {cuentasExistentes.join(", ")}
                 </div>
               )}
@@ -131,7 +131,7 @@ export default function Arranque({
                   <select
                     value={f.icon}
                     onChange={(e) => cambiar(i, { icon: e.target.value })}
-                    style={{ ...S.inp, width: 62, flex: "0 0 auto", padding: "12px 6px", fontSize: 20, textAlign: "center" }}
+                    style={{ ...S.inp, width: 62, flex: "0 0 auto", padding: "12px 6px", fontSize: T.xxl, textAlign: "center" }}
                   >
                     {ACC_ICONS.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
                   </select>
@@ -149,24 +149,24 @@ export default function Arranque({
                     value={f.balance}
                     onChange={(e) => cambiar(i, { balance: e.target.value })}
                   />
-                  <button onClick={() => quitar(i)} style={{ background: "none", border: "none", color: C.muted, fontSize: 18, cursor: "pointer", padding: "0 2px" }}>✕</button>
+                  <button onClick={() => quitar(i)} style={{ background: "none", border: "none", color: C.muted, fontSize: T.xl, cursor: "pointer", padding: "0 2px" }}>✕</button>
                 </div>
               ))}
 
-              <div style={{ fontSize: 12, color: C.muted, margin: "18px 0 10px" }}>Toca para agregar</div>
+              <div style={{ fontSize: T.sm, color: C.muted, margin: "18px 0 10px" }}>Toca para agregar</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {SUGERIDAS.filter((s) => !nombresDisponibles.includes(s.name)).map((s) => (
                   <button
                     key={s.name}
                     onClick={() => agregar(s.name, s.icon)}
-                    style={{ background: `${C.accent}18`, border: `1px solid ${C.accent}44`, color: C.aLight, borderRadius: 999, padding: "8px 14px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}
+                    style={{ background: `${C.accent}18`, border: `1px solid ${C.accent}44`, color: C.aLight, borderRadius: R.pill, padding: "8px 14px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}
                   >
                     {s.icon} {s.name}
                   </button>
                 ))}
                 <button
                   onClick={() => agregar("", "🏦")}
-                  style={{ background: "transparent", border: `1px dashed ${C.border}`, color: C.muted, borderRadius: 999, padding: "8px 14px", fontSize: 13.5, cursor: "pointer" }}
+                  style={{ background: "transparent", border: `1px dashed ${C.border}`, color: C.muted, borderRadius: R.pill, padding: "8px 14px", fontSize: 13.5, cursor: "pointer" }}
                 >
                   ＋ Otra
                 </button>
@@ -203,7 +203,7 @@ export default function Arranque({
             <>
               <label style={S.lbl}>Techo mensual de gasto</label>
               {/* Sin autoFocus: abría el teclado al entrar y tapaba la explicación de qué es el techo. */}
-              <input style={{ ...S.inp, marginBottom: 14, fontSize: 20, fontWeight: 700 }} type="number" inputMode="decimal" placeholder="0.00" value={techo} onChange={(e) => setTecho(e.target.value)} />
+              <input style={{ ...S.inp, marginBottom: 14, fontSize: T.xxl, fontWeight: 700 }} type="number" inputMode="decimal" placeholder="0.00" value={techo} onChange={(e) => setTecho(e.target.value)} />
               {parseFloat(ingMonto) > 0 && (
                 <button
                   onClick={() => setTecho(String(Math.round(parseFloat(ingMonto) * 0.7)))}
@@ -220,7 +220,7 @@ export default function Arranque({
           )}
         </div>
 
-        {error && <div style={{ fontSize: 13, color: C.red, fontWeight: 600, margin: "14px 0" }}>{error}</div>}
+        {error && <div style={{ fontSize: T.md, color: C.red, fontWeight: 600, margin: "14px 0" }}>{error}</div>}
 
         <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
           {paso > 1 && <button style={{ ...S.btnO, flex: "0 0 auto" }} onClick={() => setPaso((p) => p - 1)} disabled={guardando}>Atrás</button>}
@@ -242,7 +242,7 @@ export default function Arranque({
         <button
           onClick={saltar}
           disabled={guardando}
-          style={{ background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", padding: "16px 0 0", textAlign: "center" }}
+          style={{ background: "none", border: "none", color: C.muted, fontSize: T.md, cursor: "pointer", padding: "16px 0 0", textAlign: "center" }}
         >
           {paso === 1 ? "Saltar por ahora" : "Saltar lo que falta"}
         </button>

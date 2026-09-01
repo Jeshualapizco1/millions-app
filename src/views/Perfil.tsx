@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, S } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import { exportCSV } from "../lib/csv";
 import { consultasRestantes, type AiUso } from "../lib/aiUso";
 import { diasRestantesDeGracia, diasRestantesDePlazo } from "../lib/dates";
@@ -47,9 +47,9 @@ function Fila({
       <span style={{ fontSize: 19, width: 24, textAlign: "center" }}>{icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14.5, fontWeight: 600, color: C.text }}>{label}</div>
-        {hint && <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{hint}</div>}
+        {hint && <div style={{ fontSize: T.sm, color: C.muted, marginTop: 2 }}>{hint}</div>}
       </div>
-      <span style={{ color: C.muted, fontSize: 18 }}>›</span>
+      <span style={{ color: C.muted, fontSize: T.xl }}>›</span>
     </div>
   );
 }
@@ -57,7 +57,7 @@ function Fila({
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 6, paddingLeft: 4 }}>
+      <div style={{ fontSize: T.xs, fontWeight: 700, color: C.muted, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 6, paddingLeft: 4 }}>
         {titulo}
       </div>
       <div style={{ ...S.card, padding: "2px 14px", marginBottom: 0 }}>{children}</div>
@@ -98,11 +98,11 @@ export default function Perfil({
     <div className="fadeUp">
       {/* Encabezado */}
       <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 16 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 18, background: `linear-gradient(135deg,${C.accent},#9333ea)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+        <div style={{ width: 56, height: 56, borderRadius: 18, background: `linear-gradient(135deg,${C.accent},#9333ea)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.hero, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
           {nombre.charAt(0).toUpperCase()}
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nombre}</div>
+          <div style={{ fontSize: T.xl, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nombre}</div>
           <div style={{ fontSize: 12.5, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{email}</div>
           {profile?.created_at && (
             <div style={{ fontSize: 11.5, color: C.muted, marginTop: 3 }}>Miembro desde {fechaLarga(profile.created_at)}</div>
@@ -117,7 +117,7 @@ export default function Perfil({
           <div style={{ fontWeight: 800, fontSize: 15, color: C.red, marginBottom: 6 }}>
             Tu cuenta se borrará {diasParaBorrado === 0 ? "hoy" : `en ${diasParaBorrado} ${diasParaBorrado === 1 ? "día" : "días"}`}
           </div>
-          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, marginBottom: 14 }}>
+          <div style={{ fontSize: T.md, color: C.muted, lineHeight: 1.5, marginBottom: 14 }}>
             Pediste la baja el {fechaLarga(profile?.deletion_requested_at)}. Mientras tanto puedes seguir usando Millions con normalidad.
             Cuando se cumpla el plazo se eliminarán tus movimientos, cuentas, créditos, presupuestos y metas, sin posibilidad de recuperarlos.
           </div>
@@ -159,7 +159,7 @@ export default function Perfil({
               <div style={{ fontSize: 14.5, fontWeight: 600, color: C.text }}>
                 {consultasRestantes(aiUso)} de {aiUso.tope} consultas disponibles hoy
               </div>
-              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+              <div style={{ fontSize: T.sm, color: C.muted, marginTop: 2 }}>
                 Captura por voz y asesor. Se renuevan a medianoche.
               </div>
             </div>
@@ -199,7 +199,7 @@ export default function Perfil({
           </div>
           <button
             onClick={onDeleteAccount}
-            style={{ width: "100%", background: "transparent", color: C.red, border: `1px solid ${C.red}66`, borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+            style={{ width: "100%", background: "transparent", color: C.red, border: `1px solid ${C.red}66`, borderRadius: R.md, padding: "12px", fontSize: T.base, fontWeight: 700, cursor: "pointer" }}
           >
             Borrar mi cuenta
           </button>

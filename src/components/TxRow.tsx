@@ -1,4 +1,4 @@
-import { C } from "../lib/constants";
+import { C, R, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 import { fmt } from "../lib/format";
 import type { Transaction } from "../types";
@@ -37,10 +37,10 @@ export default function TxRow({
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${C.border}22` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 12, background: color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0 }}>{icon}</div>
+        <div style={{ width: 38, height: 38, borderRadius: R.md, background: color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0 }}>{icon}</div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description}</div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: T.base, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description}</div>
+          <div style={{ fontSize: T.xs, color: C.muted, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {subtitle} · {new Date(tx.date).toLocaleDateString("es-MX")}
           </div>
         </div>
@@ -49,7 +49,7 @@ export default function TxRow({
         <div style={{ fontWeight: 800, color: amountColor, fontSize: 15 }}>{sign}{fmt(tx.amount)}</div>
         {/* Solo gastos e ingresos se editan; el resto se elimina y se vuelve a crear */}
         {onEdit && (tx.kind === "gasto" || tx.kind === "ingreso") && (
-          <button onClick={() => onEdit(tx)} title="Editar" style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 13, padding: 4 }}>✏️</button>
+          <button onClick={() => onEdit(tx)} title="Editar" style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: T.md, padding: 4 }}>✏️</button>
         )}
         {onDelete && <button onClick={() => onDelete(tx.id)} title="Eliminar" style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 15, padding: 4 }}>🗑</button>}
       </div>

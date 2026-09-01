@@ -1,5 +1,5 @@
 import { useCategories } from "../lib/categories";
-import { C, S } from "../lib/constants";
+import { C, S, T } from "../lib/constants";
 import { fmt } from "../lib/format";
 import type { TxDraft } from "../hooks/useAI";
 import type { Account } from "../types";
@@ -44,7 +44,7 @@ export default function TxDraftChips({
     minWidth: 0,
     marginBottom: 0,
     padding: "10px 12px",
-    fontSize: 14,
+    fontSize: T.base,
     fontWeight: 700,
     border: `1px solid ${color}55`,
     background: color + "14",
@@ -55,7 +55,7 @@ export default function TxDraftChips({
   return (
     <div style={{ marginBottom: 14 }}>
       {/* Lo que se dictó, tal cual: es la referencia para saber qué se corrige */}
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, fontStyle: "italic", lineHeight: 1.4 }}>
+      <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 10, fontStyle: "italic", lineHeight: 1.4 }}>
         “{draft.dicho}”
       </div>
 
@@ -68,7 +68,7 @@ export default function TxDraftChips({
 
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: signo, fontSize: 14, fontWeight: 800, pointerEvents: "none" }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: signo, fontSize: T.base, fontWeight: 800, pointerEvents: "none" }}>
             {esGasto ? "−" : "+"}$
           </span>
           <input

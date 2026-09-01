@@ -1,5 +1,5 @@
 import Modal from "../components/Modal";
-import { C, GOAL_COLORS, GOAL_ICONS, S } from "../lib/constants";
+import { C, R, S, T, GOAL_COLORS, GOAL_ICONS } from "../lib/constants";
 import { fmt } from "../lib/format";
 import type { Account, Goal } from "../types";
 
@@ -33,11 +33,11 @@ export default function GoalModal({
   const isNew = mode === "new";
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>{isNew ? "Nueva meta de ahorro" : "Editar meta"}</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{isNew ? "Nueva meta de ahorro" : "Editar meta"}</div>
       <label style={S.lbl}>Nombre</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 12 }} placeholder={isNew ? "Ej: Viaje a Japón, Fondo de emergencia…" : undefined} value={form.name} onChange={(e) => update({ name: e.target.value })} />
       <label style={S.lbl}>Ícono</label>
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>{GOAL_ICONS.map((ic) => <button key={ic} onClick={() => update({ icon: ic })} style={{ fontSize: 22, background: form.icon === ic ? C.accent + "33" : "transparent", border: `2px solid ${form.icon === ic ? C.accent : C.border + "44"}`, borderRadius: 10, padding: "5px 8px", cursor: "pointer" }}>{ic}</button>)}</div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>{GOAL_ICONS.map((ic) => <button key={ic} onClick={() => update({ icon: ic })} style={{ fontSize: 22, background: form.icon === ic ? C.accent + "33" : "transparent", border: `2px solid ${form.icon === ic ? C.accent : C.border + "44"}`, borderRadius: R.sm, padding: "5px 8px", cursor: "pointer" }}>{ic}</button>)}</div>
       <label style={S.lbl}>Color</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>{GOAL_COLORS.map((col) => <button key={col} onClick={() => update({ color: col })} style={{ width: 28, height: 28, borderRadius: "50%", background: col, border: `3px solid ${form.color === col ? "#fff" : col + "44"}`, cursor: "pointer" }} />)}</div>
       <div style={{ display: "flex", gap: 10, marginBottom: 0 }}>
@@ -49,7 +49,7 @@ export default function GoalModal({
       <label style={S.lbl}>{isNew ? "Notas (opcional)" : "Notas"}</label>
       <input style={{ ...S.inp, marginBottom: 20 }} placeholder={isNew ? "Ej: Para diciembre de este año" : undefined} value={form.notes || ""} onChange={(e) => update({ notes: e.target.value })} />
       <div style={{ display: "flex", gap: 10 }}>
-        {!isNew && onDelete && <button onClick={() => onDelete(form.id!)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Eliminar</button>}
+        {!isNew && onDelete && <button onClick={() => onDelete(form.id!)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: R.md, padding: "12px 14px", fontSize: T.base, fontWeight: 600, cursor: "pointer" }}>Eliminar</button>}
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...S.btn(), flex: isNew ? 1 : 2 }} onClick={onSave}>{isNew ? "Crear meta" : "Guardar"}</button>
       </div>
@@ -84,8 +84,8 @@ export function AddToGoalModal({
   const amt = parseFloat(amount);
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Abonar a meta</div>
-      <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{goal.icon} {goal.name} — Ahorrado: {fmt(goal.current_amount)}</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 8 }}>Abonar a meta</div>
+      <div style={{ fontSize: T.base, color: C.muted, marginBottom: 16 }}>{goal.icon} {goal.name} — Ahorrado: {fmt(goal.current_amount)}</div>
       <label style={S.lbl}>¿Cuánto abonas?</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => onAmount(e.target.value)} />
       <label style={S.lbl}>¿De qué cuenta sale?</label>
@@ -93,7 +93,7 @@ export function AddToGoalModal({
         <option value="">Solo registrarlo (no descuenta de ninguna cuenta)</option>
         {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name} — {fmt(a.balance)}</option>)}
       </select>
-      <div style={{ fontSize: 11, color: C.muted, marginBottom: 20 }}>
+      <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 20 }}>
         {acc && amt > 0
           ? `${acc.name} quedaría en ${fmt(acc.balance - amt)}`
           : "Sin cuenta, la meta sube pero ningún saldo baja."}

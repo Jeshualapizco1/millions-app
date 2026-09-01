@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { C, CREDIT_TYPES, S } from "../lib/constants";
+import { C, R, S, T, CREDIT_TYPES } from "../lib/constants";
 import type { CreditType } from "../types";
 
 /** Estado del formulario: los campos numéricos pueden ser string (vacío) o number (al editar). */
@@ -48,16 +48,16 @@ export default function CreditForm({
     }));
   const s: Record<string, CSSProperties> = {
     inp: { ...S.inp, padding: "11px 14px", marginBottom: 12 },
-    lbl: { fontSize: 12, color: C.muted, marginBottom: 5, display: "block", fontWeight: 500 },
+    lbl: S.lbl,
     row: { display: "flex", gap: 10 },
   };
   return (
     <div>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>{initial ? "Editar crédito" : "Nuevo crédito"}</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{initial ? "Editar crédito" : "Nuevo crédito"}</div>
       <label style={s.lbl}>Tipo</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
         {(Object.entries(CREDIT_TYPES) as [CreditType, (typeof CREDIT_TYPES)[CreditType]][]).map(([k, v]) => (
-          <button key={k} onClick={() => changeType(k)} style={{ padding: "7px 12px", borderRadius: 20, border: `2px solid ${f.type === k ? v.color : C.border + "44"}`, background: f.type === k ? v.color + "22" : "transparent", color: f.type === k ? v.color : C.muted, fontSize: 13, cursor: "pointer", fontWeight: f.type === k ? 700 : 400 }}>{v.icon} {v.label}</button>
+          <button key={k} onClick={() => changeType(k)} style={{ padding: "7px 12px", borderRadius: R.lg, border: `2px solid ${f.type === k ? v.color : C.border + "44"}`, background: f.type === k ? v.color + "22" : "transparent", color: f.type === k ? v.color : C.muted, fontSize: T.md, cursor: "pointer", fontWeight: f.type === k ? 700 : 400 }}>{v.icon} {v.label}</button>
         ))}
       </div>
       <label style={s.lbl}>Nombre</label>
@@ -83,9 +83,9 @@ export default function CreditForm({
         <input style={s.inp} type="date" value={f.next_payment_date || ""} onChange={u("next_payment_date")} />
       </>}
       <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-        {initial && onDelete && <button onClick={() => onDelete(initial.id!)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 12, padding: "12px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Eliminar</button>}
-        <button onClick={onClose} style={{ flex: 1, background: "transparent", color: C.aLight, border: `1px solid ${C.accent}44`, borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
-        <button onClick={() => onSave(f)} style={{ flex: 2, background: C.accent, color: "#fff", border: "none", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{initial ? "Guardar" : "Agregar"}</button>
+        {initial && onDelete && <button onClick={() => onDelete(initial.id!)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: R.md, padding: "12px 16px", fontSize: T.base, fontWeight: 600, cursor: "pointer" }}>Eliminar</button>}
+        <button onClick={onClose} style={{ flex: 1, background: "transparent", color: C.aLight, border: `1px solid ${C.accent}44`, borderRadius: R.md, padding: "12px", fontSize: T.base, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
+        <button onClick={() => onSave(f)} style={{ flex: 2, background: C.accent, color: "#fff", border: "none", borderRadius: R.md, padding: "12px", fontSize: T.base, fontWeight: 700, cursor: "pointer" }}>{initial ? "Guardar" : "Agregar"}</button>
       </div>
     </div>
   );

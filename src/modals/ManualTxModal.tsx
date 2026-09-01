@@ -1,5 +1,6 @@
 import Modal from "../components/Modal";
-import { C, S } from "../lib/constants";
+import KindToggle from "../components/KindToggle";
+import { S, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 import type { Account, TxType } from "../types";
 
@@ -27,19 +28,13 @@ export default function ManualTxModal({
   const { list } = useCategories();
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>Entrada manual</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>Entrada manual</div>
       <label style={S.lbl}>Descripción</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder="Ej: Supermercado Ley" value={form.desc} onChange={(e) => update({ desc: e.target.value })} />
       <label style={S.lbl}>Monto</label>
       <input style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={form.amt} onChange={(e) => update({ amt: e.target.value })} />
       <label style={S.lbl}>Tipo</label>
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {(["gasto", "ingreso"] as const).map((t) => (
-          <button key={t} onClick={() => update({ type: t })} style={{ flex: 1, padding: "11px", borderRadius: 12, border: `2px solid ${form.type === t ? (t === "gasto" ? C.red : C.green) : C.border + "44"}`, background: form.type === t ? (t === "gasto" ? C.red : C.green) + "22" : "transparent", color: form.type === t ? (t === "gasto" ? C.red : C.green) : C.muted, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
-            {t === "gasto" ? "🔴 Gasto" : "🟢 Ingreso"}
-          </button>
-        ))}
-      </div>
+      <KindToggle value={form.type} onChange={(t) => update({ type: t })} />
       <label style={S.lbl}>Categoría</label>
       <select style={{ ...S.inp, marginBottom: 14 }} value={form.cat} onChange={(e) => update({ cat: e.target.value })}>
         {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}

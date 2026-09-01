@@ -1,6 +1,7 @@
 import { useState } from "react";
+import ErrorBox from "../components/ErrorBox";
 import Modal from "../components/Modal";
-import { C, S } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import { fmt } from "../lib/format";
 import type { Account, Credit } from "../types";
 
@@ -47,7 +48,7 @@ export default function PayCreditModal({
     <button
       key={label}
       onClick={() => setAmt(String(value))}
-      style={{ background: C.accent + "1a", border: `1px solid ${C.accent}44`, color: C.aLight, borderRadius: 999, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}
+      style={{ background: C.accent + "1a", border: `1px solid ${C.accent}44`, color: C.aLight, borderRadius: R.pill, padding: "6px 12px", fontSize: T.sm, cursor: "pointer", fontWeight: 600 }}
     >
       {label} · {fmt(value)}
     </button>
@@ -55,8 +56,8 @@ export default function PayCreditModal({
 
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Pagar {credit.name}</div>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Deuda actual: {fmt(debt)}</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 4 }}>Pagar {credit.name}</div>
+      <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>Deuda actual: {fmt(debt)}</div>
 
       <label style={S.lbl}>Desde qué cuenta</label>
       <select autoFocus style={{ ...S.inp, marginBottom: 12 }} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
@@ -71,14 +72,14 @@ export default function PayCreditModal({
         {debt > 0 && chip("Todo", debt)}
       </div>
       {acc && amount > 0 && (
-        <div style={{ fontSize: 11, color: amount > acc.balance ? C.amber : C.muted, marginBottom: 16 }}>
+        <div style={{ fontSize: T.xs, color: amount > acc.balance ? C.amber : C.muted, marginBottom: 16 }}>
           {acc.name} quedaría en {fmt(acc.balance - amount)} · deuda en {fmt(Math.max(debt - amount, 0))}
           {amount > acc.balance ? " (cuenta en negativo)" : ""}
         </div>
       )}
       {!(acc && amount > 0) && <div style={{ marginBottom: 16 }} />}
 
-      {error && <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: C.red, marginBottom: 14 }}>{error}</div>}
+      {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...S.btn(), flex: 1, opacity: loading ? 0.7 : 1 }} disabled={loading} onClick={save}>{loading ? "..." : "Registrar pago"}</button>

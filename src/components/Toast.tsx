@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { C } from "../lib/constants";
+import { C, R, T } from "../lib/constants";
 
 export interface Toast {
   id: number;
@@ -50,17 +50,17 @@ export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
             boxShadow: "0 8px 24px #00000066",
           }}
         >
-          <span style={{ fontSize: 16 }}>{t.kind === "error" ? "⚠️" : "✅"}</span>
-          <span style={{ flex: 1, fontSize: 13, color: C.text, lineHeight: 1.4 }}>{t.text}</span>
+          <span style={{ fontSize: T.lg }}>{t.kind === "error" ? "⚠️" : "✅"}</span>
+          <span style={{ flex: 1, fontSize: T.md, color: C.text, lineHeight: 1.4 }}>{t.text}</span>
           {t.action && (
             <button
               onClick={() => { t.action!.onClick(); onDismiss(t.id); }}
-              style={{ background: C.accent + "22", color: C.aLight, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+              style={{ background: C.accent + "22", color: C.aLight, border: `1px solid ${C.accent}44`, borderRadius: R.sm, padding: "6px 12px", fontSize: T.sm, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
             >
               {t.action.label}
             </button>
           )}
-          <button onClick={() => onDismiss(t.id)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, padding: 2 }}>✕</button>
+          <button onClick={() => onDismiss(t.id)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: T.base, padding: 2 }}>✕</button>
         </div>
       ))}
     </div>

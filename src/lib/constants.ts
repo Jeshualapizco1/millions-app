@@ -45,12 +45,37 @@ export const CREDIT_TYPES: Record<CreditType, { icon: string; color: string; lab
 export const GOAL_ICONS = ["🎯", "🏠", "🚗", "✈️", "💍", "📱", "💻", "🎓", "🏖️", "💰", "🛡️", "🎸"];
 export const GOAL_COLORS = ["#7c6af7", "#f472b6", "#f97316", "#3b82f6", "#10b981", "#eab308", "#ec4899", "#06b6d4"];
 
+/**
+ * Escala tipográfica. Los valores son los que YA estaban en pantalla (los
+ * seis más usados de 27 distintos): este paso no cambia un pixel, solo les
+ * da nombre. Los tamaños fraccionarios (13.5, 14.5…) y las cifras de
+ * portada siguen como literales hasta que el rediseño decida la escala final.
+ */
+export const T = {
+  xs: 11,
+  sm: 12,
+  md: 13,
+  base: 14,
+  lg: 16,
+  xl: 18,
+  xxl: 20,
+  hero: 24,
+} as const;
+
+/** Radios. Mismo criterio: los que ya se usan, con nombre. */
+export const R = {
+  sm: 10,
+  md: 12,
+  lg: 20,
+  pill: 999,
+} as const;
+
 /** Estilos compartidos que en el monolito vivían como `s` dentro de App. */
 export const S = {
   card: {
     background: C.card,
     border: `1px solid ${C.border}22`,
-    borderRadius: 20,
+    borderRadius: R.lg,
     padding: 18,
     marginBottom: 14,
   } as CSSProperties,
@@ -58,12 +83,12 @@ export const S = {
     width: "100%",
     background: C.surface,
     border: `1px solid ${C.border}`,
-    borderRadius: 12,
+    borderRadius: R.md,
     color: C.text,
     padding: "12px 16px",
     // 16 y no 15: por debajo de 16 px Safari en iPhone hace zoom al enfocar
     // un campo, y la pantalla se queda desplazada al cerrarlo.
-    fontSize: 16,
+    fontSize: T.lg,
     // Sin `outline: none`: el foco visible vive en index.html (focus-visible),
     // que solo lo pinta al navegar con teclado y no al tocar.
     boxSizing: "border-box",
@@ -72,9 +97,9 @@ export const S = {
     background: bg,
     color: "#fff",
     border: "none",
-    borderRadius: 12,
+    borderRadius: R.md,
     padding: "13px 20px",
-    fontSize: 14,
+    fontSize: T.base,
     fontWeight: 700,
     cursor: "pointer",
   }),
@@ -82,14 +107,14 @@ export const S = {
     background: "transparent",
     color: C.aLight,
     border: `1px solid ${C.accent}44`,
-    borderRadius: 12,
+    borderRadius: R.md,
     padding: "13px 20px",
-    fontSize: 14,
+    fontSize: T.base,
     fontWeight: 600,
     cursor: "pointer",
   } as CSSProperties,
   lbl: {
-    fontSize: 12,
+    fontSize: T.sm,
     color: C.muted,
     marginBottom: 6,
     display: "block",

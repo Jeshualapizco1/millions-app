@@ -1,7 +1,9 @@
 import { useState } from "react";
+import KindToggle from "../components/KindToggle";
+import ErrorBox from "../components/ErrorBox";
 import { toLocalDateISO } from "../lib/dates";
 import Modal from "../components/Modal";
-import { C, S } from "../lib/constants";
+import { S, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 import type { Account, Transaction, TxType } from "../types";
 
@@ -54,19 +56,13 @@ export default function EditTxModal({
 
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>Editar movimiento</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>Editar movimiento</div>
       <label style={S.lbl}>Descripción</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} value={desc} onChange={(e) => setDesc(e.target.value)} />
       <label style={S.lbl}>Monto</label>
       <input style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} />
       <label style={S.lbl}>Tipo</label>
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {(["gasto", "ingreso"] as const).map((t) => (
-          <button key={t} onClick={() => setType(t)} style={{ flex: 1, padding: "11px", borderRadius: 12, border: `2px solid ${type === t ? (t === "gasto" ? C.red : C.green) : C.border + "44"}`, background: type === t ? (t === "gasto" ? C.red : C.green) + "22" : "transparent", color: type === t ? (t === "gasto" ? C.red : C.green) : C.muted, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
-            {t === "gasto" ? "🔴 Gasto" : "🟢 Ingreso"}
-          </button>
-        ))}
-      </div>
+      <KindToggle value={type} onChange={(t) => setType(t)} />
       <label style={S.lbl}>Categoría</label>
       <select style={{ ...S.inp, marginBottom: 14 }} value={cat} onChange={(e) => setCat(e.target.value)}>
         {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
@@ -77,7 +73,7 @@ export default function EditTxModal({
       </select>
       <label style={S.lbl}>Fecha</label>
       <input style={{ ...S.inp, marginBottom: 20 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-      {error && <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: C.red, marginBottom: 14 }}>{error}</div>}
+      {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...S.btn(), flex: 1, opacity: loading ? 0.7 : 1 }} disabled={loading} onClick={save}>{loading ? "..." : "Guardar"}</button>

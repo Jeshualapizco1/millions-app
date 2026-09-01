@@ -1,4 +1,4 @@
-import { ACC_ICONS, C, S } from "../lib/constants";
+import { C, S, T, ACC_ICONS } from "../lib/constants";
 import type { AccDraft } from "../hooks/useAI";
 
 /**
@@ -26,16 +26,16 @@ export default function AccDraftChips({
 }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, fontStyle: "italic", lineHeight: 1.4 }}>
+      <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 10, fontStyle: "italic", lineHeight: 1.4 }}>
         “{draft.dicho}”
       </div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: C.aLight, marginBottom: 12 }}>Nueva cuenta</div>
+      <div style={{ fontSize: T.md, fontWeight: 700, color: C.aLight, marginBottom: 12 }}>Nueva cuenta</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <select
           value={draft.icon}
           onChange={(e) => update({ icon: e.target.value })}
-          style={{ ...S.inp, width: 62, flex: "0 0 auto", padding: "12px 6px", fontSize: 20, textAlign: "center" }}
+          style={{ ...S.inp, width: 62, flex: "0 0 auto", padding: "12px 6px", fontSize: T.xxl, textAlign: "center" }}
         >
           {ACC_ICONS.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
         </select>
@@ -56,7 +56,7 @@ export default function AccDraftChips({
         onChange={(e) => update({ balance: e.target.value })}
       />
 
-      {error && <div style={{ fontSize: 13, color: C.red, fontWeight: 600, marginBottom: 12 }}>{error}</div>}
+      {error && <div style={{ fontSize: T.md, color: C.red, fontWeight: 600, marginBottom: 12 }}>{error}</div>}
 
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={onDiscard} disabled={busy} style={{ ...S.btnO, flex: 1 }}>Descartar</button>

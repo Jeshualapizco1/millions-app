@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import TxRow from "../components/TxRow";
-import { C, S } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 import { exportCSV } from "../lib/csv";
 import { filterByPeriod, PERIODS, type PeriodKey } from "../lib/periods";
@@ -57,11 +57,11 @@ export default function Historial({
 
   const chipStyle = (active: boolean, color = C.accent) => ({
     padding: "6px 12px",
-    borderRadius: 999,
+    borderRadius: R.pill,
     border: `1px solid ${active ? color : C.border + "44"}`,
     background: active ? color + "22" : "transparent",
     color: active ? C.aLight : C.muted,
-    fontSize: 12,
+    fontSize: T.sm,
     cursor: "pointer",
     fontWeight: active ? 700 : 400,
     whiteSpace: "nowrap" as const,
@@ -71,11 +71,11 @@ export default function Historial({
     <div className="fadeUp">
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Historial</div>
+          <div style={{ fontWeight: 700, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Historial</div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={onImport} title="Importar del banco" style={{ ...S.btn(), padding: "7px 14px", fontSize: 12, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📥 Importar</button>
+            <button onClick={onImport} title="Importar del banco" style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📥 Importar</button>
             {filtered.length > 0 && (
-              <button onClick={() => exportCSV(filtered)} title="Exporta lo que estás viendo" style={{ ...S.btn(), padding: "7px 14px", fontSize: 12, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>
+              <button onClick={() => exportCSV(filtered)} title="Exporta lo que estás viendo" style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>
             )}
           </div>
         </div>
@@ -115,14 +115,14 @@ export default function Historial({
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <span style={{ fontSize: 12, color: C.muted }}>
+          <span style={{ fontSize: T.sm, color: C.muted }}>
             {filtered.length} {filtered.length === 1 ? "movimiento" : "movimientos"}
           </span>
-          {anyFilter && <button onClick={reset} style={{ background: "none", border: "none", color: C.aLight, fontSize: 12, cursor: "pointer" }}>Limpiar filtros</button>}
+          {anyFilter && <button onClick={reset} style={{ background: "none", border: "none", color: C.aLight, fontSize: T.sm, cursor: "pointer" }}>Limpiar filtros</button>}
         </div>
 
         {filtered.length === 0 && txs.length > 0 && (
-          <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 20 }}>Ningún movimiento coincide con estos filtros</div>
+          <div style={{ color: C.muted, fontSize: T.md, textAlign: "center", padding: 20 }}>Ningún movimiento coincide con estos filtros</div>
         )}
         {txs.length === 0 && (
           // Todavía no hay nada que filtrar: en vez de un "sin transacciones"
@@ -131,7 +131,7 @@ export default function Historial({
           <div style={{ textAlign: "center", padding: "20px 8px 8px" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>Sin movimientos aún</div>
-            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, marginBottom: 18 }}>
+            <div style={{ fontSize: T.md, color: C.muted, lineHeight: 1.5, marginBottom: 18 }}>
               Toca ＋ y di algo como “gasté 200 en el Ley”, o importa el CSV de tu banco con el botón de arriba.
             </div>
             <button onClick={onCapture} style={{ ...S.btn(), padding: "11px 18px" }}>🎙️ Capturar el primero</button>

@@ -1,4 +1,4 @@
-import { C, S } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import TxDraftChips from "./TxDraftChips";
 import AccDraftChips from "./AccDraftChips";
 import type { AccDraft, TxDraft } from "../hooks/useAI";
@@ -97,9 +97,9 @@ export default function Fab({
               />
             ) : (
             <>
-            {mic && <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 12, padding: "10px 16px", marginBottom: 14, fontSize: 13, color: C.red, display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: C.red, display: "inline-block", animation: "pulse 1s infinite" }} />{live || "Escuchando…"}</div>}
-            {!mic && live && <div style={{ background: C.green + "18", border: `1px solid ${C.green}44`, borderRadius: 12, padding: "10px 16px", marginBottom: 14, fontSize: 13, color: C.green }}>{live}</div>}
-            {txLoading && <div style={{ textAlign: "center", color: C.muted, fontSize: 13, marginBottom: 14 }}>Procesando…</div>}
+            {mic && <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: R.md, padding: "10px 16px", marginBottom: 14, fontSize: T.md, color: C.red, display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: C.red, display: "inline-block", animation: "pulse 1s infinite" }} />{live || "Escuchando…"}</div>}
+            {!mic && live && <div style={{ background: C.green + "18", border: `1px solid ${C.green}44`, borderRadius: R.md, padding: "10px 16px", marginBottom: 14, fontSize: T.md, color: C.green }}>{live}</div>}
+            {txLoading && <div style={{ textAlign: "center", color: C.muted, fontSize: T.md, marginBottom: 14 }}>Procesando…</div>}
             <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center" }}>
               <button onClick={mic ? stopMic : startMic} disabled={!voiceOK || txLoading} style={{ width: 50, height: 50, borderRadius: "50%", flexShrink: 0, border: `2px solid ${mic ? C.red : C.accent}`, background: mic ? C.red + "22" : C.accent + "22", color: mic ? C.red : C.aLight, fontSize: 22, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", animation: mic ? "pulse 1.2s ease-in-out infinite" : "none" }}>
                 {mic ? "⏹" : "🎙️"}
@@ -107,15 +107,15 @@ export default function Fab({
               <input style={{ ...S.inp, flex: 1 }} placeholder='Di o escribe: "Gasté $200 en el Ley"' value={txInput} onChange={(e) => setTxInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onSend(txInput.trim())} />
               <button style={{ ...S.btn(), padding: "12px 14px" }} onClick={() => onSend(txInput.trim())} disabled={txLoading || !txInput.trim()}>↑</button>
             </div>
-            {!voiceOK && <div style={{ fontSize: 11, color: C.muted, marginBottom: 14, textAlign: "center" }}>El dictado por voz no está disponible en este navegador. En iPhone usa Safari; en Android o escritorio, Chrome.</div>}
+            {!voiceOK && <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 14, textAlign: "center" }}>El dictado por voz no está disponible en este navegador. En iPhone usa Safari; en Android o escritorio, Chrome.</div>}
             {/* Aquí es donde se gasta: que el tope no sorprenda en la llamada 16.
                 Si se acabó, el botón manual de abajo sigue siendo la salida. */}
             {uso && (
-              <div style={{ fontSize: 11, color: uso.agotado ? C.amber : C.muted, marginBottom: 14, textAlign: "center", fontWeight: uso.agotado ? 600 : 400 }}>
+              <div style={{ fontSize: T.xs, color: uso.agotado ? C.amber : C.muted, marginBottom: 14, textAlign: "center", fontWeight: uso.agotado ? 600 : 400 }}>
                 {uso.agotado ? `⏳ ${uso.texto} Mientras tanto, registra a mano.` : uso.texto}
               </div>
             )}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}><div style={{ flex: 1, height: 1, background: C.border }} /><span style={{ fontSize: 12, color: C.muted }}>o</span><div style={{ flex: 1, height: 1, background: C.border }} /></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}><div style={{ flex: 1, height: 1, background: C.border }} /><span style={{ fontSize: T.sm, color: C.muted }}>o</span><div style={{ flex: 1, height: 1, background: C.border }} /></div>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={{ ...S.btn(`${C.accent}22`), flex: 1, color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onManual}>✏️ Manual</button>
               <button style={{ ...S.btn(`${C.accent}22`), flex: 1, color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onTransfer}>↔️ Transferir</button>

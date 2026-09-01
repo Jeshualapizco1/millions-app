@@ -1,7 +1,9 @@
 import { useState } from "react";
+import KindToggle from "../components/KindToggle";
+import ErrorBox from "../components/ErrorBox";
 import { toLocalDateISO } from "../lib/dates";
 import Modal from "../components/Modal";
-import { C, S } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 import type { Account, RecurringFrequency, RecurringRule, TxType } from "../types";
 
@@ -56,20 +58,14 @@ export default function RecurringModal({
 
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>{rule ? "Editar movimiento fijo" : "Nuevo movimiento fijo"}</div>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Se registra solo en la fecha que indiques, sin que tengas que capturarlo.</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 4 }}>{rule ? "Editar movimiento fijo" : "Nuevo movimiento fijo"}</div>
+      <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>Se registra solo en la fecha que indiques, sin que tengas que capturarlo.</div>
 
       <label style={S.lbl}>Nombre</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder="Ej: Renta, Netflix, Nómina" value={name} onChange={(e) => setName(e.target.value)} />
 
       <label style={S.lbl}>Tipo</label>
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {(["gasto", "ingreso"] as const).map((t) => (
-          <button key={t} onClick={() => setKind(t)} style={{ flex: 1, padding: "11px", borderRadius: 12, border: `2px solid ${kind === t ? (t === "gasto" ? C.red : C.green) : C.border + "44"}`, background: kind === t ? (t === "gasto" ? C.red : C.green) + "22" : "transparent", color: kind === t ? (t === "gasto" ? C.red : C.green) : C.muted, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
-            {t === "gasto" ? "🔴 Gasto" : "🟢 Ingreso"}
-          </button>
-        ))}
-      </div>
+      <KindToggle value={kind} onChange={(t) => setKind(t)} />
 
       <label style={S.lbl}>Monto</label>
       <input style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} />
@@ -77,7 +73,7 @@ export default function RecurringModal({
       <label style={S.lbl}>Cada cuánto</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
         {FREQS.map((f) => (
-          <button key={f.key} onClick={() => setFrequency(f.key)} style={{ padding: "7px 12px", borderRadius: 999, border: `2px solid ${frequency === f.key ? C.accent : C.border + "44"}`, background: frequency === f.key ? C.accent + "22" : "transparent", color: frequency === f.key ? C.aLight : C.muted, fontSize: 13, cursor: "pointer", fontWeight: frequency === f.key ? 700 : 400 }}>
+          <button key={f.key} onClick={() => setFrequency(f.key)} style={{ padding: "7px 12px", borderRadius: R.pill, border: `2px solid ${frequency === f.key ? C.accent : C.border + "44"}`, background: frequency === f.key ? C.accent + "22" : "transparent", color: frequency === f.key ? C.aLight : C.muted, fontSize: T.md, cursor: "pointer", fontWeight: frequency === f.key ? 700 : 400 }}>
             {f.label}
           </button>
         ))}
@@ -96,13 +92,13 @@ export default function RecurringModal({
 
       <label style={S.lbl}>{rule ? "Próxima vez" : "Primera vez"}</label>
       <input style={{ ...S.inp, marginBottom: 6 }} type="date" value={nextRun} onChange={(e) => setNextRun(e.target.value)} />
-      <div style={{ fontSize: 11, color: C.muted, marginBottom: 20 }}>
+      <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 20 }}>
         Si eliges una fecha pasada, se generarán las que falten la próxima vez que corra.
       </div>
 
-      {error && <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: C.red, marginBottom: 14 }}>{error}</div>}
+      {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>
-        {rule && onDelete && <button onClick={() => onDelete(rule.id)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Eliminar</button>}
+        {rule && onDelete && <button onClick={() => onDelete(rule.id)} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: R.md, padding: "12px 14px", fontSize: T.base, fontWeight: 600, cursor: "pointer" }}>Eliminar</button>}
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...S.btn(), flex: rule ? 2 : 1, opacity: loading ? 0.7 : 1 }} disabled={loading} onClick={save}>{loading ? "..." : "Guardar"}</button>
       </div>

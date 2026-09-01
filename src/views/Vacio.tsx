@@ -1,4 +1,4 @@
-import { C, S } from "../lib/constants";
+import { C, S, T } from "../lib/constants";
 
 /**
  * Lo que ve quien saltó el arranque y todavía no tiene ni una cuenta.
@@ -27,7 +27,7 @@ export default function Vacio({
     <div className="fadeUp">
       <div style={{ ...S.card, padding: "28px 20px 22px", textAlign: "center" }}>
         <div style={{ fontSize: 44, marginBottom: 10 }}>🌱</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: -0.3, marginBottom: 8 }}>
+        <div style={{ fontSize: T.xxl, fontWeight: 800, color: C.text, letterSpacing: -0.3, marginBottom: 8 }}>
           Hola, {nombre}
         </div>
         <div style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.55, marginBottom: 22 }}>
@@ -56,7 +56,7 @@ export default function Vacio({
         />
       </div>
 
-      <div style={{ fontSize: 12, color: C.muted, textAlign: "center", lineHeight: 1.5, padding: "0 16px" }}>
+      <div style={{ fontSize: T.sm, color: C.muted, textAlign: "center", lineHeight: 1.5, padding: "0 16px" }}>
         También puedes tocar ＋ y decir algo como “gasté 200 en el Ley”, pero
         primero hace falta una cuenta donde cargarlo.
       </div>
@@ -96,12 +96,12 @@ function Opcion({
         boxShadow: principal ? "0 6px 18px #7c6af744" : "none",
       }}
     >
-      <span style={{ fontSize: 24, width: 32, textAlign: "center", flexShrink: 0 }}>{icon}</span>
+      <span style={{ fontSize: T.hero, width: 32, textAlign: "center", flexShrink: 0 }}>{icon}</span>
       <span style={{ minWidth: 0, flex: 1 }}>
         <span style={{ display: "block", fontSize: 15, fontWeight: 700 }}>{titulo}</span>
-        <span style={{ display: "block", fontSize: 12, marginTop: 2, lineHeight: 1.4, color: principal ? "#ffffffcc" : C.muted }}>{detalle}</span>
+        <span style={{ display: "block", fontSize: T.sm, marginTop: 2, lineHeight: 1.4, color: principal ? "#ffffffcc" : C.muted }}>{detalle}</span>
       </span>
-      <span style={{ fontSize: 18, color: principal ? "#ffffffcc" : C.muted, flexShrink: 0 }}>›</span>
+      <span style={{ fontSize: T.xl, color: principal ? "#ffffffcc" : C.muted, flexShrink: 0 }}>›</span>
     </button>
   );
 }

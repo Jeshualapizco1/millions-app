@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { C, S } from "../lib/constants";
+import ErrorBox from "../components/ErrorBox";
+import { C, S, T } from "../lib/constants";
 import { LEGAL_VERSION, type LegalDoc } from "../lib/legal";
 import LegalModal from "../modals/LegalModal";
 
@@ -60,17 +61,17 @@ export default function LegalGate({
             onClick={() => setVerDoc("privacidad")}
             style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${C.border}22`, cursor: "pointer" }}
           >
-            <span style={{ fontSize: 18 }}>🔒</span>
+            <span style={{ fontSize: T.xl }}>🔒</span>
             <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600, color: C.text }}>Aviso de privacidad</span>
-            <span style={{ color: C.aLight, fontSize: 12, fontWeight: 600 }}>Leer</span>
+            <span style={{ color: C.aLight, fontSize: T.sm, fontWeight: 600 }}>Leer</span>
           </div>
           <div
             onClick={() => setVerDoc("terminos")}
             style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", cursor: "pointer" }}
           >
-            <span style={{ fontSize: 18 }}>📄</span>
+            <span style={{ fontSize: T.xl }}>📄</span>
             <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600, color: C.text }}>Términos y condiciones</span>
-            <span style={{ color: C.aLight, fontSize: 12, fontWeight: 600 }}>Leer</span>
+            <span style={{ color: C.aLight, fontSize: T.sm, fontWeight: 600 }}>Leer</span>
           </div>
 
           <label style={{ display: "flex", alignItems: "flex-start", gap: 10, margin: "18px 0", cursor: "pointer" }}>
@@ -85,11 +86,7 @@ export default function LegalGate({
             </span>
           </label>
 
-          {error && (
-            <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: C.red, marginBottom: 14 }}>
-              {error}
-            </div>
-          )}
+          {error && <ErrorBox>{error}</ErrorBox>}
 
           <button
             onClick={guardar}
@@ -102,7 +99,7 @@ export default function LegalGate({
 
         <button
           onClick={onSignOut}
-          style={{ width: "100%", background: "none", border: "none", color: C.muted, fontSize: 13, padding: "14px", cursor: "pointer", textDecoration: "underline" }}
+          style={{ width: "100%", background: "none", border: "none", color: C.muted, fontSize: T.md, padding: "14px", cursor: "pointer", textDecoration: "underline" }}
         >
           Cerrar sesión
         </button>

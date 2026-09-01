@@ -1,5 +1,5 @@
 import Modal from "../components/Modal";
-import { C, S } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 
 export default function BudgetModal({
@@ -24,11 +24,11 @@ export default function BudgetModal({
   const { list } = useCategories();
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>Nuevo presupuesto</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>Nuevo presupuesto</div>
       <label style={S.lbl}>Categoría</label>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
         {list.filter((c) => c.kind !== "ingreso").map((c) => (
-          <button key={c.id} onClick={() => onCat(c.name)} style={{ padding: "7px 12px", borderRadius: 20, border: `2px solid ${budgetCat === c.name ? c.color : C.border + "44"}`, background: budgetCat === c.name ? c.color + "22" : "transparent", color: budgetCat === c.name ? c.color : C.muted, fontSize: 13, cursor: "pointer", fontWeight: budgetCat === c.name ? 700 : 400 }}>{c.icon} {c.name}</button>
+          <button key={c.id} onClick={() => onCat(c.name)} style={{ padding: "7px 12px", borderRadius: R.lg, border: `2px solid ${budgetCat === c.name ? c.color : C.border + "44"}`, background: budgetCat === c.name ? c.color + "22" : "transparent", color: budgetCat === c.name ? c.color : C.muted, fontSize: T.md, cursor: "pointer", fontWeight: budgetCat === c.name ? 700 : 400 }}>{c.icon} {c.name}</button>
         ))}
       </div>
       <label style={S.lbl}>Límite mensual</label>
@@ -36,13 +36,13 @@ export default function BudgetModal({
 
       <button
         onClick={() => onRollover(!rollover)}
-        style={{ width: "100%", textAlign: "left", background: rollover ? C.accent + "18" : "transparent", border: `1px solid ${rollover ? C.accent + "66" : C.border}`, borderRadius: 12, padding: "11px 14px", cursor: "pointer", marginBottom: 20 }}
+        style={{ width: "100%", textAlign: "left", background: rollover ? C.accent + "18" : "transparent", border: `1px solid ${rollover ? C.accent + "66" : C.border}`, borderRadius: R.md, padding: "11px 14px", cursor: "pointer", marginBottom: 20 }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 16 }}>{rollover ? "☑️" : "⬜"}</span>
+          <span style={{ fontSize: T.lg }}>{rollover ? "☑️" : "⬜"}</span>
           <div>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text }}>Arrastrar lo que sobre</div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>Si un mes gastas menos, el resto se suma al siguiente (solo un mes).</div>
+            <div style={{ fontSize: T.xs, color: C.muted, marginTop: 1 }}>Si un mes gastas menos, el resto se suma al siguiente (solo un mes).</div>
           </div>
         </div>
       </button>

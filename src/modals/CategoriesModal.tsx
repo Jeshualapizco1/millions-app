@@ -1,6 +1,7 @@
 import { useState } from "react";
+import ErrorBox from "../components/ErrorBox";
 import Modal from "../components/Modal";
-import { C, S } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import type { Category, CategoryKind } from "../types";
 
 const ICONS = ["📦", "🍔", "🚗", "💊", "📚", "🎬", "💡", "🛍️", "💼", "🌸", "↔️", "🏠", "✈️", "🎁", "🐶", "💅", "⚽", "🎮", "☕", "🧾"];
@@ -49,21 +50,21 @@ export default function CategoriesModal({
   if (draft) {
     return (
       <Modal onClose={() => setDraft(null)}>
-        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>{draft.id ? "Editar categoría" : "Nueva categoría"}</div>
+        <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{draft.id ? "Editar categoría" : "Nueva categoría"}</div>
         <label style={S.lbl}>Nombre</label>
         <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder="Ej: Mascotas, Gimnasio" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
 
         <label style={S.lbl}>Se usa para</label>
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
           {KINDS.map((k) => (
-            <button key={k.key} onClick={() => setDraft({ ...draft, kind: k.key })} style={{ flex: 1, padding: "9px", borderRadius: 12, border: `2px solid ${draft.kind === k.key ? C.accent : C.border + "44"}`, background: draft.kind === k.key ? C.accent + "22" : "transparent", color: draft.kind === k.key ? C.aLight : C.muted, cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{k.label}</button>
+            <button key={k.key} onClick={() => setDraft({ ...draft, kind: k.key })} style={{ flex: 1, padding: "9px", borderRadius: R.md, border: `2px solid ${draft.kind === k.key ? C.accent : C.border + "44"}`, background: draft.kind === k.key ? C.accent + "22" : "transparent", color: draft.kind === k.key ? C.aLight : C.muted, cursor: "pointer", fontWeight: 700, fontSize: T.md }}>{k.label}</button>
           ))}
         </div>
 
         <label style={S.lbl}>Ícono</label>
         <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
           {ICONS.map((ic) => (
-            <button key={ic} onClick={() => setDraft({ ...draft, icon: ic })} style={{ fontSize: 20, background: draft.icon === ic ? C.accent + "33" : "transparent", border: `2px solid ${draft.icon === ic ? C.accent : C.border + "44"}`, borderRadius: 10, padding: "4px 7px", cursor: "pointer" }}>{ic}</button>
+            <button key={ic} onClick={() => setDraft({ ...draft, icon: ic })} style={{ fontSize: T.xxl, background: draft.icon === ic ? C.accent + "33" : "transparent", border: `2px solid ${draft.icon === ic ? C.accent : C.border + "44"}`, borderRadius: R.sm, padding: "4px 7px", cursor: "pointer" }}>{ic}</button>
           ))}
         </div>
 
@@ -74,7 +75,7 @@ export default function CategoriesModal({
           ))}
         </div>
 
-        {error && <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: C.red, marginBottom: 14 }}>{error}</div>}
+        {error && <ErrorBox>{error}</ErrorBox>}
         <div style={{ display: "flex", gap: 10 }}>
           <button style={{ ...S.btnO, flex: 1 }} onClick={() => setDraft(null)}>Cancelar</button>
           <button style={{ ...S.btn(), flex: 1, opacity: loading ? 0.7 : 1 }} disabled={loading} onClick={save}>{loading ? "..." : "Guardar"}</button>
@@ -86,19 +87,19 @@ export default function CategoriesModal({
   return (
     <Modal onClose={onClose}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <div style={{ fontWeight: 800, fontSize: 18 }}>Categorías</div>
-        <button onClick={() => setDraft(empty)} style={{ ...S.btn(), padding: "7px 13px", fontSize: 13 }}>＋ Nueva</button>
+        <div style={{ fontWeight: 800, fontSize: T.xl }}>Categorías</div>
+        <button onClick={() => setDraft(empty)} style={{ ...S.btn(), padding: "7px 13px", fontSize: T.md }}>＋ Nueva</button>
       </div>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>
+      <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 14 }}>
         Ocultar una categoría la quita de los selectores; los movimientos que ya la usan la conservan.
       </div>
       {categories.map((c) => (
         <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.border}22`, opacity: c.hidden ? 0.45 : 1 }}>
           <div onClick={() => setDraft({ id: c.id, name: c.name, icon: c.icon, color: c.color, kind: c.kind })} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer", minWidth: 0 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: c.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{c.icon}</div>
+            <div style={{ width: 34, height: 34, borderRadius: R.sm, background: c.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{c.icon}</div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
-              <div style={{ fontSize: 11, color: C.muted }}>{c.kind === "ambos" ? "gasto e ingreso" : c.kind}{c.hidden ? " · oculta" : ""}</div>
+              <div style={{ fontSize: T.base, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+              <div style={{ fontSize: T.xs, color: C.muted }}>{c.kind === "ambos" ? "gasto e ingreso" : c.kind}{c.hidden ? " · oculta" : ""}</div>
             </div>
           </div>
           <button onClick={() => onToggleHidden(c)} title={c.hidden ? "Mostrar" : "Ocultar"} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 15, padding: 4 }}>

@@ -1,5 +1,5 @@
 import Modal from "../components/Modal";
-import { ACC_ICONS, C, S } from "../lib/constants";
+import { C, R, S, T, ACC_ICONS } from "../lib/constants";
 import { CURRENCIES, CURRENCY_LABEL, SELECTOR_DE_MONEDA_ACTIVO } from "../lib/currency";
 
 export interface AccountFormState {
@@ -29,7 +29,7 @@ export default function AccountModal({
   const isNew = mode === "new";
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16 }}>{isNew ? "Nueva cuenta" : "Editar cuenta"}</div>
+      <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{isNew ? "Nueva cuenta" : "Editar cuenta"}</div>
       <label style={S.lbl}>Nombre</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder={isNew ? "Ej: BBVA, Revolut…" : undefined} value={form.name} onChange={(e) => update({ name: e.target.value })} />
       <label style={S.lbl}>{isNew ? "Saldo inicial" : "Saldo actual"}</label>
@@ -56,10 +56,10 @@ export default function AccountModal({
       )}
 
       <label style={S.lbl}>Ícono</label>
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>{ACC_ICONS.map((ic) => <button key={ic} onClick={() => update({ icon: ic })} style={{ fontSize: 24, background: form.icon === ic ? C.accent + "33" : "transparent", border: `2px solid ${form.icon === ic ? C.accent : C.border + "44"}`, borderRadius: 10, padding: "6px 8px", cursor: "pointer" }}>{ic}</button>)}</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>{ACC_ICONS.map((ic) => <button key={ic} onClick={() => update({ icon: ic })} style={{ fontSize: T.hero, background: form.icon === ic ? C.accent + "33" : "transparent", border: `2px solid ${form.icon === ic ? C.accent : C.border + "44"}`, borderRadius: R.sm, padding: "6px 8px", cursor: "pointer" }}>{ic}</button>)}</div>
       <div style={{ display: "flex", gap: 10 }}>
         {!isNew && onRemove && (
-          <button onClick={onRemove} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Quitar</button>
+          <button onClick={onRemove} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: R.md, padding: "12px 14px", fontSize: T.base, fontWeight: 600, cursor: "pointer" }}>Quitar</button>
         )}
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...S.btn(), flex: isNew ? 1 : 2 }} onClick={onSave}>{isNew ? "Agregar" : "Guardar"}</button>

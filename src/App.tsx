@@ -14,7 +14,7 @@ import { impactoNeto, proximos } from "./lib/upcoming";
 import { importId } from "./lib/csvImport";
 import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
-import { ACC_COLORS, C } from "./lib/constants";
+import { C, R, T, ACC_COLORS } from "./lib/constants";
 import { daysUntil, fmt, monthLabel, numero } from "./lib/format";
 import { daysUntilDate, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
@@ -944,7 +944,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: C.bg, gap: 16 }}>
       <div style={{ fontSize: 52 }}>💰</div>
       <div style={{ width: 28, height: 28, border: `3px solid ${C.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-      <div style={{ color: C.muted, fontSize: 13 }}>Cargando tus finanzas…</div>
+      <div style={{ color: C.muted, fontSize: T.md }}>Cargando tus finanzas…</div>
     </div>
   );
 
@@ -952,8 +952,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: C.bg, gap: 16, padding: 24 }}>
       <div style={{ fontSize: 52 }}>⚠️</div>
       <div style={{ color: C.text, fontSize: 15, fontWeight: 700 }}>No se pudieron cargar tus datos</div>
-      <div style={{ color: C.muted, fontSize: 13, textAlign: "center" }}>{loadError}</div>
-      <button onClick={() => window.location.reload()} style={{ background: C.accent, color: "#fff", border: "none", borderRadius: 12, padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Reintentar</button>
+      <div style={{ color: C.muted, fontSize: T.md, textAlign: "center" }}>{loadError}</div>
+      <button onClick={() => window.location.reload()} style={{ background: C.accent, color: "#fff", border: "none", borderRadius: R.md, padding: "12px 24px", fontSize: T.base, fontWeight: 700, cursor: "pointer" }}>Reintentar</button>
     </div>
   );
 
@@ -1032,18 +1032,18 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         {/* El nombre es la entrada a Perfil: la barra de abajo ya tiene seis
             pestañas y una séptima las dejaba ilegibles en un teléfono. */}
         <div onClick={() => setTab("perfil")} style={{ cursor: "pointer" }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
-          <div style={{ fontSize: 11, color: tab === "perfil" ? C.aLight : C.muted, marginTop: 1 }}>
+          <div style={{ fontSize: T.xxl, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
+          <div style={{ fontSize: T.xs, color: tab === "perfil" ? C.aLight : C.muted, marginTop: 1 }}>
             👤 {userName}{hasForeign(accs) ? " · totales en MXN" : ""} ›
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ background: `linear-gradient(135deg,${C.accent},#9333ea)`, color: "#fff", borderRadius: 12, padding: "6px 14px", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 12px #7c6af733" }}>{fmt(totBal)}</div>
+          <div style={{ background: `linear-gradient(135deg,${C.accent},#9333ea)`, color: "#fff", borderRadius: R.md, padding: "6px 14px", fontSize: T.md, fontWeight: 800, boxShadow: "0 4px 12px #7c6af733" }}>{fmt(totBal)}</div>
           {pending > 0 && (
             <button
               onClick={() => flush()}
               title="Movimientos guardados sin conexión. Toca para intentar enviarlos."
-              style={{ background: C.amber + "22", border: `1px solid ${C.amber}55`, borderRadius: 10, color: C.amber, fontSize: 12, fontWeight: 700, padding: "6px 10px", cursor: "pointer" }}
+              style={{ background: C.amber + "22", border: `1px solid ${C.amber}55`, borderRadius: R.sm, color: C.amber, fontSize: T.sm, fontWeight: 700, padding: "6px 10px", cursor: "pointer" }}
             >
               {syncing ? "⟳" : "☁"} {pending}
             </button>
@@ -1055,8 +1055,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
           cuenta se borra en unos días es exactamente lo que no debe pasar. */}
       {diasParaBorrado !== null && (
         <div onClick={() => setTab("perfil")} style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-          <span style={{ fontSize: 18 }}>🗑️</span>
-          <span style={{ flex: 1, fontSize: 13, color: C.red, fontWeight: 600 }}>
+          <span style={{ fontSize: T.xl }}>🗑️</span>
+          <span style={{ flex: 1, fontSize: T.md, color: C.red, fontWeight: 600 }}>
             Tu cuenta se borrará {diasParaBorrado === 0 ? "hoy" : `en ${diasParaBorrado} ${diasParaBorrado === 1 ? "día" : "días"}`} — Toca para cancelar
           </span>
         </div>
@@ -1066,8 +1066,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
           la app se cerró es exactamente lo que este aviso viene a evitar. */}
       {avisarPrueba && (
         <div style={{ background: C.amber + "18", borderBottom: `1px solid ${C.amber}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 18 }}>⏳</span>
-          <span style={{ flex: 1, fontSize: 13, color: C.amber, fontWeight: 600 }}>
+          <span style={{ fontSize: T.xl }}>⏳</span>
+          <span style={{ flex: 1, fontSize: T.md, color: C.amber, fontWeight: 600 }}>
             {diasDePrueba === 1 ? "Tu prueba termina mañana" : `Tu prueba termina en ${diasDePrueba} días`}
           </span>
         </div>
@@ -1076,8 +1076,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {/* Avisos: la ✕ los descarta hasta que cambie la situación */}
       {showCreditAlert && (
         <div style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 18 }}>🚨</span>
-          <span onClick={() => setTab("creditos")} style={{ flex: 1, fontSize: 13, color: C.red, fontWeight: 600, cursor: "pointer" }}>
+          <span style={{ fontSize: T.xl }}>🚨</span>
+          <span onClick={() => setTab("creditos")} style={{ flex: 1, fontSize: T.md, color: C.red, fontWeight: 600, cursor: "pointer" }}>
             {urgentCredits.length === 1 ? `Pago próximo: ${urgentCredits[0].name}` : `${urgentCredits.length} pagos próximos`} — Toca para ver
           </span>
           <button onClick={() => hideAlert(creditKey)} title="No volver a mostrar este aviso" style={{ background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 15, padding: "2px 6px", lineHeight: 1 }}>✕</button>
@@ -1086,8 +1086,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {showBudgetAlert && (
         <div style={{ background: C.amber + "18", borderBottom: `1px solid ${C.amber}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 18 }}>⚠️</span>
-          <span onClick={() => { setTab("metas"); setTimeout(() => document.getElementById("presupuestos")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} style={{ flex: 1, fontSize: 13, color: C.amber, fontWeight: 600, cursor: "pointer" }}>
+          <span style={{ fontSize: T.xl }}>⚠️</span>
+          <span onClick={() => { setTab("metas"); setTimeout(() => document.getElementById("presupuestos")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} style={{ flex: 1, fontSize: T.md, color: C.amber, fontWeight: 600, cursor: "pointer" }}>
             Presupuesto al límite: {budgetOver.join(", ")} — Toca para ver
           </span>
           <button onClick={() => hideAlert(budgetKey)} title="No volver a mostrar este aviso" style={{ background: "none", border: "none", color: C.amber, cursor: "pointer", fontSize: 15, padding: "2px 6px", lineHeight: 1 }}>✕</button>
@@ -1110,8 +1110,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 30, display: "flex", background: C.surface, borderTop: `1px solid ${C.border}33`, paddingBottom: "env(safe-area-inset-bottom,0px)", boxShadow: "0 -4px 16px #00000055" }}>
         {([["dash", "📊", "Inicio"], ["metas", "🎯", "Metas"], ["creditos", "💳", "Créditos"], ["analisis", "🤖", "Análisis"], ["hist", "📋", "Historial"], ["accs", "🏦", "Cuentas"]] as [Tab, string, string][]).map(([k, icon, label]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, minWidth: 0, padding: "9px 2px 7px", background: "none", border: "none", cursor: "pointer", borderTop: tab === k ? `2px solid ${C.accent}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <span style={{ fontSize: 18 }}>{icon}</span>
-            <span style={{ fontSize: 11, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
+            <span style={{ fontSize: T.xl }}>{icon}</span>
+            <span style={{ fontSize: T.xs, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
           </button>
         ))}
       </div>

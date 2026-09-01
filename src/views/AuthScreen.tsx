@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { S } from "../lib/constants";
+import ErrorBox from "../components/ErrorBox";
+import { R, S, T } from "../lib/constants";
 import type { Session } from "@supabase/supabase-js";
 import { sbClient } from "../lib/supabase";
 import Captcha, { CAPTCHA_ENABLED } from "../components/Captcha";
@@ -62,18 +63,18 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
       <div style={{ marginBottom: 32, textAlign: "center" }}>
         <div style={{ fontSize: 56, marginBottom: 10 }}>💰</div>
         <div style={{ fontSize: 26, fontWeight: 900, color: "#a89ff9", letterSpacing: -0.5 }}>Millions</div>
-        <div style={{ fontSize: 13, color: "#6b6a8a", marginTop: 4 }}>Finanzas personales</div>
+        <div style={{ fontSize: T.md, color: "#6b6a8a", marginTop: 4 }}>Finanzas personales</div>
       </div>
       <div style={{ width: "100%", maxWidth: 380, background: "#1a1a26", border: "1px solid #2a2a3e", borderRadius: 24, padding: 28 }}>
-        <div style={{ display: "flex", gap: 0, marginBottom: 24, background: "#12121a", borderRadius: 12, padding: 4 }}>
+        <div style={{ display: "flex", gap: 0, marginBottom: 24, background: "#12121a", borderRadius: R.md, padding: 4 }}>
           {(["login", "signup"] as const).map((m) => (
-            <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }} style={{ flex: 1, padding: "9px", borderRadius: 10, border: "none", background: mode === m ? "#7c6af7" : "transparent", color: mode === m ? "#fff" : "#6b6a8a", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>{m === "login" ? "Iniciar sesión" : "Crear cuenta"}</button>
+            <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }} style={{ flex: 1, padding: "9px", borderRadius: R.sm, border: "none", background: mode === m ? "#7c6af7" : "transparent", color: mode === m ? "#fff" : "#6b6a8a", fontWeight: 700, fontSize: T.base, cursor: "pointer" }}>{m === "login" ? "Iniciar sesión" : "Crear cuenta"}</button>
           ))}
         </div>
-        {mode === "signup" && <><label style={{ fontSize: 12, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Nombre</label><input style={inp} placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} /></>}
-        <label style={{ fontSize: 12, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Correo</label>
+        {mode === "signup" && <><label style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Nombre</label><input style={inp} placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} /></>}
+        <label style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Correo</label>
         <input style={inp} type="email" inputMode="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-        <label style={{ fontSize: 12, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Contraseña</label>
+        <label style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Contraseña</label>
         <input style={{ ...inp, marginBottom: 20 }} type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} />
         {mode === "signup" && (
           // Casilla sin marcar por defecto: un consentimiento premarcado no es
@@ -95,16 +96,16 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
           </label>
         )}
         {mode === "signup" && <Captcha onToken={setCaptchaToken} />}
-        {error && <div style={{ background: "#f8717118", border: "1px solid #f8717144", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#f87171", marginBottom: 14 }}>{error}</div>}
-        {success && <div style={{ background: "#4ade8018", border: "1px solid #4ade8044", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#4ade80", marginBottom: 14 }}>{success}</div>}
-        <button onClick={submit} disabled={loading} style={{ width: "100%", background: "linear-gradient(135deg,#7c6af7,#9333ea)", color: "#fff", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+        {error && <ErrorBox>{error}</ErrorBox>}
+        {success && <div style={{ background: "#4ade8018", border: "1px solid #4ade8044", borderRadius: R.sm, padding: "10px 14px", fontSize: T.md, color: "#4ade80", marginBottom: 14 }}>{success}</div>}
+        <button onClick={submit} disabled={loading} style={{ width: "100%", background: "linear-gradient(135deg,#7c6af7,#9333ea)", color: "#fff", border: "none", borderRadius: R.md, padding: "14px", fontSize: 15, fontWeight: 800, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
           {loading ? "..." : (mode === "login" ? "Entrar" : "Crear cuenta")}
         </button>
       </div>
 
       {/* También accesibles al iniciar sesión: la ley pide que el aviso esté
           disponible en todo momento, no solo en el momento de aceptarlo. */}
-      <div style={{ marginTop: 20, display: "flex", gap: 16, fontSize: 12 }}>
+      <div style={{ marginTop: 20, display: "flex", gap: 16, fontSize: T.sm }}>
         <span onClick={() => setVerDoc("privacidad")} style={{ color: "#6b6a8a", cursor: "pointer", textDecoration: "underline" }}>Aviso de privacidad</span>
         <span onClick={() => setVerDoc("terminos")} style={{ color: "#6b6a8a", cursor: "pointer", textDecoration: "underline" }}>Términos</span>
       </div>
