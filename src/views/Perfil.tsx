@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { C, S } from "../lib/constants";
 import { exportCSV } from "../lib/csv";
-import { diasRestantesDeGracia } from "../lib/dates";
-import { GRACIA_DIAS, LEGAL_VERSION, type LegalDoc } from "../lib/legal";
+import { diasRestantesDeGracia, diasRestantesDePlazo } from "../lib/dates";
+import { GRACIA_DIAS, LEGAL_VERSION, PRUEBA_DIAS, type LegalDoc } from "../lib/legal";
 import LegalModal from "../modals/LegalModal";
 import type { Profile, Transaction } from "../types";
 
@@ -86,6 +86,9 @@ export default function Perfil({
   const diasParaBorrado = diasRestantesDeGracia(profile?.deletion_requested_at, GRACIA_DIAS);
   const enBorrado = diasParaBorrado !== null;
   const desactualizado = !!profile?.legal_accepted_at && profile.legal_version !== LEGAL_VERSION;
+  // Aquí sí se muestra siempre: arriba solo aparece la última semana, y este
+  // es el lugar donde alguien va a buscarlo cuando se acuerde de preguntar.
+  const diasDePrueba = diasRestantesDePlazo(profile?.created_at, PRUEBA_DIAS);
 
   return (
     <div className="fadeUp">
@@ -117,6 +120,25 @@ export default function Perfil({
           <button style={{ ...S.btn(), width: "100%" }} onClick={onCancelDeletion}>
             Cancelar el borrado
           </button>
+        </div>
+      )}
+
+      {diasDePrueba !== null && (
+        <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 22 }}>{diasDePrueba > 7 ? "🎁" : "⏳"}</span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14.5, fontWeight: 700, color: diasDePrueba > 7 ? C.text : C.amber }}>
+              {diasDePrueba === 0
+                ? "Tu prueba terminó"
+                : diasDePrueba === 1
+                ? "Tu prueba termina mañana"
+                : `Te quedan ${diasDePrueba} días de prueba`}
+            </div>
+            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2, lineHeight: 1.45 }}>
+              {PRUEBA_DIAS} días gratis desde tu alta. Al terminar podrás exportar tus
+              datos aunque no continúes.
+            </div>
+          </div>
         </div>
       )}
 

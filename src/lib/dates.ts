@@ -77,12 +77,15 @@ export const inMonth = (iso: string, year: number, month: number): boolean => {
  * "29" haría que la cuenta pareciera morir un día antes de lo que morirá.
  * Nunca devuelve negativo — pasado el plazo es 0, que se lee como "hoy".
  */
-export const diasRestantesDeGracia = (
-  requestedAt: string | null | undefined,
-  graceDays: number,
+export const diasRestantesDePlazo = (
+  desde: string | null | undefined,
+  plazoDias: number,
   now: Date = new Date()
 ): number | null => {
-  if (!requestedAt) return null;
-  const limite = new Date(requestedAt).getTime() + graceDays * 864e5;
+  if (!desde) return null;
+  const limite = new Date(desde).getTime() + plazoDias * 864e5;
   return Math.max(0, Math.ceil((limite - now.getTime()) / 864e5));
 };
+
+/** El plazo de gracia del borrado de cuenta. Mismo cálculo, nombre propio. */
+export const diasRestantesDeGracia = diasRestantesDePlazo;

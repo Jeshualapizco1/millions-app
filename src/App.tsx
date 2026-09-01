@@ -13,16 +13,17 @@ import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
 import { ACC_COLORS, C } from "./lib/constants";
 import { daysUntil, fmt, monthLabel } from "./lib/format";
-import { daysUntilDate, diasRestantesDeGracia, nextMonthlyDate } from "./lib/dates";
+import { daysUntilDate, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import { logError } from "./lib/errorLog";
 import { findByName } from "./lib/names";
-import { GRACIA_DIAS, LEGAL_VERSION } from "./lib/legal";
+import { GRACIA_DIAS, LEGAL_VERSION, PRUEBA_DIAS } from "./lib/legal";
 import Perfil from "./views/Perfil";
 import LegalGate from "./views/LegalGate";
 import Arranque, { type ArranqueResult } from "./views/Arranque";
+import FinDePrueba from "./views/FinDePrueba";
 import { hasForeign, toBase } from "./lib/currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./lib/alerts";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
@@ -142,6 +143,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   const diasParaBorrado = diasRestantesDeGracia(profile?.deletion_requested_at, GRACIA_DIAS);
+
+  // Días que quedan de prueba. 0 = se acabó. Se avisa la última semana: un
+  // contador encendido los 30 días es ruido, y a 7 días todavía da tiempo.
+  const diasDePrueba = diasRestantesDePlazo(profile?.created_at, PRUEBA_DIAS);
+  const avisarPrueba = diasDePrueba !== null && diasDePrueba > 0 && diasDePrueba <= 7;
 
   // ── Arranque guiado ───────────────────────────────────────────────────────
   const cerrarArranque = async () => {
@@ -767,6 +773,26 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     />
   );
 
+  // El muro va después del portón legal —los términos que lo explican hay que
+  // aceptarlos primero— y antes del arranque: no tiene sentido pedirle a
+  // alguien que configure una app que no va a poder usar.
+  if (profile && diasDePrueba === 0) return (
+    <>
+      <FinDePrueba txs={txs} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} />
+      {/* Se re-montan aquí: el resto de la app no se renderiza en este camino */}
+      {confirm && (
+        <ConfirmModal
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          onConfirm={confirm.action}
+          onClose={() => setConfirm(null)}
+        />
+      )}
+      <Toasts toasts={toasts} onDismiss={dismiss} />
+    </>
+  );
+
   // Va después del portón legal a propósito: primero se acepta el aviso, y
   // solo entonces tiene sentido pedirle datos a alguien.
   if (profile && !profile.onboarded_at) return (
@@ -813,6 +839,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
           <span style={{ fontSize: 18 }}>🗑️</span>
           <span style={{ flex: 1, fontSize: 13, color: C.red, fontWeight: 600 }}>
             Tu cuenta se borrará {diasParaBorrado === 0 ? "hoy" : `en ${diasParaBorrado} ${diasParaBorrado === 1 ? "día" : "días"}`} — Toca para cancelar
+          </span>
+        </div>
+      )}
+
+      {/* Última semana de prueba. No se descarta: enterarse el día 31 de que
+          la app se cerró es exactamente lo que este aviso viene a evitar. */}
+      {avisarPrueba && (
+        <div style={{ background: C.amber + "18", borderBottom: `1px solid ${C.amber}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 18 }}>⏳</span>
+          <span style={{ flex: 1, fontSize: 13, color: C.amber, fontWeight: 600 }}>
+            {diasDePrueba === 1 ? "Tu prueba termina mañana" : `Tu prueba termina en ${diasDePrueba} días`}
           </span>
         </div>
       )}

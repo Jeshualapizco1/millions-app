@@ -3,8 +3,8 @@
 // para que no vuelva sin que nos enteremos.
 // ============================================================================
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, nextMonthlyDate, parseDateOnly } from "./dates";
-import { GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRIVACIDAD, TERMINOS } from "./legal";
+import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate, parseDateOnly } from "./dates";
+import { COBRO_INCOMPLETO, GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRUEBA_DIAS, PRIVACIDAD, TERMINOS } from "./legal";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
 import { fmtShort } from "./format";
 import { netWorthHistory, projectMonth } from "./analytics";
@@ -468,6 +468,66 @@ describe("legal", () => {
   // sigan en PENDIENTE: es el recordatorio de que el aviso aún no es válido.
   it.fails("los datos del responsable ya están llenos", () => {
     expect(LEGAL_INCOMPLETO).toBe(false);
+  });
+
+  // Igual que el anterior: el muro de fin de prueba sin precio ni contacto es
+  // un callejón sin salida. Se pone verde al llenar los dos valores.
+  it.fails("el precio y el contacto de cobro ya están llenos", () => {
+    expect(COBRO_INCOMPLETO).toBe(false);
+  });
+
+  it("los términos dicen los días de prueba que de verdad se aplican", () => {
+    const t = TERMINOS.sections.flatMap((s) => s.body).join(" ");
+    expect(t).toContain(String(PRUEBA_DIAS));
+  });
+
+  /**
+   * El texto anterior prometía que al no continuar se limitaban "únicamente
+   * las funciones del asistente". Con muro de pago eso era falso, y cobrar
+   * contra unos términos que dicen otra cosa es el problema caro.
+   */
+  it("los términos ya no prometen que solo se limita el asistente", () => {
+    const t = TERMINOS.sections.flatMap((s) => s.body).join(" ");
+    expect(t).not.toContain("únicamente las funciones del asistente");
+  });
+
+  it("los términos prometen exportar y borrar aunque no se continúe", () => {
+    const t = TERMINOS.sections.flatMap((s) => s.body).join(" ").toLowerCase();
+    expect(t).toContain("exportar");
+    expect(t).toContain("borrar tu cuenta");
+  });
+});
+
+// ============================================================================
+// El plazo de la prueba: decide el día exacto en que la app se cierra.
+// ============================================================================
+describe("diasRestantesDePlazo", () => {
+  const alta = "2026-09-01T12:00:00Z";
+
+  it("el día del alta quedan los 30 completos", () => {
+    expect(diasRestantesDePlazo(alta, 30, new Date("2026-09-01T12:00:00Z"))).toBe(30);
+  });
+
+  it("a mitad del plazo quedan los que faltan", () => {
+    expect(diasRestantesDePlazo(alta, 30, new Date("2026-09-21T12:00:00Z"))).toBe(10);
+  });
+
+  it("el último día todavía no vence: 1, no 0", () => {
+    // Con floor en vez de ceil, la app se habría cerrado un día antes de lo
+    // que dicen los términos.
+    expect(diasRestantesDePlazo(alta, 30, new Date("2026-09-30T18:00:00Z"))).toBe(1);
+  });
+
+  it("cumplido el plazo es 0, que es lo que levanta el muro", () => {
+    expect(diasRestantesDePlazo(alta, 30, new Date("2026-10-01T12:00:00Z"))).toBe(0);
+  });
+
+  it("pasado el plazo nunca es negativo", () => {
+    expect(diasRestantesDePlazo(alta, 30, new Date("2027-03-01T12:00:00Z"))).toBe(0);
+  });
+
+  it("sin fecha de alta no hay plazo que contar", () => {
+    expect(diasRestantesDePlazo(null, 30)).toBe(null);
   });
 });
 

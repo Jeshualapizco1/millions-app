@@ -11,7 +11,7 @@
 // ============================================================================
 
 /** Sube esto (fecha del cambio) cada vez que edites PRIVACIDAD o TERMINOS. */
-export const LEGAL_VERSION = "2026-08-31";
+export const LEGAL_VERSION = "2026-09-01";
 
 // ── Datos del responsable (LFPDPPP art. 16) ─────────────────────────────────
 // El aviso es inválido sin identidad, domicilio y un medio de contacto real.
@@ -22,6 +22,20 @@ export const CORREO_ARCO = "PENDIENTE — correo de contacto";
 
 /** Días que la cuenta sobrevive tras pedir el borrado. Debe coincidir con la migración 0014. */
 export const GRACIA_DIAS = 30;
+
+/** Días de uso gratuito desde el alta. Al día siguiente entra el muro de pago. */
+export const PRUEBA_DIAS = 30;
+
+// ── Cómo se continúa al terminar la prueba ──────────────────────────────────
+// Un muro que dice "toca pagar" sin decir cuánto ni a dónde escribir no es un
+// muro, es un callejón sin salida. Mientras no haya cobro automático, esto es
+// lo mínimo para que alguien pueda continuar.
+// TODO(antes de abrir el registro): sustituir los dos valores.
+export const PRECIO_TEXTO = "PENDIENTE — precio del plan";
+export const CONTACTO_PAGO = "PENDIENTE — correo o enlace para contratar";
+
+/** True mientras el muro siga sin precio ni contacto reales. */
+export const COBRO_INCOMPLETO = [PRECIO_TEXTO, CONTACTO_PAGO].some((v) => v.startsWith("PENDIENTE"));
 
 /** True mientras el aviso siga trayendo los placeholders sin llenar. */
 export const LEGAL_INCOMPLETO = [RESPONSABLE, DOMICILIO, CORREO_ARCO].some((v) => v.startsWith("PENDIENTE"));
@@ -143,10 +157,11 @@ export const TERMINOS: LegalDoc = {
       ],
     },
     {
-      title: "5. La promoción de 60 días",
+      title: `5. La prueba gratuita de ${PRUEBA_DIAS} días`,
       body: [
-        "Durante el lanzamiento el servicio es gratuito por 60 días contados desde tu registro, con un límite diario de consultas al asistente para mantener el costo bajo control.",
-        "Al terminar los 60 días te avisaremos con anticipación y podrás decidir si continúas. Si no continúas, conservarás el acceso a tus datos y la posibilidad de exportarlos; podríamos limitar únicamente las funciones del asistente.",
+        `Al registrarte tienes ${PRUEBA_DIAS} días de uso gratuito, contados desde tu alta, con un límite diario de consultas al asistente para mantener el costo bajo control.`,
+        `Al terminar los ${PRUEBA_DIAS} días necesitarás contratar un plan de pago para seguir usando la aplicación. La aplicación te muestra cuántos días te quedan desde antes de que se acaben, para que no te tome por sorpresa.`,
+        "Aunque decidas no continuar, no pierdes tus datos: siempre podrás exportar todos tus movimientos a CSV, consultar este aviso y estos términos, y borrar tu cuenta. Lo que se limita es el uso de la aplicación, nunca el acceso a tu propia información.",
         "Podemos ajustar los límites de uso del asistente si el consumo pone en riesgo la operación del servicio. Te lo comunicaríamos dentro de la aplicación.",
       ],
     },

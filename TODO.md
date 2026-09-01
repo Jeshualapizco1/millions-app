@@ -12,8 +12,9 @@ lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
 # 1. Plan de lanzamiento público
 
-**Objetivo:** abrir Millions a otras personas con una promoción de captación de
-**60 días gratis**.
+**Objetivo:** abrir Millions a otras personas con una prueba gratuita de
+**30 días**. Al día 31 entra un muro de pago. *(Decidido el 1 de septiembre;
+antes eran 60 días con la IA apagada al vencer.)*
 
 **Lo que ya está resuelto y no hay que construir:** la arquitectura
 multi-usuario. RLS está forzado en todas las tablas y verificado con pruebas que
@@ -125,7 +126,7 @@ Pendiente de esto:
 - [x] Verificado en producción: el presupuesto global devuelve 503 al rebasarse,
       y la llamada 16 del día devuelve 429 con el mensaje de cuándo se renueva.
 
-### Proyección de costo a 60 días
+### Proyección de costo (la tabla es a 60 días; a 30 es la mitad)
 
 | Escenario | Costo aproximado |
 |---|---|
@@ -168,8 +169,8 @@ Hecho en código (migración `0014_legal_and_account_deletion.sql`):
       `src/lib/legal.ts`. El aviso cubre lo que exige la LFPDPPP: qué datos se
       recogen, para qué, que viven en Supabase (EEUU), que Anthropic procesa el
       texto de las consultas, cuánto se conservan y cómo ejercer derechos ARCO.
-      Los términos dicen que no es asesoría financiera, qué pasa a los 60 días
-      y que no se custodia dinero.
+      Los términos dicen que no es asesoría financiera, qué pasa al terminar
+      la prueba y que no se custodia dinero.
 - [x] **Casilla de aceptación en el registro**, sin premarcar. La versión viaja
       en el metadata del `signUp` y el trigger `handle_new_user` sella la fecha
       con `now()` del servidor — si la pusiera el cliente sería falsificable.
@@ -242,16 +243,38 @@ de qué versión se aceptó y cuándo · borrar cuenta.
         un día tarde todos los meses. El día 31 cae en el último del mes.
       - **`App.tsx` no ganó ni un `useState`:** todo el estado del arranque es
         local a la vista.
+- [x] **Decidido el día 31: muro de pago.** La prueba baja de 60 a 30 días y al
+      vencer se bloquea el uso de la aplicación, no el acceso a los datos.
+- [x] **Contador de días** (`PRUEBA_DIAS = 30` en `legal.ts`). Siempre visible
+      en Perfil; arriba solo aparece la última semana, porque un contador
+      encendido los 30 días es ruido y a 7 días todavía da tiempo de decidir.
+- [x] **Muro de fin de prueba** (`src/views/FinDePrueba.tsx`). Va después del
+      portón legal —los términos que lo explican hay que aceptarlos primero— y
+      antes del arranque: no tiene sentido pedirle a alguien que configure una
+      app que no va a poder usar.
+      - **Con salidas, y no por cortesía:** exportar a CSV, leer el aviso y los
+        términos, cerrar sesión y borrar la cuenta. El derecho de acceso y
+        cancelación de la LFPDPPP no se suspende porque se acabe una promoción,
+        y los términos nuevos lo prometen por escrito.
+- [x] **Los términos se corrigieron y `LEGAL_VERSION` subió a `2026-09-01`.**
+      El texto publicado prometía que al no continuar *"conservarás el acceso a
+      tus datos... podríamos limitar únicamente las funciones del asistente"* —
+      lo contrario de un muro. Cobrar contra unos términos que dicen otra cosa
+      es el problema caro. 5 pruebas nuevas amarran que el texto y el código
+      digan lo mismo.
+- [ ] **Llenar `PRECIO_TEXTO` y `CONTACTO_PAGO`** en `src/lib/legal.ts`. Hoy el
+      muro dice honestamente que falta configurarlos. Hay un `it.fails` que se
+      pone verde al llenarlos, igual que con los datos del responsable.
+      **No hay cobro automático:** el botón lleva a un correo o enlace. Integrar
+      un cobro de verdad (Stripe / Mercado Pago) es trabajo aparte.
 - [ ] **Estado vacío con tres botones** para quien salta el arranque. Hoy
       aterriza en el tablero vacío de siempre.
-- [ ] **Mostrar los límites del plan gratuito** dentro de la app: cuántas
-      consultas de IA quedan y cuándo termina la promoción.
-- [ ] **Contador de días restantes** de los 60.
-- [ ] **Decidir qué pasa el día 61** — bloquea los dos puntos de arriba:
-      ¿se bloquea la IA y sigue el registro manual, o se bloquea todo?
-      *Recomendación: dejar la app usable sin IA.*
-- [ ] Probar el arranque en el navegador. La cuenta actual tiene
-      `onboarded_at` en null y 0 cuentas, así que lo verá en la próxima carga.
+- [ ] **Consultas de IA restantes** dentro de la app. `ai_calls_today` existe
+      como RPC pero la usa el servidor; falta exponerla al cliente.
+- [ ] Probar en el navegador: arranque, chips y muro. La cuenta actual tiene
+      `onboarded_at` en null y 0 cuentas, así que verá el arranque en la
+      próxima carga; y `LEGAL_VERSION` cambió, así que antes verá el portón
+      legal.
 
 ## Paso 5 — Después del lanzamiento
 
