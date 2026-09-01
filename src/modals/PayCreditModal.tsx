@@ -59,14 +59,14 @@ export default function PayCreditModal({
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 4 }}>Pagar {credit.name}</div>
       <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>Deuda actual: {fmt(debt)}</div>
 
-      <label style={S.lbl}>Desde qué cuenta</label>
-      <select autoFocus style={{ ...S.inp, marginBottom: 12 }} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+      <label htmlFor="paycreditmodal-1" style={S.lbl}>Desde qué cuenta</label>
+      <select id="paycreditmodal-1" autoFocus style={{ ...S.inp, marginBottom: 12 }} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
         <option value="">Selecciona una cuenta</option>
         {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name} — {fmt(a.balance)}</option>)}
       </select>
 
-      <label style={S.lbl}>Monto</label>
-      <input style={{ ...S.inp, marginBottom: 8 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} />
+      <label htmlFor="paycreditmodal-2" style={S.lbl}>Monto</label>
+      <input id="paycreditmodal-2" style={{ ...S.inp, marginBottom: 8 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} />
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         {monthly > 0 && chip("Mensualidad", monthly)}
         {debt > 0 && chip("Todo", debt)}

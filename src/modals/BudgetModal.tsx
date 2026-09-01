@@ -31,8 +31,8 @@ export default function BudgetModal({
           <button key={c.id} onClick={() => onCat(c.name)} style={{ padding: "7px 12px", borderRadius: R.lg, border: `2px solid ${budgetCat === c.name ? c.color : C.border + "44"}`, background: budgetCat === c.name ? c.color + "22" : "transparent", color: budgetCat === c.name ? c.color : C.muted, fontSize: T.md, cursor: "pointer", fontWeight: budgetCat === c.name ? 700 : 400 }}>{c.icon} {c.name}</button>
         ))}
       </div>
-      <label style={S.lbl}>Límite mensual</label>
-      <input autoFocus style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={budgetAmt} onChange={(e) => onAmt(e.target.value)} />
+      <label htmlFor="budgetmodal-1" style={S.lbl}>Límite mensual</label>
+      <input id="budgetmodal-1" autoFocus style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={budgetAmt} onChange={(e) => onAmt(e.target.value)} />
 
       <button
         onClick={() => onRollover(!rollover)}

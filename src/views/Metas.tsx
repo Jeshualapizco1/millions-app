@@ -1,4 +1,6 @@
 import ProgressBar from "../components/ProgressBar";
+import Icon from "../components/Icon";
+import { clickable } from "../lib/a11y";
 import { C, R, S, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 import { daysUntilDate } from "../lib/dates";
@@ -69,7 +71,7 @@ export default function Metas({
           const proximo = dias === null ? "" : dias <= 0 ? "hoy" : dias === 1 ? "mañana" : `en ${dias} días`;
           return (
             <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: `1px solid ${C.border}22`, opacity: r.active ? 1 : 0.5 }}>
-              <div onClick={() => onEditRecurring(r)} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}>
+              <div {...clickable(() => onEditRecurring(r))} aria-label={`Editar ${r.name}`} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}>
                 <div style={{ width: 36, height: 36, borderRadius: R.sm, background: look(r.category).color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.xl, flexShrink: 0 }}>
                   {look(r.category).icon}
                 </div>
@@ -87,9 +89,10 @@ export default function Metas({
                 <button
                   onClick={() => onToggleRecurring(r)}
                   title={r.active ? "Pausar" : "Reanudar"}
-                  style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: T.base, padding: 4 }}
+                  aria-label={r.active ? `Pausar ${r.name}` : `Reanudar ${r.name}`}
+                  style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", padding: 6, display: "flex" }}
                 >
-                  {r.active ? "⏸" : "▶️"}
+                  <Icon name={r.active ? "pausar" : "reanudar"} size={17} />
                 </button>
               </div>
             </div>
@@ -110,7 +113,7 @@ export default function Metas({
           </div>
         </div>
         {/* Techo global del mes */}
-        <div onClick={onSetTotalBudget} style={{ background: C.surface, borderRadius: 14, padding: "12px 14px", marginBottom: 16, cursor: "pointer", border: `1px solid ${totalBudget?.willExceed ? C.red + "55" : C.border + "44"}` }}>
+        <div {...clickable(onSetTotalBudget)} style={{ background: C.surface, borderRadius: 14, padding: "12px 14px", marginBottom: 16, cursor: "pointer", border: `1px solid ${totalBudget?.willExceed ? C.red + "55" : C.border + "44"}` }}>
           {totalBudget ? (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>

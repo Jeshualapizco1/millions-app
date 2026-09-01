@@ -29,10 +29,10 @@ export default function PasswordModal({ onDone, onClose }: { onDone: () => void;
   return (
     <Modal onClose={onClose}>
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>Cambiar contraseña</div>
-      <label style={S.lbl}>Nueva contraseña</label>
-      <input autoFocus style={{ ...S.inp, marginBottom: 12 }} type="password" placeholder="Mínimo 8 caracteres" value={p1} onChange={(e) => setP1(e.target.value)} />
-      <label style={S.lbl}>Confírmala</label>
-      <input style={{ ...S.inp, marginBottom: 16 }} type="password" placeholder="••••••••" value={p2} onChange={(e) => setP2(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} />
+      <label htmlFor="passwordmodal-1" style={S.lbl}>Nueva contraseña</label>
+      <input id="passwordmodal-1" autoFocus style={{ ...S.inp, marginBottom: 12 }} type="password" placeholder="Mínimo 8 caracteres" value={p1} onChange={(e) => setP1(e.target.value)} />
+      <label htmlFor="passwordmodal-2" style={S.lbl}>Confírmala</label>
+      <input id="passwordmodal-2" style={{ ...S.inp, marginBottom: 16 }} type="password" placeholder="••••••••" value={p2} onChange={(e) => setP2(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} />
       {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>

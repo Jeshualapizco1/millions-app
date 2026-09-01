@@ -65,14 +65,14 @@ export default function RecurringModal({
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 4 }}>{rule ? "Editar movimiento fijo" : "Nuevo movimiento fijo"}</div>
       <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>Se registra solo en la fecha que indiques, sin que tengas que capturarlo.</div>
 
-      <label style={S.lbl}>Nombre</label>
-      <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder="Ej: Renta, Netflix, Nómina" value={name} onChange={(e) => setName(e.target.value)} />
+      <label htmlFor="recurringmodal-1" style={S.lbl}>Nombre</label>
+      <input id="recurringmodal-1" autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder="Ej: Renta, Netflix, Nómina" value={name} onChange={(e) => setName(e.target.value)} />
 
       <label style={S.lbl}>Tipo</label>
       <KindToggle value={kind} onChange={(t) => setKind(t)} />
 
-      <label style={S.lbl}>Monto</label>
-      <input style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} />
+      <label htmlFor="recurringmodal-2" style={S.lbl}>Monto</label>
+      <input id="recurringmodal-2" style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} />
 
       <label style={S.lbl}>Cada cuánto</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
@@ -83,19 +83,19 @@ export default function RecurringModal({
         ))}
       </div>
 
-      <label style={S.lbl}>Categoría</label>
-      <select style={{ ...S.inp, marginBottom: 14 }} value={cat} onChange={(e) => setCat(e.target.value)}>
+      <label htmlFor="recurringmodal-3" style={S.lbl}>Categoría</label>
+      <select id="recurringmodal-3" style={{ ...S.inp, marginBottom: 14 }} value={cat} onChange={(e) => setCat(e.target.value)}>
         {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
       </select>
 
-      <label style={S.lbl}>Cuenta</label>
-      <select style={{ ...S.inp, marginBottom: 14 }} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+      <label htmlFor="recurringmodal-4" style={S.lbl}>Cuenta</label>
+      <select id="recurringmodal-4" style={{ ...S.inp, marginBottom: 14 }} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
         <option value="">Selecciona una cuenta</option>
         {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
       </select>
 
-      <label style={S.lbl}>{rule ? "Próxima vez" : "Primera vez"}</label>
-      <input style={{ ...S.inp, marginBottom: 6 }} type="date" value={nextRun} onChange={(e) => setNextRun(e.target.value)} />
+      <label htmlFor="recurringmodal-5" style={S.lbl}>{rule ? "Próxima vez" : "Primera vez"}</label>
+      <input id="recurringmodal-5" style={{ ...S.inp, marginBottom: 6 }} type="date" value={nextRun} onChange={(e) => setNextRun(e.target.value)} />
       <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 20 }}>
         Si eliges una fecha pasada, se generarán las que falten la próxima vez que corra.
       </div>

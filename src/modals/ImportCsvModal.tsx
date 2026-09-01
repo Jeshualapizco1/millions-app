@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { clickable } from "../lib/a11y";
 import ErrorBox from "../components/ErrorBox";
 import Modal from "../components/Modal";
 import { C, R, S, T } from "../lib/constants";
@@ -72,8 +73,8 @@ export default function ImportCsvModal({
 
   const colSelect = (key: keyof ColumnMap, label: string, optional = false) => (
     <div style={{ flex: 1, minWidth: 120 }}>
-      <label style={S.lbl}>{label}</label>
-      <select
+      <label htmlFor="importcsvmodal-1" style={S.lbl}>{label}</label>
+      <select id="importcsvmodal-1"
         style={{ ...S.inp, padding: "9px 11px" }}
         value={effectiveMap[key] ?? ""}
         onChange={(e) => { setTouched(true); setMap((m) => ({ ...effectiveMap, ...m, [key]: e.target.value === "" ? undefined : Number(e.target.value) })); }}
@@ -91,8 +92,8 @@ export default function ImportCsvModal({
         Sube el CSV de tu estado de cuenta o pega su contenido. Nada se guarda hasta que revises la vista previa.
       </div>
 
-      <label style={S.lbl}>Archivo CSV</label>
-      <input
+      <label htmlFor="importcsvmodal-2" style={S.lbl}>Archivo CSV</label>
+      <input id="importcsvmodal-2"
         type="file"
         accept=".csv,text/csv,text/plain"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) readFile(f); }}
@@ -125,8 +126,8 @@ export default function ImportCsvModal({
             {colSelect("credit", "Abono (si va aparte)", true)}
           </div>
 
-          <label style={S.lbl}>Cuenta</label>
-          <select style={{ ...S.inp, marginBottom: 12 }} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+          <label htmlFor="importcsvmodal-3" style={S.lbl}>Cuenta</label>
+          <select id="importcsvmodal-3" style={{ ...S.inp, marginBottom: 12 }} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
             <option value="">Elige la cuenta</option>
             {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
           </select>
@@ -148,7 +149,7 @@ export default function ImportCsvModal({
             {rows.map((r, i) => {
               const skip = skips[i] ?? r.skip;
               return (
-                <div key={i} onClick={() => setSkips((s) => ({ ...s, [i]: !skip }))} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: `1px solid ${C.border}22`, cursor: "pointer", opacity: skip ? 0.4 : 1 }}>
+                <div key={i} {...clickable(() => setSkips((s) => ({ ...s, [i]: !skip })))} aria-pressed={!skip} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: `1px solid ${C.border}22`, cursor: "pointer", opacity: skip ? 0.4 : 1 }}>
                   <span style={{ fontSize: T.md }}>{skip ? "⬜" : "☑️"}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.description}</div>

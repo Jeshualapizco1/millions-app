@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { clickable } from "../lib/a11y";
 import Spinner from "../components/Spinner";
 import ErrorBox from "../components/ErrorBox";
 import { R, S, T } from "../lib/constants";
@@ -90,9 +91,9 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
             />
             <span style={{ fontSize: 12.5, color: "#6b6a8a", lineHeight: 1.5 }}>
               He leído y acepto el{" "}
-              <span onClick={(e) => { e.preventDefault(); setVerDoc("privacidad"); }} style={{ color: "#a89ff9", fontWeight: 600, textDecoration: "underline" }}>aviso de privacidad</span>
+              <span {...clickable(() => setVerDoc("privacidad"))} onClick={(e) => { e.preventDefault(); setVerDoc("privacidad"); }} style={{ color: "#a89ff9", fontWeight: 600, textDecoration: "underline" }}>aviso de privacidad</span>
               {" "}y los{" "}
-              <span onClick={(e) => { e.preventDefault(); setVerDoc("terminos"); }} style={{ color: "#a89ff9", fontWeight: 600, textDecoration: "underline" }}>términos y condiciones</span>.
+              <span {...clickable(() => setVerDoc("terminos"))} onClick={(e) => { e.preventDefault(); setVerDoc("terminos"); }} style={{ color: "#a89ff9", fontWeight: 600, textDecoration: "underline" }}>términos y condiciones</span>.
             </span>
           </label>
         )}
@@ -107,8 +108,8 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
       {/* También accesibles al iniciar sesión: la ley pide que el aviso esté
           disponible en todo momento, no solo en el momento de aceptarlo. */}
       <div style={{ marginTop: 20, display: "flex", gap: 16, fontSize: T.sm }}>
-        <span onClick={() => setVerDoc("privacidad")} style={{ color: "#6b6a8a", cursor: "pointer", textDecoration: "underline" }}>Aviso de privacidad</span>
-        <span onClick={() => setVerDoc("terminos")} style={{ color: "#6b6a8a", cursor: "pointer", textDecoration: "underline" }}>Términos</span>
+        <span {...clickable(() => setVerDoc("privacidad"))} style={{ color: "#8b8aa8", cursor: "pointer", textDecoration: "underline" }}>Aviso de privacidad</span>
+        <span {...clickable(() => setVerDoc("terminos"))} style={{ color: "#8b8aa8", cursor: "pointer", textDecoration: "underline" }}>Términos</span>
       </div>
 
       {verDoc && <LegalModal doc={verDoc} onClose={() => setVerDoc(null)} />}

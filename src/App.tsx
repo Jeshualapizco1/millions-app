@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import Icon, { type IconName } from "./components/Icon";
+import { clickable } from "./lib/a11y";
 import { Skeleton, SkeletonCard } from "./components/Skeleton";
 import type { Session } from "@supabase/supabase-js";
 import CreditForm, { type CreditFormState } from "./components/CreditForm";
@@ -1043,7 +1045,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       <div style={{ position: "sticky", top: 0, zIndex: 30, background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)" }}>
         {/* El nombre es la entrada a Perfil: la barra de abajo ya tiene seis
             pestañas y una séptima las dejaba ilegibles en un teléfono. */}
-        <div onClick={() => setTab("perfil")} style={{ cursor: "pointer" }}>
+        <div {...clickable(() => setTab("perfil"))} aria-label="Abrir perfil" style={{ cursor: "pointer" }}>
           <div style={{ fontSize: T.xxl, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
           <div style={{ fontSize: T.xs, color: tab === "perfil" ? C.aLight : C.muted, marginTop: 1 }}>
             👤 {userName}{hasForeign(accs) ? " · totales en MXN" : ""} ›
@@ -1066,7 +1068,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {/* Baja pendiente: este aviso NO se puede descartar. Olvidar que tu
           cuenta se borra en unos días es exactamente lo que no debe pasar. */}
       {diasParaBorrado !== null && (
-        <div onClick={() => setTab("perfil")} style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+        <div {...clickable(() => setTab("perfil"))} style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
           <span style={{ fontSize: T.xl }}>🗑️</span>
           <span style={{ flex: 1, fontSize: T.md, color: C.red, fontWeight: 600 }}>
             Tu cuenta se borrará {diasParaBorrado === 0 ? "hoy" : `en ${diasParaBorrado} ${diasParaBorrado === 1 ? "día" : "días"}`} — Toca para cancelar
@@ -1120,9 +1122,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {/* Barra de pestañas fija abajo: en un teléfono el pulgar llega ahí,
           y así no se pierde al scrollear. */}
       <nav aria-label="Secciones" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 30, display: "flex", background: C.surface, borderTop: `1px solid ${C.border}33`, paddingBottom: "env(safe-area-inset-bottom,0px)", boxShadow: "0 -4px 16px #00000055" }}>
-        {([["dash", "📊", "Inicio"], ["metas", "🎯", "Metas"], ["creditos", "💳", "Créditos"], ["analisis", "🤖", "Análisis"], ["hist", "📋", "Historial"], ["accs", "🏦", "Cuentas"]] as [Tab, string, string][]).map(([k, icon, label]) => (
+        {([["dash", "inicio", "Inicio"], ["metas", "metas", "Metas"], ["creditos", "creditos", "Créditos"], ["analisis", "asesor", "Análisis"], ["hist", "historial", "Historial"], ["accs", "cuentas", "Cuentas"]] as [Tab, IconName, string][]).map(([k, icon, label]) => (
           <button key={k} onClick={() => setTab(k)} aria-current={tab === k ? "page" : undefined} style={{ flex: 1, minWidth: 0, padding: "9px 2px 7px", background: "none", border: "none", cursor: "pointer", borderTop: tab === k ? `2px solid ${C.accent}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <span style={{ fontSize: T.xl }}>{icon}</span>
+            <span style={{ color: tab === k ? C.aLight : C.muted, display: "flex" }}><Icon name={icon} size={22} strokeWidth={tab === k ? 2.2 : 1.8} /></span>
             <span style={{ fontSize: T.xs, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
           </button>
         ))}

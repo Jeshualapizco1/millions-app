@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { clickable } from "../lib/a11y";
 import { Skeleton } from "../components/Skeleton";
 import TxRow from "../components/TxRow";
 import type { DonutDatum } from "../components/charts/DonutChart";
@@ -266,7 +267,7 @@ export default function Dashboard({
       <div style={S.card}>
         <div style={{ fontWeight: 700, marginBottom: 12, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Mis cuentas</div>
         {accs.map((a) => (
-          <div key={a.id} onClick={() => onEditAcc(a)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: `1px solid ${C.border}22`, cursor: "pointer" }}>
+          <div key={a.id} {...clickable(() => onEditAcc(a))} aria-label={`Editar ${a.name}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: `1px solid ${C.border}22`, cursor: "pointer" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 36, height: 36, borderRadius: R.sm, background: a.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.xxl }}>{a.icon}</div>
               <div><div style={{ fontWeight: 600, fontSize: T.base }}>{a.name}</div><div style={{ fontSize: T.xs, color: C.muted }}>{a.currency && a.currency !== "MXN" ? a.currency : "Toca para editar"}</div></div>

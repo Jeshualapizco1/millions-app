@@ -1,4 +1,5 @@
 import { C, R, T, CREDIT_TYPES } from "../lib/constants";
+import { clickable } from "../lib/a11y";
 import { daysUntilDate } from "../lib/dates";
 import { daysUntil, fmt } from "../lib/format";
 import type { Credit } from "../types";
@@ -15,7 +16,7 @@ export default function CreditCard({ credit, onEdit, onPay }: { credit: Credit; 
   const daysNext = daysUntilDate(credit.next_payment_date);
   const uc = (d: number | null) => (d === null ? C.muted : d <= 3 ? C.red : d <= 7 ? C.amber : C.green);
   return (
-    <div onClick={() => onEdit(credit)} style={{ background: C.card, border: `1px solid ${C.border}22`, borderRadius: R.lg, padding: 18, marginBottom: 12, cursor: "pointer", borderLeft: `4px solid ${type.color}` }}>
+    <div {...clickable(() => onEdit(credit))} aria-label={`Editar ${credit.name}`} style={{ background: C.card, border: `1px solid ${C.border}22`, borderRadius: R.lg, padding: 18, marginBottom: 12, cursor: "pointer", borderLeft: `4px solid ${type.color}` }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 40, height: 40, borderRadius: R.md, background: type.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{type.icon}</div>

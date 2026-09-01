@@ -44,8 +44,8 @@ export default function TotalBudgetModal({
         Un límite para todo el mes, sin importar la categoría. Sirve para saber si vas a cerrar bien mucho antes de que acabe.
       </div>
 
-      <label style={S.lbl}>Monto</label>
-      <input autoFocus style={{ ...S.inp, marginBottom: 8 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} />
+      <label htmlFor="totalbudgetmodal-1" style={S.lbl}>Monto</label>
+      <input id="totalbudgetmodal-1" autoFocus style={{ ...S.inp, marginBottom: 8 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} />
       <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 20 }}>
         Este mes llevas gastado {fmt(spentThisMonth)}.
       </div>

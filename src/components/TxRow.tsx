@@ -1,4 +1,5 @@
 import { C, R, T } from "../lib/constants";
+import Icon from "./Icon";
 import { useCategories } from "../lib/categories";
 import { fmt } from "../lib/format";
 import type { Transaction } from "../types";
@@ -49,9 +50,9 @@ export default function TxRow({
         <div style={{ fontWeight: 800, color: amountColor, fontSize: 15 }}>{sign}{fmt(tx.amount)}</div>
         {/* Solo gastos e ingresos se editan; el resto se elimina y se vuelve a crear */}
         {onEdit && (tx.kind === "gasto" || tx.kind === "ingreso") && (
-          <button onClick={() => onEdit(tx)} title="Editar" style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: T.md, padding: 4 }}>✏️</button>
+          <button onClick={() => onEdit(tx)} title="Editar" aria-label={`Editar ${tx.description}`} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", padding: 6, display: "flex" }}><Icon name="editar" size={17} /></button>
         )}
-        {onDelete && <button onClick={() => onDelete(tx.id)} title="Eliminar" style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 15, padding: 4 }}>🗑</button>}
+        {onDelete && <button onClick={() => onDelete(tx.id)} title="Eliminar" aria-label={`Eliminar ${tx.description}`} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", padding: 6, display: "flex" }}><Icon name="borrar" size={17} /></button>}
       </div>
     </div>
   );

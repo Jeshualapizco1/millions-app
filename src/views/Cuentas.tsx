@@ -1,4 +1,5 @@
 import { C, S, T } from "../lib/constants";
+import { clickable } from "../lib/a11y";
 import { fmt } from "../lib/format";
 import { fmtCurrency, toBase, type FxRates } from "../lib/currency";
 import type { Account, Transaction } from "../types";
@@ -19,7 +20,7 @@ export default function Cuentas({
   return (
     <div className="fadeUp">
       {accs.map((a) => (
-        <div key={a.id} onClick={() => onEdit(a)} style={{ ...S.card, borderLeft: `4px solid ${a.color}`, cursor: "pointer" }}>
+        <div key={a.id} {...clickable(() => onEdit(a))} aria-label={`Editar ${a.name}`} style={{ ...S.card, borderLeft: `4px solid ${a.color}`, cursor: "pointer" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div style={{ width: 44, height: 44, borderRadius: 14, background: a.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.hero }}>{a.icon}</div>

@@ -30,14 +30,14 @@ export default function AccountModal({
   return (
     <Modal onClose={onClose} dirty={isNew && !!form.name} label={isNew ? "Nueva cuenta" : "Editar cuenta"}>
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{isNew ? "Nueva cuenta" : "Editar cuenta"}</div>
-      <label style={S.lbl}>Nombre</label>
-      <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder={isNew ? "Ej: BBVA, Revolut…" : undefined} value={form.name} onChange={(e) => update({ name: e.target.value })} />
-      <label style={S.lbl}>{isNew ? "Saldo inicial" : "Saldo actual"}</label>
-      <input style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder={isNew ? "0.00" : undefined} value={form.balance} onChange={(e) => update({ balance: e.target.value })} />
+      <label htmlFor="accountmodal-1" style={S.lbl}>Nombre</label>
+      <input id="accountmodal-1" autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder={isNew ? "Ej: BBVA, Revolut…" : undefined} value={form.name} onChange={(e) => update({ name: e.target.value })} />
+      <label htmlFor="accountmodal-2" style={S.lbl}>{isNew ? "Saldo inicial" : "Saldo actual"}</label>
+      <input id="accountmodal-2" style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder={isNew ? "0.00" : undefined} value={form.balance} onChange={(e) => update({ balance: e.target.value })} />
       {SELECTOR_DE_MONEDA_ACTIVO ? (
         <>
-          <label style={S.lbl}>Moneda</label>
-          <select style={{ ...S.inp, marginBottom: 14 }} value={form.currency ?? "MXN"} onChange={(e) => update({ currency: e.target.value })}>
+          <label htmlFor="accountmodal-3" style={S.lbl}>Moneda</label>
+          <select id="accountmodal-3" style={{ ...S.inp, marginBottom: 14 }} value={form.currency ?? "MXN"} onChange={(e) => update({ currency: e.target.value })}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c} — {CURRENCY_LABEL[c]}</option>)}
           </select>
         </>

@@ -45,20 +45,20 @@ export default function TransferModal({
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 4 }}>↔️ Transferir entre cuentas</div>
       <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>No se registra como gasto ni como ingreso.</div>
 
-      <label style={S.lbl}>Desde</label>
-      <select autoFocus style={{ ...sel, marginBottom: 12 }} value={fromId} onChange={(e) => setFromId(e.target.value)}>
+      <label htmlFor="transfermodal-1" style={S.lbl}>Desde</label>
+      <select id="transfermodal-1" autoFocus style={{ ...sel, marginBottom: 12 }} value={fromId} onChange={(e) => setFromId(e.target.value)}>
         <option value="">Selecciona la cuenta origen</option>
         {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name} — {fmt(a.balance)}</option>)}
       </select>
 
-      <label style={S.lbl}>Hacia</label>
-      <select style={{ ...sel, marginBottom: 12 }} value={toId} onChange={(e) => setToId(e.target.value)}>
+      <label htmlFor="transfermodal-2" style={S.lbl}>Hacia</label>
+      <select id="transfermodal-2" style={{ ...sel, marginBottom: 12 }} value={toId} onChange={(e) => setToId(e.target.value)}>
         <option value="">Selecciona la cuenta destino</option>
         {accs.filter((a) => a.id !== fromId).map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name} — {fmt(a.balance)}</option>)}
       </select>
 
-      <label style={S.lbl}>Monto</label>
-      <input style={{ ...S.inp, marginBottom: 4 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} />
+      <label htmlFor="transfermodal-3" style={S.lbl}>Monto</label>
+      <input id="transfermodal-3" style={{ ...S.inp, marginBottom: 4 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} />
       {from && amount > 0 && (
         <div style={{ fontSize: T.xs, color: amount > from.balance ? C.amber : C.muted, marginBottom: 12 }}>
           {from.name} quedaría en {fmt(from.balance - amount)}{amount > from.balance ? " (en negativo)" : ""}
@@ -66,8 +66,8 @@ export default function TransferModal({
       )}
       {(!from || !(amount > 0)) && <div style={{ marginBottom: 12 }} />}
 
-      <label style={S.lbl}>Concepto (opcional)</label>
-      <input style={{ ...S.inp, marginBottom: 16 }} placeholder="Ej: Pago de renta" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} />
+      <label htmlFor="transfermodal-4" style={S.lbl}>Concepto (opcional)</label>
+      <input id="transfermodal-4" style={{ ...S.inp, marginBottom: 16 }} placeholder="Ej: Pago de renta" value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} />
 
       {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>

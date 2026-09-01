@@ -180,17 +180,17 @@ export default function Arranque({
                 <button onClick={() => setIngActivo(true)} style={{ ...S.btnO, width: "100%" }}>Sí tengo un ingreso fijo</button>
               ) : (
                 <>
-                  <label style={S.lbl}>¿Cómo le llamas?</label>
-                  <input style={{ ...S.inp, marginBottom: 14 }} value={ingNombre} onChange={(e) => setIngNombre(e.target.value)} placeholder="Nómina" />
-                  <label style={S.lbl}>¿Cuánto?</label>
-                  <input style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={ingMonto} onChange={(e) => setIngMonto(e.target.value)} />
-                  <label style={S.lbl}>¿A qué cuenta llega?</label>
-                  <select style={{ ...S.inp, marginBottom: 14 }} value={ingCuenta} onChange={(e) => setIngCuenta(e.target.value)}>
+                  <label htmlFor="arranque-1" style={S.lbl}>¿Cómo le llamas?</label>
+                  <input id="arranque-1" style={{ ...S.inp, marginBottom: 14 }} value={ingNombre} onChange={(e) => setIngNombre(e.target.value)} placeholder="Nómina" />
+                  <label htmlFor="arranque-2" style={S.lbl}>¿Cuánto?</label>
+                  <input id="arranque-2" style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder="0.00" value={ingMonto} onChange={(e) => setIngMonto(e.target.value)} />
+                  <label htmlFor="arranque-3" style={S.lbl}>¿A qué cuenta llega?</label>
+                  <select id="arranque-3" style={{ ...S.inp, marginBottom: 14 }} value={ingCuenta} onChange={(e) => setIngCuenta(e.target.value)}>
                     <option value="">Selecciona una cuenta</option>
                     {nombresDisponibles.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
-                  <label style={S.lbl}>¿Qué día del mes?</label>
-                  <input style={{ ...S.inp, marginBottom: 14 }} type="number" min={1} max={28} value={ingDia} onChange={(e) => setIngDia(e.target.value)} />
+                  <label htmlFor="arranque-4" style={S.lbl}>¿Qué día del mes?</label>
+                  <input id="arranque-4" style={{ ...S.inp, marginBottom: 14 }} type="number" min={1} max={28} value={ingDia} onChange={(e) => setIngDia(e.target.value)} />
                   <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>
                     Si cobras después del 28, pon 28: así nunca se salta un mes corto.
                   </div>

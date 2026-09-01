@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Icon from "../components/Icon";
+import { clickable } from "../lib/a11y";
 import Spinner from "../components/Spinner";
 import ErrorBox from "../components/ErrorBox";
 import { C, S, T } from "../lib/constants";
@@ -59,18 +61,18 @@ export default function LegalGate({
 
         <div style={{ ...S.card, padding: 20 }}>
           <div
-            onClick={() => setVerDoc("privacidad")}
+            {...clickable(() => setVerDoc("privacidad"))}
             style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${C.border}22`, cursor: "pointer" }}
           >
-            <span style={{ fontSize: T.xl }}>🔒</span>
+            <span style={{ color: C.aLight, display: "flex" }}><Icon name="candado" size={20} /></span>
             <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600, color: C.text }}>Aviso de privacidad</span>
             <span style={{ color: C.aLight, fontSize: T.sm, fontWeight: 600 }}>Leer</span>
           </div>
           <div
-            onClick={() => setVerDoc("terminos")}
+            {...clickable(() => setVerDoc("terminos"))}
             style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", cursor: "pointer" }}
           >
-            <span style={{ fontSize: T.xl }}>📄</span>
+            <span style={{ color: C.aLight, display: "flex" }}><Icon name="documento" size={20} /></span>
             <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600, color: C.text }}>Términos y condiciones</span>
             <span style={{ color: C.aLight, fontSize: T.sm, fontWeight: 600 }}>Leer</span>
           </div>

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Icon, { type IconName } from "../components/Icon";
+import { clickable } from "../lib/a11y";
 import { C, R, S, T } from "../lib/constants";
 import { exportCSV } from "../lib/csv";
 import { consultasRestantes, type AiUso } from "../lib/aiUso";
@@ -27,14 +29,14 @@ function Fila({
   hint,
   onClick,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   hint?: string;
   onClick: () => void;
 }) {
   return (
     <div
-      onClick={onClick}
+      {...clickable(onClick)}
       style={{
         display: "flex",
         alignItems: "center",
@@ -44,7 +46,7 @@ function Fila({
         borderBottom: `1px solid ${C.border}22`,
       }}
     >
-      <span style={{ fontSize: 19, width: 24, textAlign: "center" }}>{icon}</span>
+      <span style={{ width: 24, display: "flex", justifyContent: "center", color: C.aLight }}><Icon name={icon} size={20} /></span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14.5, fontWeight: 600, color: C.text }}>{label}</div>
         {hint && <div style={{ fontSize: T.sm, color: C.muted, marginTop: 2 }}>{hint}</div>}
@@ -147,8 +149,8 @@ export default function Perfil({
       )}
 
       <Seccion titulo="Cuenta">
-        <Fila icon="🔑" label="Cambiar contraseña" hint="Mínimo 8 caracteres" onClick={onChangePassword} />
-        <Fila icon="↩" label="Cerrar sesión" onClick={onSignOut} />
+        <Fila icon="llave" label="Cambiar contraseña" hint="Mínimo 8 caracteres" onClick={onChangePassword} />
+        <Fila icon="salir" label="Cerrar sesión" onClick={onSignOut} />
       </Seccion>
 
       {aiUso && (
@@ -169,7 +171,7 @@ export default function Perfil({
 
       <Seccion titulo="Tus datos">
         <Fila
-          icon="📤"
+          icon="exportar"
           label="Exportar todo a CSV"
           hint={`${txs.length} ${txs.length === 1 ? "movimiento" : "movimientos"} · se abre en Excel`}
           onClick={() => exportCSV(txs)}
@@ -177,8 +179,8 @@ export default function Perfil({
       </Seccion>
 
       <Seccion titulo="Legal">
-        <Fila icon="🔒" label="Aviso de privacidad" onClick={() => setVerDoc("privacidad")} />
-        <Fila icon="📄" label="Términos y condiciones" onClick={() => setVerDoc("terminos")} />
+        <Fila icon="candado" label="Aviso de privacidad" onClick={() => setVerDoc("privacidad")} />
+        <Fila icon="documento" label="Términos y condiciones" onClick={() => setVerDoc("terminos")} />
       </Seccion>
 
       {profile?.legal_accepted_at && (

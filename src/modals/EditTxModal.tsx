@@ -60,22 +60,22 @@ export default function EditTxModal({
   return (
     <Modal onClose={onClose} dirty={conCambios} label="Editar movimiento">
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>Editar movimiento</div>
-      <label style={S.lbl}>Descripción</label>
-      <input autoFocus style={{ ...S.inp, marginBottom: 14 }} value={desc} onChange={(e) => setDesc(e.target.value)} />
-      <label style={S.lbl}>Monto</label>
-      <input style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} />
+      <label htmlFor="edittxmodal-1" style={S.lbl}>Descripción</label>
+      <input id="edittxmodal-1" autoFocus style={{ ...S.inp, marginBottom: 14 }} value={desc} onChange={(e) => setDesc(e.target.value)} />
+      <label htmlFor="edittxmodal-2" style={S.lbl}>Monto</label>
+      <input id="edittxmodal-2" style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} />
       <label style={S.lbl}>Tipo</label>
       <KindToggle value={type} onChange={(t) => setType(t)} />
-      <label style={S.lbl}>Categoría</label>
-      <select style={{ ...S.inp, marginBottom: 14 }} value={cat} onChange={(e) => setCat(e.target.value)}>
+      <label htmlFor="edittxmodal-3" style={S.lbl}>Categoría</label>
+      <select id="edittxmodal-3" style={{ ...S.inp, marginBottom: 14 }} value={cat} onChange={(e) => setCat(e.target.value)}>
         {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
       </select>
-      <label style={S.lbl}>Cuenta</label>
-      <select style={{ ...S.inp, marginBottom: 14 }} value={aid} onChange={(e) => setAid(e.target.value)}>
+      <label htmlFor="edittxmodal-4" style={S.lbl}>Cuenta</label>
+      <select id="edittxmodal-4" style={{ ...S.inp, marginBottom: 14 }} value={aid} onChange={(e) => setAid(e.target.value)}>
         {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
       </select>
-      <label style={S.lbl}>Fecha</label>
-      <input style={{ ...S.inp, marginBottom: 20 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      <label htmlFor="edittxmodal-5" style={S.lbl}>Fecha</label>
+      <input id="edittxmodal-5" style={{ ...S.inp, marginBottom: 20 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>

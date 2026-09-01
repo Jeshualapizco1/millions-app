@@ -47,8 +47,8 @@ export default function AccDraftChips({
         />
       </div>
 
-      <label style={S.lbl}>Saldo con el que empieza</label>
-      <input
+      <label htmlFor="accdraftchips-1" style={S.lbl}>Saldo con el que empieza</label>
+      <input id="accdraftchips-1"
         style={{ ...S.inp, marginBottom: 14 }}
         type="number"
         inputMode="decimal"

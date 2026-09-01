@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { clickable } from "../lib/a11y";
 import ErrorBox from "../components/ErrorBox";
 import Modal from "../components/Modal";
 import { C, R, S, T } from "../lib/constants";
@@ -51,8 +52,8 @@ export default function CategoriesModal({
     return (
       <Modal onClose={() => setDraft(null)}>
         <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{draft.id ? "Editar categoría" : "Nueva categoría"}</div>
-        <label style={S.lbl}>Nombre</label>
-        <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder="Ej: Mascotas, Gimnasio" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+        <label htmlFor="categoriesmodal-1" style={S.lbl}>Nombre</label>
+        <input id="categoriesmodal-1" autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder="Ej: Mascotas, Gimnasio" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
 
         <label style={S.lbl}>Se usa para</label>
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
@@ -95,7 +96,7 @@ export default function CategoriesModal({
       </div>
       {categories.map((c) => (
         <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.border}22`, opacity: c.hidden ? 0.45 : 1 }}>
-          <div onClick={() => setDraft({ id: c.id, name: c.name, icon: c.icon, color: c.color, kind: c.kind })} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer", minWidth: 0 }}>
+          <div {...clickable(() => setDraft({ id: c.id, name: c.name, icon: c.icon, color: c.color, kind: c.kind }))} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer", minWidth: 0 }}>
             <div style={{ width: 34, height: 34, borderRadius: R.sm, background: c.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{c.icon}</div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: T.base, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
