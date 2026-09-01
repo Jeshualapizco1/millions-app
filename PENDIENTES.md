@@ -28,12 +28,6 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## D. Mejoras de funcionamiento
 
-- [ ] **D5 Feedback de éxito y anti doble-tap.** `saveNewAcc`, `saveNewCredit`,
-      `saveNewGoal`, `saveBudget`, `saveEditAcc` sin toast; `saveTxManual` sin
-      `loading`.
-- [ ] **D6 Deshacer genérico** para borrar transferencia/pago/abono, presupuesto,
-      meta y crédito (hoy solo gasto/ingreso, `App.tsx:304`).
-- [ ] **D7 `ManualTxModal` recuerda la última cuenta** (`App.tsx:672` resetea a "").
 - [ ] D8 `nueva_cuenta` por voz guarda directo, sin borrador.
 - [ ] D9 Paginación real de `getTxs()`: hoy trae todo el historial en el boot.
 

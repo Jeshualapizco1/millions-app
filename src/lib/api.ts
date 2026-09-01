@@ -67,6 +67,9 @@ const normTx = (r: RawTx): Transaction => ({
   accountId: r.account_id,
   accountName: r.account?.name ?? "",
   toAccountName: r.to_account?.name ?? null,
+  toAccountId: r.to_account_id,
+  creditId: r.credit_id,
+  goalId: r.goal_id,
   date: r.date,
 });
 
@@ -82,6 +85,9 @@ const normTxLocal = (r: Tables<"transactions">, accs: Account[], cats: Category[
   accountId: r.account_id,
   accountName: accs.find((a) => a.id === r.account_id)?.name ?? "",
   toAccountName: accs.find((a) => a.id === r.to_account_id)?.name ?? null,
+  toAccountId: r.to_account_id,
+  creditId: r.credit_id,
+  goalId: r.goal_id,
   date: r.date,
 });
 

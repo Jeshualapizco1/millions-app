@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import CreditForm, { type CreditFormState } from "./components/CreditForm";
 import Fab from "./components/Fab";
@@ -44,7 +44,7 @@ import TransferModal from "./modals/TransferModal";
 import TotalBudgetModal from "./modals/TotalBudgetModal";
 import ImportCsvModal from "./modals/ImportCsvModal";
 import PasswordModal from "./modals/PasswordModal";
-import type { Account, Credit, Goal, RecurringRule, Transaction, TxType } from "./types";
+import type { Account, Budget, Credit, Goal, RecurringRule, Transaction, TxType } from "./types";
 import Analisis from "./views/Analisis";
 import Creditos from "./views/Creditos";
 import Cuentas from "./views/Cuentas";
@@ -106,6 +106,10 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [budgetRollover, setBudgetRollover] = useState(false);
   const [mImport, setMImport] = useState(false);
   const [alertTick, setAlertTick] = useState(0);
+  // Doble toque en "Guardar": los modales que esperan una respuesta antes de
+  // cerrarse dejaban una ventana para mandar el mismo movimiento dos veces.
+  // Es un ref porque el segundo toque llega antes del repintado.
+  const enviando = useRef(false);
 
   const oops = (e: unknown, fallback: string) => {
     console.error(e);
@@ -287,7 +291,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         try {
           await enqueue({ id: clientId, accountId: acc.id, accountName: acc.name, kind: tx.type, amount: tx.amount, description: tx.description, category, date });
           setTxs((p) => [
-            { id: clientId, description: tx.description, amount: tx.amount, kind: tx.type, type: tx.type, category, categoryId: null, accountId: acc.id, accountName: acc.name, toAccountName: null, date },
+            { id: clientId, description: tx.description, amount: tx.amount, kind: tx.type, type: tx.type, category, categoryId: null, accountId: acc.id, accountName: acc.name, toAccountName: null, toAccountId: null, creditId: null, goalId: null, date },
             ...p,
           ]);
           setAccs((p) => p.map((a) => (a.id === acc.id ? { ...a, balance: a.balance + delta } : a)));
@@ -309,6 +313,34 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       const saved = await api.applyTx({ accountId: tx.accountId, kind: tx.kind, amount: tx.amount, description: tx.description, category: tx.category, date: tx.date }, accsRef.current);
       setTxs((p) => [saved, ...p].sort((a, b) => b.date.localeCompare(a.date)));
       setAccs((p) => p.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance + (tx.type === "gasto" ? -tx.amount : tx.amount) } : a)));
+    } catch (e) {
+      oops(e, "No se pudo deshacer");
+    }
+  };
+
+  /**
+   * Deshacer el borrado de una transferencia, un pago o un abono.
+   *
+   * No se "restaura la fila": se vuelve a ejecutar la RPC que la creó, que es
+   * la única forma de que saldos, deuda y meta queden como estaban. El
+   * movimiento reaparece con otro id, y desde fuera eso no se nota.
+   */
+  const rehacerMovimiento = async (tx: Transaction) => {
+    try {
+      if (tx.kind === "transferencia") {
+        if (!tx.toAccountId) throw new Error("Ya no sé a qué cuenta iba");
+        await api.transfer({ fromId: tx.accountId, toId: tx.toAccountId, amount: tx.amount, description: tx.description }, accsRef.current);
+      } else if (tx.kind === "pago_credito") {
+        if (!tx.creditId) throw new Error("Ese crédito ya no existe");
+        await api.payCredit({ creditId: tx.creditId, accountId: tx.accountId, amount: tx.amount }, accsRef.current);
+      } else if (tx.kind === "abono_meta") {
+        if (!tx.goalId) throw new Error("Esa meta ya no existe");
+        await api.contributeGoal({ goalId: tx.goalId, amount: tx.amount, accountId: tx.accountId });
+      } else {
+        return;
+      }
+      await reloadAfterAction();
+      push({ kind: "ok", text: "Movimiento restaurado" });
     } catch (e) {
       oops(e, "No se pudo deshacer");
     }
@@ -349,7 +381,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         api.getAccounts().then(setAccs).catch((e) => oops(e, "Se eliminó, pero no pude refrescar tus saldos. Recarga la app."));
         if (tx.kind === "pago_credito") api.getCredits().then(setCredits).catch((e) => oops(e, "Se eliminó, pero no pude refrescar tus créditos."));
         if (tx.kind === "abono_meta") api.getGoals().then(setGoals).catch((e) => oops(e, "Se eliminó, pero no pude refrescar tus metas."));
-        push({ kind: "ok", text: "Movimiento eliminado y saldos revertidos" });
+        push({ kind: "ok", text: "Movimiento eliminado y saldos revertidos", action: { label: "Deshacer", onClick: () => rehacerMovimiento(tx) } }, 6000);
       }
     } catch (e) {
       oops(e, "No se pudo eliminar");
@@ -368,8 +400,15 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     }
   };
   const saveNewAcc = async () => {
-    if (!newAcc.name.trim()) return;
-    await applyNewAcc({ accountName: newAcc.name.trim(), balance: parseFloat(String(newAcc.balance) || "0"), icon: newAcc.icon, currency: newAcc.currency });
+    if (!newAcc.name.trim() || enviando.current) return;
+    enviando.current = true;
+    const nombre = newAcc.name.trim();
+    try {
+      await applyNewAcc({ accountName: nombre, balance: numero(newAcc.balance, 0), icon: newAcc.icon, currency: newAcc.currency });
+    } finally {
+      enviando.current = false;
+    }
+    push({ kind: "ok", text: `Cuenta "${nombre}" creada` });
     setNewAcc({ name: "", balance: "", icon: "🏦", currency: "MXN" });
     setMNewAcc(false);
   };
@@ -383,6 +422,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setEditAcc(null);
     try {
       await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: saldo, icon: editAcc.icon, color: editAcc.color, currency: editAcc.currency });
+      push({ kind: "ok", text: "Cuenta actualizada" });
     } catch (e) {
       setAccs(prev);
       oops(e, "No se pudo guardar la cuenta");
@@ -409,6 +449,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     try {
       const s = await api.addCredit(parseCredit(f));
       setCredits((pr) => [...pr, s]);
+      push({ kind: "ok", text: `Crédito "${s.name}" registrado` });
     } catch (e) {
       oops(e, "No se pudo crear el crédito");
     }
@@ -428,13 +469,27 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
   const deleteCredit = async (id: string) => {
     const prev = credits;
-    setCredits((p) => p.filter((c) => c.id !== id));
+    const c = prev.find((x) => x.id === id);
+    setCredits((p) => p.filter((x) => x.id !== id));
     setEditCredit(null);
     try {
       await api.deleteCredit(id);
+      if (c) push({ kind: "ok", text: `Crédito "${c.name}" eliminado`, action: { label: "Deshacer", onClick: () => rehacerCredito(c) } }, 6000);
     } catch (e) {
       setCredits(prev);
       oops(e, "No se pudo eliminar el crédito");
+    }
+  };
+
+  /** Mismo caso que la meta: vuelve el crédito, no el vínculo de sus pagos. */
+  const rehacerCredito = async (c: Credit) => {
+    try {
+      const { id: _id, created_at: _created, ...datos } = c;
+      const s = await api.addCredit(datos);
+      setCredits((p) => [...p, s]);
+      push({ kind: "ok", text: "Crédito restaurado" });
+    } catch (e) {
+      oops(e, "No se pudo deshacer");
     }
   };
 
@@ -457,12 +512,25 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
   const deleteBudget = async (id: string) => {
     const prev = budgets;
-    setBudgets((p) => p.filter((b) => b.id !== id));
+    const b = prev.find((x) => x.id === id);
+    setBudgets((p) => p.filter((x) => x.id !== id));
     try {
       await api.deleteBudget(id);
+      if (b) push({ kind: "ok", text: `Presupuesto de ${b.category} quitado`, action: { label: "Deshacer", onClick: () => rehacerPresupuesto(b) } }, 6000);
     } catch (e) {
       setBudgets(prev);
       oops(e, "No se pudo eliminar el presupuesto");
+    }
+  };
+
+  /** El presupuesto no tiene historial: volver a fijarlo lo deja idéntico. */
+  const rehacerPresupuesto = async (b: Budget) => {
+    try {
+      const saved = await api.upsertBudget({ category: b.category, amount: b.amount, rollover: b.rollover });
+      setBudgets((p) => (p.some((x) => x.id === saved.id) ? p.map((x) => (x.id === saved.id ? saved : x)) : [...p, saved]));
+      push({ kind: "ok", text: "Presupuesto restaurado" });
+    } catch (e) {
+      oops(e, "No se pudo deshacer");
     }
   };
 
@@ -476,6 +544,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     try {
       const s = await api.addGoal(p);
       setGoals((pr) => [...pr, s]);
+      push({ kind: "ok", text: `Meta "${s.name}" creada` });
     } catch (e) {
       oops(e, "No se pudo crear la meta");
     }
@@ -497,13 +566,30 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
   const deleteGoal = async (id: string) => {
     const prev = goals;
-    setGoals((p) => p.filter((g) => g.id !== id));
+    const g = prev.find((x) => x.id === id);
+    setGoals((p) => p.filter((x) => x.id !== id));
     setEditGoal(null);
     try {
       await api.deleteGoal(id);
+      if (g) push({ kind: "ok", text: `Meta "${g.name}" eliminada`, action: { label: "Deshacer", onClick: () => rehacerMeta(g) } }, 6000);
     } catch (e) {
       setGoals(prev);
       oops(e, "No se pudo eliminar la meta");
+    }
+  };
+
+  /**
+   * Vuelve a crear la meta con sus mismos números. Lo que NO regresa es el
+   * vínculo de los abonos viejos con ella: al borrarla, sus movimientos
+   * quedaron sin meta y eso ya no se puede deshacer. El dinero no se movió.
+   */
+  const rehacerMeta = async (g: Goal) => {
+    try {
+      const s = await api.addGoal({ name: g.name, target_amount: Number(g.target_amount), current_amount: Number(g.current_amount), target_date: g.target_date, icon: g.icon, color: g.color, notes: g.notes });
+      setGoals((p) => [...p, s]);
+      push({ kind: "ok", text: "Meta restaurada" });
+    } catch (e) {
+      oops(e, "No se pudo deshacer");
     }
   };
   const addToGoal = async () => {
@@ -740,12 +826,21 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
   const saveTxManual = async () => {
     const { desc, amt, type, aid, cat } = man;
-    if (!desc || !amt || !aid) return;
-    const amount = parseFloat(amt);
-    if (!amount || amount <= 0) { push({ kind: "error", text: "El monto debe ser mayor a cero" }); return; }
-    const r = await applyTx({ description: desc, amount, type, category: cat, accountName: accs.find((a) => a.id === aid)?.name ?? "" });
+    if (!desc || !amt || !aid || enviando.current) return;
+    const amount = numero(amt, 0);
+    if (!(amount > 0)) { push({ kind: "error", text: "El monto debe ser mayor a cero" }); return; }
+    enviando.current = true;
+    let r;
+    try {
+      r = await applyTx({ description: desc, amount, type, category: cat, accountName: accs.find((a) => a.id === aid)?.name ?? "" });
+    } finally {
+      enviando.current = false;
+    }
     if (!r.ok) { push({ kind: "error", text: r.error || "No se pudo registrar" }); return; }
-    setMan({ desc: "", amt: "", type: "gasto", aid: "", cat: "Otros" });
+    push({ kind: "ok", text: `${type === "gasto" ? "Gasto" : "Ingreso"} de ${fmt(amount)} registrado` });
+    // La cuenta se conserva: casi siempre se captura varias veces seguidas
+    // sobre la misma, y volver a elegirla cada vez es un toque de más.
+    setMan({ desc: "", amt: "", type: "gasto", aid, cat: "Otros" });
     setMMan(false);
   };
 

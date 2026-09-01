@@ -29,6 +29,11 @@ export interface Transaction {
   accountId: string;
   accountName: string;
   toAccountName: string | null;
+  /** Para rehacer una transferencia sin adivinar la cuenta por su nombre. */
+  toAccountId: string | null;
+  /** A qué crédito o meta pertenece, cuando es un pago o un abono. */
+  creditId: string | null;
+  goalId: string | null;
   date: string;
 }
 

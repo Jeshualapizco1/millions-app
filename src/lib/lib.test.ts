@@ -37,7 +37,8 @@ afterEach(() => vi.useRealTimers());
 const tx = (p: Partial<Transaction>): Transaction => ({
   id: "x", description: "d", amount: 100, kind: "gasto", type: "gasto",
   category: "Otros", categoryId: null, accountId: "a", accountName: "A",
-  toAccountName: null, date: "2026-08-15T12:00:00.000Z", ...p,
+  toAccountName: null, toAccountId: null, creditId: null, goalId: null,
+  date: "2026-08-15T12:00:00.000Z", ...p,
 });
 
 describe("fechas", () => {
