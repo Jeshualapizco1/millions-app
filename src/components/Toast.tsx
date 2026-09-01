@@ -30,7 +30,7 @@ export function useToasts() {
 export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
   if (!toasts.length) return null;
   return (
-    <div style={{ position: "fixed", left: 0, right: 0, bottom: "calc(env(safe-area-inset-bottom,0px) + 150px)", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, zIndex: 300, pointerEvents: "none", padding: "0 16px" }}>
+    <div role="status" aria-live="polite" style={{ position: "fixed", left: 0, right: 0, bottom: "calc(env(safe-area-inset-bottom,0px) + 150px)", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, zIndex: 300, pointerEvents: "none", padding: "0 16px" }}>
       {toasts.map((t) => (
         <div
           key={t.id}

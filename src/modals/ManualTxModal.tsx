@@ -27,7 +27,7 @@ export default function ManualTxModal({
 }) {
   const { list } = useCategories();
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} dirty={!!(form.desc || form.amt)} label="Entrada manual">
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>Entrada manual</div>
       <label style={S.lbl}>Descripción</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder="Ej: Supermercado Ley" value={form.desc} onChange={(e) => update({ desc: e.target.value })} />

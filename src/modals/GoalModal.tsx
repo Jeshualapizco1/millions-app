@@ -32,7 +32,7 @@ export default function GoalModal({
 }) {
   const isNew = mode === "new";
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} dirty={isNew && !!form.name} label={isNew ? "Nueva meta de ahorro" : "Editar meta"}>
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{isNew ? "Nueva meta de ahorro" : "Editar meta"}</div>
       <label style={S.lbl}>Nombre</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 12 }} placeholder={isNew ? "Ej: Viaje a Japón, Fondo de emergencia…" : undefined} value={form.name} onChange={(e) => update({ name: e.target.value })} />

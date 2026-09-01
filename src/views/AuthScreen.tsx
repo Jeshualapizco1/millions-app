@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Spinner from "../components/Spinner";
 import ErrorBox from "../components/ErrorBox";
 import { R, S, T } from "../lib/constants";
 import type { Session } from "@supabase/supabase-js";
@@ -99,7 +100,7 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
         {error && <ErrorBox>{error}</ErrorBox>}
         {success && <div style={{ background: "#4ade8018", border: "1px solid #4ade8044", borderRadius: R.sm, padding: "10px 14px", fontSize: T.md, color: "#4ade80", marginBottom: 14 }}>{success}</div>}
         <button onClick={submit} disabled={loading} style={{ width: "100%", background: "linear-gradient(135deg,#7c6af7,#9333ea)", color: "#fff", border: "none", borderRadius: R.md, padding: "14px", fontSize: 15, fontWeight: 800, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
-          {loading ? "..." : (mode === "login" ? "Entrar" : "Crear cuenta")}
+          {loading ? <Spinner /> : (mode === "login" ? "Entrar" : "Crear cuenta")}
         </button>
       </div>
 

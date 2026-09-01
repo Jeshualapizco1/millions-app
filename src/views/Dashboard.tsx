@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { Skeleton } from "../components/Skeleton";
 import TxRow from "../components/TxRow";
 import type { DonutDatum } from "../components/charts/DonutChart";
 import type { MonthlyDatum } from "../components/charts/MonthlyChart";
@@ -7,9 +8,8 @@ const DonutChart = lazy(() => import("../components/charts/DonutChart"));
 const MonthlyChart = lazy(() => import("../components/charts/MonthlyChart"));
 const NetWorthChart = lazy(() => import("../components/NetWorthChart"));
 
-const ChartFallback = ({ h }: { h: number }) => (
-  <div style={{ height: h, display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6a8a", fontSize: T.sm }}>Cargando gráfica…</div>
-);
+/** Mientras llega el chunk de la gráfica: un bloque con su misma altura. */
+const ChartFallback = ({ h }: { h: number }) => <Skeleton h={h} />;
 import Vacio from "./Vacio";
 import { C, R, S, T } from "../lib/constants";
 import { fmt } from "../lib/format";

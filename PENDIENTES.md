@@ -39,11 +39,6 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 - [ ] **E2 Iconos SVG (Lucide inline) en tab bar y acciones** (`App.tsx:923`,
       `TxRow.tsx`, `Metas.tsx`, `Perfil.tsx`). Los emoji de categorías, cuentas
       y metas se quedan: son datos del usuario.
-- [ ] **E5 `Modal` de verdad:** Escape, `role="dialog"` + `aria-modal`, focus
-      trap, bloqueo de scroll del body, `maxHeight: 92dvh` (no `vh`),
-      confirmación antes de descartar un formulario con cambios. `Fab.tsx:61` igual.
-- [ ] **E7 Skeletons** en dashboard y gráficas (`Dashboard.tsx:10`, `App.tsx:771`);
-      spinner en botones en vez de `"..."` (`AuthScreen.tsx:100`, `LegalGate.tsx:99`).
 
 ## F. Accesibilidad (cero `aria`, `htmlFor`, `h1`, `nav`, `main`, `focus-visible`)
 
@@ -51,8 +46,6 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 - [ ] F2 `<div onClick>` → `<button>`: `Cuentas.tsx:22`, `Dashboard.tsx:255`,
       `Perfil.tsx:35`, `LegalGate.tsx:59`, `App.tsx:846,869`, `Metas.tsx:72,113`,
       `ImportCsvModal.tsx:150`, `AuthScreen.tsx:90,107`.
-- [ ] F4 Toasts con `role="status"` y `aria-live`; FAB con `aria-label`; tab bar
-      con `aria-current`.
 
 ---
 

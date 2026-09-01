@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Skeleton, SkeletonCard } from "./components/Skeleton";
 import type { Session } from "@supabase/supabase-js";
 import CreditForm, { type CreditFormState } from "./components/CreditForm";
 import Fab from "./components/Fab";
@@ -940,11 +941,22 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const hideAlert = (key: string) => { dismissAlert(key); setAlertTick((t) => t + 1); };
 
 
+  // Esqueleto con la forma del tablero, no un spinner en medio de la nada:
+  // la persona ya ve dónde va a aparecer cada cosa.
   if (booting) return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: C.bg, gap: 16 }}>
-      <div style={{ fontSize: 52 }}>💰</div>
-      <div style={{ width: 28, height: 28, border: `3px solid ${C.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-      <div style={{ color: C.muted, fontSize: T.md }}>Cargando tus finanzas…</div>
+    <div style={{ minHeight: "100dvh", background: C.bg }} aria-busy="true" aria-label="Cargando tus finanzas">
+      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: T.xxl, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
+          <Skeleton h={11} w={110} style={{ marginTop: 6 }} />
+        </div>
+        <Skeleton h={30} w={96} style={{ borderRadius: R.md }} />
+      </div>
+      <div style={{ padding: "16px 14px", maxWidth: 600, margin: "0 auto" }}>
+        <SkeletonCard lineas={0} />
+        <SkeletonCard lineas={2} alto={140} />
+        <SkeletonCard lineas={3} />
+      </div>
     </div>
   );
 
@@ -1107,14 +1119,14 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {/* Barra de pestañas fija abajo: en un teléfono el pulgar llega ahí,
           y así no se pierde al scrollear. */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 30, display: "flex", background: C.surface, borderTop: `1px solid ${C.border}33`, paddingBottom: "env(safe-area-inset-bottom,0px)", boxShadow: "0 -4px 16px #00000055" }}>
+      <nav aria-label="Secciones" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 30, display: "flex", background: C.surface, borderTop: `1px solid ${C.border}33`, paddingBottom: "env(safe-area-inset-bottom,0px)", boxShadow: "0 -4px 16px #00000055" }}>
         {([["dash", "📊", "Inicio"], ["metas", "🎯", "Metas"], ["creditos", "💳", "Créditos"], ["analisis", "🤖", "Análisis"], ["hist", "📋", "Historial"], ["accs", "🏦", "Cuentas"]] as [Tab, string, string][]).map(([k, icon, label]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, minWidth: 0, padding: "9px 2px 7px", background: "none", border: "none", cursor: "pointer", borderTop: tab === k ? `2px solid ${C.accent}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+          <button key={k} onClick={() => setTab(k)} aria-current={tab === k ? "page" : undefined} style={{ flex: 1, minWidth: 0, padding: "9px 2px 7px", background: "none", border: "none", cursor: "pointer", borderTop: tab === k ? `2px solid ${C.accent}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
             <span style={{ fontSize: T.xl }}>{icon}</span>
             <span style={{ fontSize: T.xs, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* FAB + sheet */}
       <Fab

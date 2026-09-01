@@ -1,4 +1,5 @@
 import { C, R, S, T } from "../lib/constants";
+import { useEffect } from "react";
 import TxDraftChips from "./TxDraftChips";
 import AccDraftChips from "./AccDraftChips";
 import type { AccDraft, TxDraft } from "../hooks/useAI";
@@ -63,16 +64,35 @@ export default function Fab({
   aiUso: AiUso | null;
 }) {
   const uso = textoAiUso(aiUso);
+
+  // Mientras el sheet está abierto: Escape lo cierra (salvo con borrador, que
+  // hay que guardar o descartar) y la página de atrás no hace scroll.
+  useEffect(() => {
+    if (!fab) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || draft || accDraft) return;
+      stopMic();
+      onClose();
+    };
+    document.addEventListener("keydown", alTeclear);
+    return () => {
+      document.removeEventListener("keydown", alTeclear);
+      document.body.style.overflow = overflow;
+    };
+  }, [fab, draft, accDraft, stopMic, onClose]);
+
   return (
     <>
       {/* FAB */}
-      {!fab && <button onClick={onOpen} style={{ position: "fixed", bottom: `calc(env(safe-area-inset-bottom,0px) + 80px)`, right: 20, width: 60, height: 60, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},#9333ea)`, border: "none", color: "#fff", fontSize: 28, cursor: "pointer", boxShadow: "0 8px 24px #7c6af755", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>＋</button>}
+      {!fab && <button onClick={onOpen} aria-label="Registrar un movimiento" style={{ position: "fixed", bottom: `calc(env(safe-area-inset-bottom,0px) + 80px)`, right: 20, width: 60, height: 60, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},#9333ea)`, border: "none", color: "#fff", fontSize: 28, cursor: "pointer", boxShadow: "0 8px 24px #7c6af755", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>＋</button>}
 
       {/* FAB Sheet */}
       {fab && (
         // Con un borrador en pantalla, tocar el fondo NO cierra: se perdería
         // lo capturado sin que nadie lo decidiera. Hay que guardar o descartar.
-        <div style={{ position: "fixed", inset: 0, background: "#000b", zIndex: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end", animation: "fadeIn 0.15s ease" }} onClick={() => { if (draft || accDraft) return; stopMic(); onClose(); }}>
+        <div style={{ position: "fixed", inset: 0, background: "#000b", zIndex: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end", animation: "fadeIn 0.15s ease" }} onClick={() => { if (draft || accDraft) return; stopMic(); onClose(); }} role="dialog" aria-modal="true" aria-label="Capturar movimiento">
           <div style={{ background: C.card, borderRadius: "24px 24px 0 0", padding: "20px", paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 20px)", animation: "slideUp 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ width: 36, height: 4, background: C.border, borderRadius: 2, margin: "0 auto 20px" }} />
 

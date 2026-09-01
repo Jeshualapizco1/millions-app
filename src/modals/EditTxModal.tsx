@@ -54,8 +54,11 @@ export default function EditTxModal({
     }
   };
 
+  const conCambios =
+    desc !== tx.description || amt !== String(tx.amount) || type !== tx.type || aid !== tx.accountId || cat !== tx.category || date !== toLocalDateISO(tx.date);
+
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} dirty={conCambios} label="Editar movimiento">
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>Editar movimiento</div>
       <label style={S.lbl}>Descripción</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} value={desc} onChange={(e) => setDesc(e.target.value)} />

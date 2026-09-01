@@ -28,7 +28,7 @@ export default function AccountModal({
 }) {
   const isNew = mode === "new";
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} dirty={isNew && !!form.name} label={isNew ? "Nueva cuenta" : "Editar cuenta"}>
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{isNew ? "Nueva cuenta" : "Editar cuenta"}</div>
       <label style={S.lbl}>Nombre</label>
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder={isNew ? "Ej: BBVA, Revolut…" : undefined} value={form.name} onChange={(e) => update({ name: e.target.value })} />

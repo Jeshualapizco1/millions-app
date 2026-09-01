@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Spinner from "../components/Spinner";
 import ErrorBox from "../components/ErrorBox";
 import { C, S, T } from "../lib/constants";
 import { LEGAL_VERSION, type LegalDoc } from "../lib/legal";
@@ -93,7 +94,7 @@ export default function LegalGate({
             disabled={!aceptado || loading}
             style={{ ...S.btn(), width: "100%", opacity: !aceptado || loading ? 0.45 : 1, cursor: !aceptado || loading ? "not-allowed" : "pointer" }}
           >
-            {loading ? "..." : "Aceptar y continuar"}
+            {loading ? <Spinner /> : "Aceptar y continuar"}
           </button>
         </div>
 

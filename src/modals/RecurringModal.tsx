@@ -56,8 +56,12 @@ export default function RecurringModal({
     }
   };
 
+  const conCambios = rule
+    ? name !== rule.name || amt !== String(rule.amount) || kind !== rule.kind || accountId !== rule.accountId || cat !== rule.category || frequency !== rule.frequency || nextRun !== rule.next_run
+    : !!(name || amt);
+
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} dirty={conCambios} label={rule ? "Editar movimiento fijo" : "Nuevo movimiento fijo"}>
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 4 }}>{rule ? "Editar movimiento fijo" : "Nuevo movimiento fijo"}</div>
       <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>Se registra solo en la fecha que indiques, sin que tengas que capturarlo.</div>
 
