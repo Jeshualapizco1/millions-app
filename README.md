@@ -61,7 +61,7 @@ leer de vuelta**: sácala de console.anthropic.com o de tu gestor de contraseña
 | Comando | Qué hace |
 |---|---|
 | `npx netlify dev` | Levanta la app completa en local |
-| `npm test` | 97 pruebas de la lógica pura (1 falla a propósito, ver abajo) |
+| `npm test` | 110 pruebas de la lógica pura (1 falla a propósito, ver abajo) |
 | `npm run build` | Typecheck + build de producción |
 
 ---
