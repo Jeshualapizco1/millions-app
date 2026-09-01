@@ -5,8 +5,38 @@ lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
 > Para arrancar el proyecto en otra máquina: **[README.md](README.md)**.
 > Última actualización: 1 de septiembre de 2026.
-> **Siguiente tarea: paso 4 (arranque guiado), en cuanto se decida qué pasa el
-> día 61.**
+
+## Para retomar desde otra máquina
+
+**Lo primero, y no es programación:** nada de lo pendiente avanza sin cinco
+valores que solo tú tienes. Están listados en el README bajo *Lo que falta para
+abrir el registro*, y los dos `it.fails` de `npm test` son su recordatorio.
+
+**Lo primero que sí es programación:** probar en el navegador los tres flujos
+que se construyeron el 1 de septiembre y **todavía no se han ejercitado a
+mano** — arranque guiado, chips de captura y muro de fin de prueba. Se cruzan
+en la misma sesión, así que al entrar verás, en este orden:
+
+1. El **portón legal**, porque `LEGAL_VERSION` subió a `2026-09-01`.
+2. El **arranque guiado**, porque la cuenta tiene `onboarded_at` en null y 0
+   cuentas.
+3. Ya adentro, el FAB abre el sheet **y enciende el micrófono**; al terminar de
+   hablar salen los chips en vez de guardarse solo.
+
+*(El muro de fin de prueba no saldrá: la cuenta se dio de alta hace menos de 30
+días. Para verlo, correr el alta hacia atrás en `profiles.created_at`.)*
+
+**Después de eso**, la siguiente tarea es el **estado vacío con tres botones**
+para quien salta el arranque.
+
+### Lo que se hizo el 1 de septiembre
+
+| Commit | Qué |
+|---|---|
+| `fa4c793` | Chips editables antes de guardar + un toque para hablar |
+| `73c3983` | Fix de CI: la lógica pura arrastraba el cliente de Supabase |
+| `5885ca7` | Arranque guiado + migración `0015` (aplicada) |
+| `eb92a49` | Prueba de 30 días, muro de pago y corrección de los términos |
 
 ---
 

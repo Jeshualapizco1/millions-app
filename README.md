@@ -6,6 +6,10 @@ ejecutar acciones que tú confirmas.
 
 **Producción:** https://millionsjeshua.netlify.app
 
+> **Estado (1 de septiembre de 2026):** el registro está **cerrado**. Para
+> abrirlo faltan cinco datos y un panel — ver *Lo que falta para abrir el
+> registro* más abajo. El plan completo está en **[TODO.md](TODO.md)**.
+
 ---
 
 ## Arrancar en una máquina nueva
@@ -46,7 +50,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Topes de gasto de IA (opcionales; estos son los valores por defecto)
 AI_CALLS_PER_USER_DAY=15
 AI_CALLS_PER_USER_MONTH=400
-AI_MONTHLY_BUDGET_USD=40
+AI_MONTHLY_BUDGET_USD=40   # ⚠️ el default del código es 50; confirma el valor en Netlify
 ```
 
 `ANTHROPIC_API_KEY` está marcada como secreta en Netlify, así que **no se puede
@@ -57,7 +61,7 @@ leer de vuelta**: sácala de console.anthropic.com o de tu gestor de contraseña
 | Comando | Qué hace |
 |---|---|
 | `npx netlify dev` | Levanta la app completa en local |
-| `npm test` | 43 pruebas unitarias de la lógica pura |
+| `npm test` | 76 pruebas de la lógica pura (2 fallan a propósito, ver abajo) |
 | `npm run build` | Typecheck + build de producción |
 
 ---
@@ -104,6 +108,7 @@ Costo medido: **$0.00077** por captura, **$0.00438** por consulta al asesor.
 | `millions-fx-request` | 6:10 diario | Pide tipos de cambio al BCE |
 | `millions-fx-collect` | 6:15 diario | Guarda la respuesta (pg_net es asíncrono) |
 | `millions-purge-errors` | domingos 6:30 | Borra errores de más de 60 días |
+| `millions-purge-accounts` | 6:30 diario | Borra las cuentas cuyo plazo de gracia venció |
 
 ---
 
@@ -111,6 +116,11 @@ Costo medido: **$0.00077** por captura, **$0.00438** por consulta al asesor.
 
 Las migraciones están en `supabase/migrations/`, numeradas y en orden. Ya
 aplicadas al proyecto; se conservan como historia y para poder reconstruir.
+
+> ⚠️ **El ledger no cuadra con la base.** La `0014` está aplicada pero **no
+> registrada** en `supabase_migrations` (se corrió con SQL suelto), y
+> `0006_recurring_service_grant` existe en la base pero **no está en el repo**.
+> Hoy no rompe nada; reconstruir desde cero sí saldría distinto a producción.
 
 Tablas: `profiles` · `categories` · `accounts` · `credits` · `goals` ·
 `recurring_rules` · `transactions` · `budgets` · `credit_payments` ·
@@ -127,6 +137,16 @@ compartido: se lee autenticado y solo el backend escribe.
 ```bash
 npm test                                  # unitarias, sin red
 ```
+
+**Dos pruebas fallan a propósito** (`it.fails`) y son recordatorios, no bugs:
+se ponen verdes solas en cuanto se llenen los valores marcados `PENDIENTE` en
+`src/lib/legal.ts`. Si alguna vez ves 78 verdes, es que el lanzamiento ya está
+desbloqueado.
+
+**El paso de pruebas de CI no define variables de entorno**, a propósito: la
+lógica pura no debería necesitarlas. Antes de subir algo, vale la pena correr
+`npm test` con el `.env` fuera — así se detecta si un módulo puro arrastró por
+error a `api.ts`, que construye el cliente de Supabase al importarse.
 
 Contra el proyecto real (crean y borran un usuario desechable):
 
@@ -170,6 +190,37 @@ Cosas que ya costaron tiempo y conviene no volver a descubrir:
   multiplica. Toda la conversión vive en `src/lib/currency.ts` con pruebas.
 - **"Leaked password protection" de Supabase requiere plan Pro.** El advisor
   de seguridad la marcará siempre; no es un pendiente.
+- **La lógica pura no debe importar `lib/api.ts`.** Ese módulo construye el
+  cliente de Supabase al cargarse, así que una prueba que lo arrastre revienta
+  en CI con *"supabaseUrl is required"* aunque pase en local. Por eso
+  `findByName` vive en `lib/names.ts` y no en `lib/actions.ts`.
+- **Nunca uses `toISOString()` para una fecha local.** De tarde en México
+  devuelve el día siguiente. Para un DATE de Postgres, `lib/dates.ts` arma la
+  cadena con `getFullYear/getMonth/getDate`.
+- **El selector de moneda está apagado** tras `SELECTOR_DE_MONEDA_ACTIVO` en
+  `lib/currency.ts`. `Transaction` no guarda moneda y `sumSpend`/`sumIncome` no
+  convierten, así que una cuenta en dólares corrompe en silencio gastos,
+  presupuestos y la proyección. Una prueba se pone roja si se enciende.
+- **Al tocar el texto legal hay que subir `LEGAL_VERSION`.** Si no, las
+  constancias dirán que alguien aceptó algo que nunca vio — y al subirla, todo
+  el mundo vuelve a pasar por el portón, que es lo que se busca.
+
+---
+
+## Lo que falta para abrir el registro
+
+Cinco valores en el código y tres pasos en paneles externos. Nada de esto es
+programación:
+
+| Qué | Dónde |
+|---|---|
+| `RESPONSABLE`, `DOMICILIO`, `CORREO_ARCO` | `src/lib/legal.ts` — sin los tres el aviso de privacidad es inválido |
+| `PRECIO_TEXTO`, `CONTACTO_PAGO` | `src/lib/legal.ts` — sin ellos el muro de fin de prueba es un callejón sin salida |
+| Sitio de Cloudflare Turnstile | `VITE_TURNSTILE_SITE_KEY` en Netlify + la llave secreta en Supabase → Auth → Attack Protection |
+| Activar el registro | Supabase → Authentication → Sign In / Providers → *Allow new users to sign up*. **Al final.** |
+| Revisión legal | Que un abogado lea el aviso y los términos |
+
+Los dos `it.fails` de `npm test` son el recordatorio de los cinco valores.
 
 ---
 

@@ -5,7 +5,7 @@ Referencia del **estado actual**. Para arrancar el proyecto, ver
 
 > Este archivo describía la app monolítica original (React por CDN, Babel en el
 > navegador, tablas `jeshua_*`, RLS apagado). Nada de eso existe ya. Se
-> reescribió el 31 de agosto de 2026 para reflejar la app real.
+> reescribió el 31 de agosto de 2026 y se actualizó el 1 de septiembre.
 
 ---
 
@@ -34,13 +34,25 @@ y eso convertía la función en un proxy abierto a la API key.
 uno. El cliente resuelve el nombre contra los datos reales y falla con mensaje
 claro si hay ambigüedad — equivocarse de cuenta mueve dinero de verdad.
 
+**6. Nada que mueva dinero se escribe sin que alguien lo vea.** Vale para el
+asesor y, desde el 1 de septiembre, también para la captura por voz: el modelo
+produce un **borrador** editable (monto, gasto/ingreso, cuenta, categoría) y la
+escritura ocurre al confirmar. Antes se guardaba directo lo que devolviera el
+modelo, y una categoría mal puesta solo aparecía semanas después.
+
+**7. El uso se puede limitar; el acceso a los datos, no.** Al vencer la prueba
+de 30 días entra un muro de pago que bloquea la aplicación, pero exportar a
+CSV, leer el aviso y borrar la cuenta siguen disponibles. Los derechos ARCO no
+se suspenden porque se acabe una promoción, y los términos lo prometen por
+escrito.
+
 ---
 
 ## Tablas
 
 | Tabla | Para qué |
 |---|---|
-| `profiles` | Nombre, moneda base, zona horaria, techo de gasto mensual |
+| `profiles` | Nombre, moneda base, zona horaria, techo de gasto mensual, constancia legal, baja pendiente y `onboarded_at` |
 | `categories` | Por usuario, 11 sembradas al registrarse. Se ocultan, no se borran |
 | `accounts` | Saldo, moneda, ícono, color. `archived_at` para quitar sin perder historial |
 | `credits` | Tarjeta, hipoteca, auto, personal, otro. Día de corte y de pago |
@@ -83,6 +95,10 @@ claro si hay ambigüedad — equivocarse de cuenta mueve dinero de verdad.
 | `run_recurring_rules` | La ejecuta el cron. Se pone al corriente y no duplica |
 | `take_net_worth_snapshots` | Corte mensual de patrimonio |
 | `ai_calls_today` · `ai_calls_this_month` · `ai_spend_this_month` | Topes de gasto |
+| `accept_legal` | Sella la constancia con `now()` del servidor, nunca del cliente |
+| `request_account_deletion` · `cancel_account_deletion` | Baja con 30 días de gracia |
+| `purge_deleted_accounts` | La corre el cron; borra de `auth.users` y cae en cascada |
+| `complete_onboarding` | Marca el arranque guiado como visto. Idempotente |
 
 Las que dispara el cron son `SECURITY DEFINER` (corren sin sesión) pero
 escriben cada fila con el `user_id` de su propia regla, y el cliente
@@ -109,6 +125,22 @@ esquema real: una columna mal escrita no compila.
 | `lib/csvImport.ts` | Parser de estados de cuenta |
 | `lib/alerts.ts` | Avisos descartables por ciclo |
 | `lib/errorLog.ts` | Registro de errores en la propia base |
+| `lib/names.ts` | Resuelve un nombre a su fila. **Sin importar `api.ts`**: es puro y se prueba sin red |
+| `lib/legal.ts` | Aviso, términos, `LEGAL_VERSION`, `PRUEBA_DIAS` y los valores `PENDIENTE` |
+
+### Pantallas que se muestran *antes* que la app
+
+Se devuelven temprano desde `App.tsx`, en este orden, y cada una tiene su
+razón de ir donde va:
+
+| Orden | Pantalla | Cuándo |
+|---|---|---|
+| 1 | `LegalGate` | `profile.legal_version !== LEGAL_VERSION`. Primero se acepta el texto |
+| 2 | `FinDePrueba` | Se acabaron los `PRUEBA_DIAS`. Después del legal, porque los términos lo explican |
+| 3 | `Arranque` | `profile.onboarded_at` es null. Al final: configurar lo que no se puede usar no tiene sentido |
+
+`ConfirmModal` y `Toasts` se re-montan dentro de `FinDePrueba` porque el
+`return` principal no se renderiza en ese camino.
 
 ---
 
