@@ -9,6 +9,7 @@ import CategoriesModal from "./modals/CategoriesModal";
 import { Toasts, useToasts } from "./components/Toast";
 import { useAI, type ParsedNewAcc, type ParsedTx } from "./hooks/useAI";
 import { useFinanceData } from "./hooks/useFinanceData";
+import { importId } from "./lib/csvImport";
 import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
 import { ACC_COLORS, C } from "./lib/constants";
@@ -641,7 +642,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
   const runImport = async (rows: { date: Date; description: string; amount: number; kind: TxType }[], accountId: string) => {
     const n = await api.importTxs(
-      rows.map((r) => ({ accountId, kind: r.kind, amount: r.amount, description: r.description, date: r.date.toISOString() }))
+      await Promise.all(
+        rows.map(async (r, i) => ({ id: await importId(accountId, r, i), accountId, kind: r.kind, amount: r.amount, description: r.description, date: r.date.toISOString() }))
+      )
     );
     // El servidor movió saldos e insertó en bloque: se recarga lo afectado.
     const [a, t] = await Promise.all([api.getAccounts(), api.getTxs()]);

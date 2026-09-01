@@ -20,11 +20,6 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-- [ ] **B8 `import_transactions` no es idempotente.** `0008:8-55`: un reintento
-      duplica hasta 2000 filas y su saldo. *Fix:* `id` opcional por fila con
-      `on conflict (id) do nothing` sin tocar el saldo cuando no insertó.
-- [ ] **B9 El asesor apaga el arrastre de un presupuesto.** `src/lib/api.ts:344`
-      upsert con `rollover: p.rollover ?? false`; `actions.ts:95` nunca lo manda.
 - [ ] **B11 Inyección de prompt con datos propios.** `chat.ts:255-283` interpola
       nombres y `dream` (2000 chars) sin delimitar. *Fix:* bloque `<datos>` con
       instrucción de tratarlo como datos; recortar `dream` a 300.

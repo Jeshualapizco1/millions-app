@@ -252,9 +252,10 @@ export const api = {
   },
 
   /** Importación masiva: una sola transacción de Postgres, todo o nada. */
-  async importTxs(rows: { accountId: string; kind: TxType; amount: number; description: string; date: string; category?: string | null }[]): Promise<number> {
+  async importTxs(rows: { id?: string; accountId: string; kind: TxType; amount: number; description: string; date: string; category?: string | null }[]): Promise<number> {
     const payload = await Promise.all(
       rows.map(async (r) => ({
+        id: r.id,
         account_id: r.accountId,
         kind: r.kind,
         amount: r.amount,
@@ -353,10 +354,18 @@ export const api = {
   async upsertBudget(p: { category: string; amount: number; rollover?: boolean }): Promise<Budget> {
     const catId = await categoryId(p.category);
     if (!catId) throw new Error(`Categoría desconocida: ${p.category}`);
+    const userId = await uid();
+    // Sin `rollover` explícito se conserva el que ya tenía: el asesor solo
+    // manda categoría y monto, y antes eso apagaba el arrastre en silencio.
+    let rollover = p.rollover;
+    if (rollover === undefined) {
+      const { data: prev } = await sbClient.from("budgets").select("rollover").eq("user_id", userId).eq("category_id", catId).eq("period", "mensual").maybeSingle();
+      rollover = prev?.rollover ?? false;
+    }
     const { data, error } = await sbClient
       .from("budgets")
       .upsert(
-        { user_id: await uid(), category_id: catId, period: "mensual", amount: p.amount, rollover: p.rollover ?? false },
+        { user_id: userId, category_id: catId, period: "mensual", amount: p.amount, rollover },
         { onConflict: "user_id,category_id,period" }
       )
       .select("id,amount,rollover,category_id")

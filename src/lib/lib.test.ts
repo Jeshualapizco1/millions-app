@@ -10,7 +10,7 @@ import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./pe
 import { fmtShort } from "./format";
 import { netWorthHistory, projectMonth } from "./analytics";
 import { budgetProgress, totalBudgetStatus } from "./budgets";
-import { buildRows, guessColumns, parseAmount, parseCSV, parseDate } from "./csvImport";
+import { buildRows, guessColumns, importId, parseAmount, parseCSV, parseDate } from "./csvImport";
 import { fromBase, hasForeign, SELECTOR_DE_MONEDA_ACTIVO, toBase } from "./currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./alerts";
 import { findByName } from "./names";
@@ -796,5 +796,25 @@ describe("cola offline", () => {
   it("un fallo de red se distingue de un rechazo", () => {
     expect(esFalloDeRed(new Error("Failed to fetch"))).toBe(true);
     expect(esFalloDeRed(new Error("La cuenta indicada no existe"))).toBe(false);
+  });
+});
+
+// ── Importar dos veces no duplica ───────────────────────────────────────────
+describe("id determinista de importación", () => {
+  const fila = { date: new Date(2026, 8, 5, 12), description: "Café", amount: 45, kind: "gasto" as const };
+
+  it("la misma fila del mismo archivo da el mismo id; otra posición, otro", async () => {
+    const a = await importId("acc-1", fila, 0);
+    const b = await importId("acc-1", { ...fila }, 0);
+    const c = await importId("acc-1", fila, 1);
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  });
+
+  it("cambia si cambia la cuenta o el monto", async () => {
+    const a = await importId("acc-1", fila, 0);
+    expect(await importId("acc-2", fila, 0)).not.toBe(a);
+    expect(await importId("acc-1", { ...fila, amount: 46 }, 0)).not.toBe(a);
   });
 });

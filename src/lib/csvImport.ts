@@ -101,6 +101,22 @@ export interface ParsedRow {
   skip: boolean;
 }
 
+/**
+ * Id determinista para una fila importada: el mismo archivo, importado dos
+ * veces (porque se perdió la respuesta y se volvió a tocar "Importar"),
+ * produce los mismos ids y `import_transactions` salta los que ya entraron.
+ *
+ * Lleva la posición dentro del archivo para que dos cafés iguales el mismo
+ * día sigan siendo dos movimientos. SHA-256 recortado a 16 bytes con formato
+ * de UUID: Postgres acepta cualquier 128 bits como uuid.
+ */
+export const importId = async (accountId: string, r: { date: Date; description: string; amount: number; kind: TxType }, index: number): Promise<string> => {
+  const clave = [accountId, r.date.toISOString(), r.amount, r.kind, r.description.trim().toLowerCase(), index].join("|");
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(clave)));
+  const hex = Array.from(hash.slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+};
+
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 

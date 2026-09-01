@@ -47,6 +47,24 @@ await sb.rpc("apply_transaction", { ...args, p_client_id: randomUUID(), p_amount
 eq("transacciones", (await sb.from("transactions").select("id", { count: "exact", head: true })).count, 2);
 eq("saldo", Number((await sb.from("accounts").select("balance").eq("id", acc.id).single()).data.balance), 9650);
 
+console.log("\n── Importar el mismo lote dos veces (migración 0022) ──");
+const lote = [
+  { id: randomUUID(), account_id: acc.id, kind: "gasto", amount: 200, description: "Luz", date: "2026-08-10" },
+  { id: randomUUID(), account_id: acc.id, kind: "ingreso", amount: 1000, description: "Venta", date: "2026-08-11T18:00:00Z" },
+];
+const { data: n1, error: i1 } = await sb.rpc("import_transactions", { p_rows: lote });
+if (i1) die(`import 1: ${i1.message}`);
+eq("primera importación entra", n1, 2);
+eq("saldo tras importar", Number((await sb.from("accounts").select("balance").eq("id", acc.id).single()).data.balance), 10450);
+const { data: n2, error: i2 } = await sb.rpc("import_transactions", { p_rows: lote });
+if (i2) die(`import 2: ${i2.message}`);
+eq("el reintento no inserta nada", n2, 0);
+eq("transacciones", (await sb.from("transactions").select("id", { count: "exact", head: true })).count, 4);
+eq("saldo intacto", Number((await sb.from("accounts").select("balance").eq("id", acc.id).single()).data.balance), 10450);
+// la fecha sin hora quedó al mediodía de Mazatlán (19:00Z)
+const { data: luz } = await sb.from("transactions").select("date").eq("description", "Luz").single();
+eq("fecha sin hora al mediodía local", luz.date.slice(0, 16), "2026-08-10T19:00");
+
 await admin.auth.admin.deleteUser(cu.user.id);
-console.log("\n✅ Idempotencia verificada: reintentar no duplica ni el movimiento ni el saldo.");
+console.log("\n✅ Idempotencia verificada: reintentar no duplica ni el movimiento ni el saldo, tampoco al importar.");
 process.exit(0);
