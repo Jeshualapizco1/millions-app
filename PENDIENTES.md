@@ -16,14 +16,6 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
 ## A. Críticos — antes de abrir el registro a nadie
 
-- [ ] **A1 ✔ Columnas selladas de `profiles` editables por el cliente.**
-      En producción `authenticated` tiene `UPDATE` sobre todas las columnas y no
-      hay trigger. Se puede falsificar `legal_accepted_at`, `legal_version`,
-      `onboarded_at` y poner `deletion_requested_at` 31 días atrás para que el
-      cron borre la cuenta mañana. *Fix:* migración `0017`:
-      `revoke update on public.profiles from authenticated; grant update (name,
-      base_currency, timezone, monthly_budget) on public.profiles to authenticated;`.
-      Verificar después con `information_schema.column_privileges`.
 - [ ] **A2 ✔ Doble toque en "Confirmar" del asesor mueve dinero dos veces.**
       `src/hooks/useAI.ts:201` sin guarda de reentrada; `src/views/Analisis.tsx:104`
       no deshabilita los botones con `aiLoading`. *Fix:* `if (aiLoading) return`,
@@ -56,7 +48,10 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
       la `0006_recurring_service_grant` existe en la base y no en el repo.
       *Fix:* `drop function if exists public.apply_transaction(uuid, public.tx_kind,
       numeric, text, uuid, timestamptz, text, uuid)` en una migración; volcar la
-      0006 real al repo; registrar la 0014.
+      0006 real al repo; registrar la 0014. **Mientras tanto
+      `supabase/tests/e2e.mjs` falla en el paso 4** ("Could not choose the
+      best candidate function") y no llega al paso 7 de profiles sellado, que
+      se verificó aparte el 1 de septiembre.
 
 ## B. Bugs medios
 
@@ -102,6 +97,14 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
       instrucción de tratarlo como datos; recortar `dream` a 300.
 - [ ] **B12 Cuentas archivadas aceptan movimientos.** Ninguna RPC verifica
       `archived_at is null`; el snapshot las excluye y el patrimonio se desfasa.
+- [ ] **B14 ✔ `authenticated` tiene `TRUNCATE`, `TRIGGER` y `REFERENCES` en
+      las 15 tablas de `public`.** Viene del `grant all` por omisión de Supabase
+      y `TRUNCATE` **no pasa por RLS**. PostgREST no expone `truncate`, así que
+      hoy no es explotable desde la API, pero es privilegio sin uso. *Fix:*
+      `revoke truncate, trigger, references on all tables in schema public from
+      authenticated` más el `alter default privileges` correspondiente, en la
+      misma migración que B13. (Encontrado al hacer A1; `profiles` ya quedó
+      limpia en la 0017.)
 - [ ] **B13 Advisors de Supabase.** 14 FKs sin índice (`transactions.category_id
       | credit_id | goal_id | recurring_id`, `recurring_rules.*`, `budgets.category_id`,
       `credit_payments.*`, `goal_contributions.*`) y 18 políticas con

@@ -59,7 +59,28 @@ if (Number(accFinal.balance) !== 1000) die("balance tras reverse", accFinal.bala
 const { count } = await sb.from("transactions").select("id", { count: "exact", head: true });
 if (count !== 0) die("aislamiento RLS", `ve ${count} transacciones ajenas`);
 
-// 7. limpieza total (cascade borra cuenta/perfil/categorías)
+// 7. las columnas selladas de profiles no se pueden escribir desde el cliente
+// (migración 0017). Si esto pasara, cualquiera podría firmar su propia
+// constancia legal o adelantar su propio borrado.
+for (const col of ["legal_accepted_at", "legal_version", "onboarded_at", "deletion_requested_at", "created_at"]) {
+  const { error } = await sb.from("profiles").update({ [col]: col === "legal_version" ? "x" : new Date().toISOString() }).eq("id", uid);
+  if (!error) die("profiles sellado", `el cliente pudo escribir ${col}`);
+}
+// ...pero lo editable sigue editable, y las RPC que ponen la fecha siguen vivas
+const { error: mbErr } = await sb.from("profiles").update({ monthly_budget: 1234 }).eq("id", uid);
+if (mbErr) die("profiles monthly_budget", mbErr);
+const { data: legalAt, error: alErr } = await sb.rpc("accept_legal", { p_version: "e2e" });
+if (alErr || !legalAt) die("accept_legal", alErr ?? "sin fecha");
+const { data: onbAt, error: obErr } = await sb.rpc("complete_onboarding");
+if (obErr || !onbAt) die("complete_onboarding", obErr ?? "sin fecha");
+const { data: prof } = await sb.from("profiles").select("legal_version,legal_accepted_at,onboarded_at,monthly_budget").eq("id", uid).single();
+if (prof.legal_version !== "e2e" || !prof.legal_accepted_at || !prof.onboarded_at || Number(prof.monthly_budget) !== 1234) die("profiles tras RPC", JSON.stringify(prof));
+// y sin sesión, ni siquiera se pueden invocar
+const anon = createClient(URL, PK, { auth: { persistSession: false } });
+const { error: anErr } = await anon.rpc("accept_legal", { p_version: "e2e" });
+if (!anErr) die("accept_legal anon", "anon pudo ejecutar la RPC");
+
+// 8. limpieza total (cascade borra cuenta/perfil/categorías)
 await admin.auth.admin.deleteUser(uid);
-console.log("✅ E2E OK: login, RLS, joins del frontend, apply+reverse con saldos exactos, aislamiento entre usuarios");
+console.log("✅ E2E OK: login, RLS, joins del frontend, apply+reverse con saldos exactos, aislamiento entre usuarios, profiles sellado");
 process.exit(0);
