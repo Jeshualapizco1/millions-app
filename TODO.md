@@ -358,6 +358,94 @@ contestó, y que una llave desconocida se ignore en vez de pintar "undefined".
       próxima carga; y `LEGAL_VERSION` cambió, así que antes verá el portón
       legal.
 
+## Crecimiento — dos programas separados, decidido el 1 de septiembre ⏳ SIGUE
+
+**Por qué dos y no uno.** Recompensar con dinero y recompensar con descuento
+sirven a públicos distintos, y meterlos en un mismo programa es lo que los
+vuelve inmanejable. La evidencia está en el propio análisis de mercado: MonAi
+llegó a ~$50,000 USD/mes **asociándose con un creador de contenido**, no
+agregando funciones. La distribución fue el lever.
+
+> **Nada de esto arranca sin cobro automatizado.** Hoy `PRECIO_TEXTO` y
+> `CONTACTO_PAGO` siguen en PENDIENTE y el muro de `FinDePrueba` solo ofrece un
+> contacto: se cobra a mano. El orden es cobro → referidos → afiliados, porque
+> el primero no puede existir sin cobro y el tercero además necesita ingresos
+> con qué pagar las comisiones.
+
+### A. Usuarios normales — descuento en su propia membresía
+
+Son muchos y no van a facturarte por $30. A ellos les mueve pagar menos, y un
+descuento no genera obligación fiscal: es simplemente menos ingreso.
+
+| Amigos pagando | Lo que paga |
+|---|---|
+| 1 | 15% menos |
+| 2 | 40% menos |
+| 3 o más | **Gratis** |
+
+**Una sola regla, y resuelve todos los casos:** *el día que te toca renovar,
+contamos cuántos de tus invitados están pagando en ese momento; ese número
+decide tu precio.* Sin reembolsos, sin prorrateos, sin saldos acumulados —
+solo una consulta al momento de cobrar. Funciona igual para mensual y anual y
+para cualquier mezcla entre ellos.
+
+- Un invitado que paga **anual** es el más valioso: cuenta como activo los 12
+  meses porque ya pagó por adelantado.
+- Si un invitado cancela a media suscripción **no se cobra nada extra ni se
+  quita nada**: se refleja hasta la siguiente renovación. Cobrar retroactivo es
+  la causa número uno de disputas y contracargos.
+- **Debilidad del plan anual:** el beneficio se ve hasta dentro de un año. Se
+  arregla sin tocar la lógica de cobro, mostrando el progreso en pantalla
+  ("llevas 2 invitados pagando; tu renovación de marzo cuesta 40% menos").
+- **Riesgo a cubrir:** quien paga anual con 3 invitados que cancelan al mes 2 ya
+  se llevó el año gratis. Para el plan anual, exigir que los invitados lleven al
+  menos un pago cumplido antes de contar.
+- El escalonado (15/40/100) y no el todo-o-nada: quien trae 2 amigos y no gana
+  **nada** abandona el esfuerzo y no vuelve a intentarlo.
+
+### B. Creadores de contenido — 20% en dinero, con leaderboard
+
+Son pocos, controlables, tienen RFC y saben facturar. Es donde está el
+crecimiento real.
+
+- [ ] **20% de comisión.** Falta decidir dos cosas que cambian mucho el costo:
+      ¿del primer pago o recurrente? ¿de por vida o los primeros 12 meses?
+      *Lo estándar en software es 20–30% recurrente durante 12 meses:*
+      suficiente para que valga la pena promoverlo, acotado para que no coma el
+      margen para siempre. A $149/mes, un 20% de por vida son $29.80 mensuales
+      saliendo de la cuenta indefinidamente por cada usuario referido.
+- [ ] **Leaderboard público con premios semanales.** Solo para este programa: a
+      un usuario normal, verse en el lugar 300 lo desmotiva más de lo que lo
+      empuja; entre creadores compitiendo, la tabla motiva.
+- [ ] **Rotar la categoría del premio** (más afiliados de la semana · mejor
+      conversión · primer afiliado de alguien nuevo). Premiar solo al primer
+      lugar hace que a la tercera semana los demás sepan que no le van a ganar
+      al de siempre y dejen de intentar. Y es un compromiso operativo **cada
+      semana**, no un lanzamiento.
+- [ ] **Nombre público, con constancia.** Los creadores quieren reconocimiento,
+      así que no hay que esconderlo — pero sí dejar registro de que lo
+      aceptaron, con el mismo patrón que el aviso legal
+      (`legal_accepted_at` + `legal_version`). Decirlo en pantalla no basta: si
+      alguien reclama, lo que vale es el registro de qué aceptó y cuándo.
+      Con eso **no hace falta tocar el aviso de privacidad**.
+- [ ] **Lo fiscal, antes del primer pago.** Pagar comisiones a personas físicas
+      en México obliga a pedir CFDI y retener ISR e IVA; sin el RFC del afiliado
+      el gasto no es deducible. Con tres creadores es manejable — y es
+      exactamente la razón por la que los usuarios normales van al programa A.
+- [ ] Definir medio de pago (SPEI o PayPal), umbral mínimo de retiro y qué se
+      hace con los datos bancarios de cada afiliado.
+
+### Arquitectura común
+
+Tabla `referrals` (quién invitó a quién + estado de pago del invitado), un
+código de invitación por persona y una función que cuente activos. El cálculo
+del precio es una consulta.
+
+**Lo que hoy no existe es el cobro automatizado, y eso no bloquea el diseño:**
+el estado "está pagando" se marca a mano por ahora, y el día que se conecte
+Stripe o Mercado Pago lo único que cambia es **quién escribe ese campo**, no la
+lógica del beneficio.
+
 ## Paso 5 — Después del lanzamiento
 
 - [ ] Panel de uso: usuarios activos, costo por usuario, retención.
