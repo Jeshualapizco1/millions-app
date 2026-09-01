@@ -61,7 +61,7 @@ export default function Analisis({
           {aiMsgs.map((m, i) => (
             <div key={i} className="msg" style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", gap: 8 }}>
               <div style={{ maxWidth: "85%", background: m.role === "user" ? C.accent : C.surface, border: m.role === "assistant" ? `1px solid ${C.border}44` : "none", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "10px 14px", fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{m.text}</div>
-              {m.action && <ActionCard action={m.action} resolved={m.resolved} actionContext={actionContext} onConfirm={onConfirmAction} onDismiss={onDismissAction} />}
+              {m.action && <ActionCard action={m.action} resolved={m.resolved} busy={aiLoading} actionContext={actionContext} onConfirm={onConfirmAction} onDismiss={onDismissAction} />}
             </div>
           ))}
           {aiLoading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ background: C.surface, border: `1px solid ${C.border}44`, borderRadius: "18px 18px 18px 4px", padding: "10px 14px", fontSize: 14, color: C.muted }}>Analizando…</div></div>}
@@ -83,12 +83,15 @@ export default function Analisis({
 function ActionCard({
   action,
   resolved,
+  busy,
   actionContext,
   onConfirm,
   onDismiss,
 }: {
   action: ProposedAction;
-  resolved?: "hecho" | "descartado";
+  resolved?: "hecho" | "descartado" | "en_curso";
+  /** Mientras algo corre, ninguna tarjeta acepta toques. */
+  busy: boolean;
   actionContext: () => ActionContext;
   onConfirm: (a: ProposedAction) => void;
   onDismiss: (a: ProposedAction) => void;
@@ -102,18 +105,19 @@ function ActionCard({
   }
 
   const hecho = resolved === "hecho";
-  const borde = hecho ? C.green : resolved ? C.border : C.accent;
+  const enCurso = resolved === "en_curso";
+  const borde = hecho ? C.green : enCurso ? C.accent : resolved ? C.border : C.accent;
 
   return (
     <div style={{ maxWidth: "85%", width: "100%", background: C.card, border: `1px solid ${borde}66`, borderLeft: `3px solid ${borde}`, borderRadius: 14, padding: "12px 14px" }}>
       <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700, marginBottom: 6 }}>
-        {hecho ? "✅ Hecho" : resolved ? "Descartado" : "Confirma para continuar"}
+        {hecho ? "✅ Hecho" : enCurso ? "⏳ Ejecutando…" : resolved ? "Descartado" : "Confirma para continuar"}
       </div>
       <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.5, whiteSpace: "pre-wrap", marginBottom: resolved ? 0 : 12 }}>{detalle}</div>
       {!resolved && (
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => onDismiss(action)} style={{ ...S.btnO, flex: 1, padding: "9px 14px", fontSize: 13 }}>No</button>
-          <button onClick={() => onConfirm(action)} style={{ ...S.btn(), flex: 2, padding: "9px 14px", fontSize: 13 }}>
+          <button onClick={() => onDismiss(action)} disabled={busy} style={{ ...S.btnO, flex: 1, padding: "9px 14px", fontSize: 13, opacity: busy ? 0.5 : 1 }}>No</button>
+          <button onClick={() => onConfirm(action)} disabled={busy} style={{ ...S.btn(), flex: 2, padding: "9px 14px", fontSize: 13, opacity: busy ? 0.5 : 1 }}>
             {ACTION_LABEL[action.name] ?? "Confirmar"}
           </button>
         </div>

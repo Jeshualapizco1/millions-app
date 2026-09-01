@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type { AiUso } from "../lib/aiUso";
 import { describeAction, runAction, type ActionContext } from "../lib/actions";
@@ -54,6 +54,7 @@ export function useAI({
   categoryNames,
   actionContext,
   onActionDone,
+  onActionDoneError,
 }: {
   applyTx: (tx: ParsedTx) => Promise<{ ok: boolean; error?: string }>;
   applyNewAcc: (d: ParsedNewAcc) => Promise<void>;
@@ -65,7 +66,12 @@ export function useAI({
   actionContext: () => ActionContext;
   /** Tras ejecutar, App recarga lo que cambió. */
   onActionDone: () => Promise<void>;
+  /** Si la recarga falla, la acción YA ocurrió: se avisa, no se reporta como fallida. */
+  onActionDoneError: (e: unknown) => void;
 }) {
+  // Acciones en vuelo, por id. Es un ref y no estado porque el segundo toque
+  // llega antes de que React vuelva a pintar con aiLoading en true.
+  const acting = useRef(new Set<string>());
   const [txLoading, setTxLoading] = useState(false);
   const [txHistory, setTxHistory] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState<TxDraft | null>(null);
@@ -210,15 +216,29 @@ export function useAI({
 
   /** Ejecuta lo confirmado y le devuelve el resultado al modelo. */
   const confirmAction = async (action: ProposedAction) => {
+    // Un doble toque en "Confirmar" movía el dinero dos veces: ningún await
+    // había devuelto el control cuando llegaba el segundo click.
+    if (acting.current.has(action.toolUseId)) return;
+    acting.current.add(action.toolUseId);
+    setAiMsgs((m) => m.map((x) => (x.action?.toolUseId === action.toolUseId && !x.resolved ? { ...x, resolved: "en_curso" } : x)));
     setAiLoading(true);
     let outcome: string;
     let ok = true;
     try {
       outcome = await runAction(action, actionContext());
-      await onActionDone();
     } catch (e: any) {
       ok = false;
       outcome = `No se pudo: ${e?.message || "error"}`;
+    }
+    // La recarga va aparte: si falla, la transferencia YA se hizo. Meterla en
+    // el mismo try hacía que el modelo recibiera is_error, dijera "no se
+    // pudo" y la persona la repitiera.
+    if (ok) {
+      try {
+        await onActionDone();
+      } catch (e) {
+        onActionDoneError(e);
+      }
     }
 
     setAiMsgs((m) => m.map((x) => (x.action?.toolUseId === action.toolUseId ? { ...x, resolved: ok ? "hecho" : "descartado" } : x)));
@@ -236,11 +256,13 @@ export function useAI({
       // Si el cierre falla, la acción ya ocurrió: se reporta igual.
       setAiMsgs((m) => [...m, { role: "assistant", text: outcome }]);
     } finally {
+      acting.current.delete(action.toolUseId);
       setAiLoading(false);
     }
   };
 
   const dismissAction = (action: ProposedAction) => {
+    if (acting.current.has(action.toolUseId)) return;
     setAiMsgs((m) => m.map((x) => (x.action?.toolUseId === action.toolUseId ? { ...x, resolved: "descartado" } : x)));
     setAiHistory((h) => [
       ...h,

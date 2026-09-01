@@ -654,7 +654,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   const { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso } =
-    useAI({ applyTx, applyNewAcc, setTxInput, setLive, categoryNames: () => categories.filter((c) => !c.hidden).map((c) => c.name), actionContext, onActionDone: reloadAfterAction });
+    useAI({ applyTx, applyNewAcc, setTxInput, setLive, categoryNames: () => categories.filter((c) => !c.hidden).map((c) => c.name), actionContext, onActionDone: reloadAfterAction, onActionDoneError: (e) => oops(e, "Se hizo, pero no pude refrescar tus datos. Recarga la app.") });
 
   const { mic, voiceOK, startMic, stopMic } = useVoice({
     onResult: (t) => { setLive(t); setTxInput(t); },

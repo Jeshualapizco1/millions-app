@@ -16,14 +16,6 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
 ## A. Críticos — antes de abrir el registro a nadie
 
-- [ ] **A2 ✔ Doble toque en "Confirmar" del asesor mueve dinero dos veces.**
-      `src/hooks/useAI.ts:201` sin guarda de reentrada; `src/views/Analisis.tsx:104`
-      no deshabilita los botones con `aiLoading`. *Fix:* `if (aiLoading) return`,
-      marcar `resolved` antes del `await`, `disabled={aiLoading}`.
-- [ ] **A3 ✔ Acción ejecutada reportada como fallida.** `useAI.ts:205-211`:
-      `runAction` y `onActionDone` en el mismo `try`; si falla la recarga, el
-      modelo recibe `is_error`, dice "no se pudo" y el usuario repite la
-      transferencia. *Fix:* `try` separado para `onActionDone`; su fallo es toast.
 - [ ] **A4 ✔ Editar un movimiento de tarde lo corre un día.**
       `src/modals/EditTxModal.tsx:28` usa `toISOString().slice(0,10)` sobre un
       timestamptz; después de las 17:00 en Mazatlán muestra mañana y lo guarda

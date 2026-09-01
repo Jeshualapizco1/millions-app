@@ -125,6 +125,10 @@ export interface AiMsg {
   text: string;
   /** Cuando viene, el mensaje trae una tarjeta de confirmación. */
   action?: ProposedAction;
-  /** Se marca al confirmar o descartar para que la tarjeta deje de ser accionable. */
-  resolved?: "hecho" | "descartado";
+  /**
+   * Se marca al confirmar o descartar para que la tarjeta deje de ser
+   * accionable. "en_curso" va ANTES del primer await: un segundo toque no
+   * encuentra botones que tocar.
+   */
+  resolved?: "hecho" | "descartado" | "en_curso";
 }
