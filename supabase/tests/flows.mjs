@@ -83,6 +83,21 @@ if (upErr) die("update_transaction", upErr);
 eq("Banco recuperó el gasto", await bal(a1.id), 7500);
 eq("Efectivo absorbió el nuevo", await bal(a2.id), 2200);
 
+console.log("\n── Cuenta archivada: no recibe movimientos y pausa sus fijos (0023) ──");
+const { data: a3 } = await sb.from("accounts").insert({ user_id: uid, name: "Vieja", balance: 100 }).select().single();
+const { data: regla } = await sb.from("recurring_rules").insert({ user_id: uid, account_id: a3.id, name: "Suscripción", kind: "gasto", amount: 99, frequency: "mensual", next_run: "2030-01-01", active: true }).select().single();
+const { error: arErr } = await sb.from("accounts").update({ archived_at: new Date().toISOString() }).eq("id", a3.id);
+if (arErr) die("archivar", arErr);
+const { error: bloq } = await sb.rpc("apply_transaction", { p_account_id: a3.id, p_kind: "gasto", p_amount: 10, p_description: "no debe entrar" });
+eq("gasto en cuenta archivada rechazado", !!bloq && bloq.message.includes("archivada"), true);
+const { error: bloqTr } = await sb.rpc("transfer", { p_from_account: a1.id, p_to_account: a3.id, p_amount: 10 });
+eq("transferencia hacia archivada rechazada", !!bloqTr && bloqTr.message.includes("archivada"), true);
+eq("Banco no se movió", await bal(a1.id), 7500);
+const { data: reglaDespues } = await sb.from("recurring_rules").select("active").eq("id", regla.id).single();
+eq("la regla de la cuenta archivada quedó pausada", reglaDespues.active, false);
+await sb.from("recurring_rules").delete().eq("id", regla.id);
+await sb.from("accounts").delete().eq("id", a3.id);
+
 console.log("\n── Reversión de todo, en orden inverso ──");
 const { data: all } = await sb.from("transactions").select("id").order("created_at", { ascending: false });
 for (const t of all) {
