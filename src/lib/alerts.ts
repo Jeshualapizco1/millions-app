@@ -1,3 +1,4 @@
+import { toLocalDateISO } from "./dates";
 // ============================================================================
 // Avisos que se pueden descartar.
 //
@@ -29,9 +30,9 @@ const escribir = (d: Dismissed) => {
 
 export const dismissAlert = (key: string): void => {
   const d = leer();
-  d[key] = new Date().toISOString().slice(0, 10);
+  d[key] = toLocalDateISO();
   // Se limpian las claves viejas para que el registro no crezca sin fin
-  const limite = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10);
+  const limite = toLocalDateISO(new Date(Date.now() - 90 * 864e5));
   for (const k of Object.keys(d)) if (d[k] < limite) delete d[k];
   escribir(d);
 };

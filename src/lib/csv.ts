@@ -1,4 +1,5 @@
 import type { Transaction } from "../types";
+import { toLocalDateISO } from "./dates";
 
 const BOM = String.fromCharCode(0xfeff);
 
@@ -16,7 +17,7 @@ export const exportCSV = (txs: Transaction[]) => {
     ["Fecha", "FechaISO", "Descripción", "Movimiento", "Categoría", "Cuenta", "Monto"],
     ...txs.map((t) => [
       new Date(t.date).toLocaleDateString("es-MX"),
-      new Date(t.date).toISOString().slice(0, 10),
+      toLocalDateISO(t.date),
       t.description,
       t.kind,
       t.category,
@@ -27,7 +28,7 @@ export const exportCSV = (txs: Transaction[]) => {
   const csv = BOM + rows.map((r) => r.map(esc).join(",")).join("\r\n");
   const a = Object.assign(document.createElement("a"), {
     href: URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })),
-    download: `millions-${new Date().toISOString().slice(0, 10)}.csv`,
+    download: `millions-${toLocalDateISO()}.csv`,
   });
   a.click();
 };

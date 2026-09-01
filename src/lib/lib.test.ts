@@ -3,7 +3,7 @@
 // para que no vuelva sin que nos enteremos.
 // ============================================================================
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate, parseDateOnly } from "./dates";
+import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate, parseDateOnly, toLocalDateISO } from "./dates";
 import { COBRO_INCOMPLETO, CORREO_ARCO, DOMICILIO, GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRUEBA_DIAS, PRIVACIDAD, RESPONSABLE, TERMINOS } from "./legal";
 import { bienvenida, contextoParaAsesor, PREGUNTAS, RESPUESTAS_VACIAS, type Respuestas } from "./onboarding";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
@@ -43,6 +43,18 @@ describe("fechas", () => {
     expect(d.getFullYear()).toBe(2026);
     expect(d.getMonth()).toBe(8);
     expect(d.getDate()).toBe(5);
+  });
+
+  it("toLocalDateISO da el día local, no el de UTC", () => {
+    // Las 23:59 locales del 5 siguen siendo el 5. Con toISOString, en cualquier
+    // zona al oeste de Greenwich, ya era el 6 — el bug de editar de tarde.
+    // (En CI, que corre en UTC, ambos coinciden; la prueba vale igual porque
+    // se construye con el constructor local y se lee con getters locales.)
+    expect(toLocalDateISO(new Date(2026, 8, 5, 23, 59))).toBe("2026-09-05");
+    expect(toLocalDateISO(new Date(2026, 0, 1, 0, 0))).toBe("2026-01-01");
+    expect(toLocalDateISO(new Date(2026, 8, 5, 23, 59).toISOString())).toBe("2026-09-05");
+    vi.useFakeTimers(); at("2026-12-31T23:30:00");
+    expect(toLocalDateISO()).toBe("2026-12-31");
   });
 
   it("daysUntilDate cuenta 0 para hoy y negativo para vencido", () => {

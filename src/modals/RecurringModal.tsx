@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toLocalDateISO } from "../lib/dates";
 import Modal from "../components/Modal";
 import { C, S } from "../lib/constants";
 import { useCategories } from "../lib/categories";
@@ -11,7 +12,7 @@ const FREQS: { key: RecurringFrequency; label: string }[] = [
   { key: "anual", label: "Cada año" },
 ];
 
-const hoy = () => new Date().toISOString().slice(0, 10);
+const hoy = () => toLocalDateISO();
 
 /** Alta y edición de un movimiento fijo (renta, suscripción, nómina). */
 export default function RecurringModal({

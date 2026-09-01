@@ -10,6 +10,21 @@ export const parseDateOnly = (s: string): Date => {
   return new Date(y, m - 1, d);
 };
 
+const dos = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Un instante → su día LOCAL como DATE de Postgres ("2026-09-05").
+ *
+ * Es el reemplazo de `toISOString().slice(0, 10)`, que devuelve el día en
+ * UTC: en Mazatlán, desde las 17:00 ya es "mañana". Así fue como editar un
+ * movimiento por la tarde lo corría un día aunque no se tocara la fecha.
+ * Sin argumento es hoy.
+ */
+export const toLocalDateISO = (d: Date | string = new Date()): string => {
+  const x = typeof d === "string" ? new Date(d) : d;
+  return `${x.getFullYear()}-${dos(x.getMonth() + 1)}-${dos(x.getDate())}`;
+};
+
 /** Hoy a medianoche local. */
 const todayStart = (): Date => {
   const n = new Date();
@@ -57,8 +72,7 @@ export const nextMonthlyDate = (day: number, now: Date = new Date()): string => 
   const esteMes = new Date(y, m, Math.min(d, lastDayOfMonth(y, m)));
   const objetivo =
     esteMes.getTime() >= today.getTime() ? esteMes : new Date(y, m + 1, Math.min(d, lastDayOfMonth(y, m + 1)));
-  const dos = (n: number) => String(n).padStart(2, "0");
-  return `${objetivo.getFullYear()}-${dos(objetivo.getMonth() + 1)}-${dos(objetivo.getDate())}`;
+  return toLocalDateISO(objetivo);
 };
 
 /** ¿Un timestamp cae en el mes/año local dados? */

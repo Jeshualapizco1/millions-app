@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toLocalDateISO } from "../lib/dates";
 import Modal from "../components/Modal";
 import { C, S } from "../lib/constants";
 import { useCategories } from "../lib/categories";
@@ -25,7 +26,9 @@ export default function EditTxModal({
   const [type, setType] = useState<TxType>(tx.type);
   const [aid, setAid] = useState(tx.accountId);
   const [cat, setCat] = useState(tx.category);
-  const [date, setDate] = useState(new Date(tx.date).toISOString().slice(0, 10));
+  // Día LOCAL del movimiento: con toISOString, de tarde, el campo abría en
+  // "mañana" y se guardaba así aunque no se tocara.
+  const [date, setDate] = useState(toLocalDateISO(tx.date));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { list } = useCategories();

@@ -16,12 +16,6 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
 ## A. Críticos — antes de abrir el registro a nadie
 
-- [ ] **A4 ✔ Editar un movimiento de tarde lo corre un día.**
-      `src/modals/EditTxModal.tsx:28` usa `toISOString().slice(0,10)` sobre un
-      timestamptz; después de las 17:00 en Mazatlán muestra mañana y lo guarda
-      así aunque no se toque la fecha. Mismo patrón en `src/lib/csv.ts:19` y
-      `src/modals/RecurringModal.tsx:14`. *Fix:* `toLocalDateISO(d)` en
-      `lib/dates.ts` con `getFullYear/getMonth/getDate` + prueba; usarlo en los tres.
 - [ ] **A5 Topes de IA con carrera y sin registro garantizado.**
       `netlify/functions/chat.ts:305-334` lee contadores antes y `:374-381`
       inserta en `ai_usage` después de llamar a Anthropic, ignorando el `error`
