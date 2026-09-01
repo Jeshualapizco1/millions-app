@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { S } from "../lib/constants";
 import type { Session } from "@supabase/supabase-js";
 import { sbClient } from "../lib/supabase";
 import Captcha, { CAPTCHA_ENABLED } from "../components/Captcha";
@@ -16,7 +17,7 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [aceptado, setAceptado] = useState(false);
   const [verDoc, setVerDoc] = useState<LegalDoc["key"] | null>(null);
-  const inp = { width: "100%", background: "#12121a", border: "1px solid #2a2a3e", borderRadius: 12, color: "#e8e6ff", padding: "13px 16px", fontSize: 15, outline: "none", boxSizing: "border-box", marginBottom: 12 } as const;
+  const inp = { ...S.inp, padding: "13px 16px", marginBottom: 12 } as const;
   const submit = async () => {
     if (!email || !password) { setError("Completa todos los campos"); return; }
     if (mode === "signup" && password.length < 8) { setError("La contraseña necesita al menos 8 caracteres"); return; }

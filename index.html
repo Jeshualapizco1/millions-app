@@ -4,18 +4,24 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Millions – Finanzas</title>
-  <meta name="theme-color" content="#7c6af7"/>
+  <!-- El color del header, no el acento: la barra del sistema se funde con la app en vez de gritar en morado -->
+  <meta name="theme-color" content="#12121a"/>
+  <meta name="color-scheme" content="dark"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Millions"/>
   <!-- Sin esto, iOS usa una captura de la página como ícono al instalar -->
-  <link rel="apple-touch-icon" href="/icon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
   <link rel="icon" type="image/png" href="/icon.png"/>
   <link rel="manifest" href="/manifest.json"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     html,body,#root{height:100%}
-    body{background:#0a0a0f;color:#e8e6ff;font-family:-apple-system,'Segoe UI',sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+    /* tabular-nums: las cifras alinean columna a columna en listas y tablas */
+    body{background:#0a0a0f;color:#e8e6ff;font-family:-apple-system,'Segoe UI',sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;font-variant-numeric:tabular-nums}
+    /* Foco visible solo al navegar con teclado; al tocar no estorba */
+    :focus{outline:none}
+    :focus-visible{outline:2px solid #a89ff9;outline-offset:2px;border-radius:4px}
     ::-webkit-scrollbar{width:0}
     @keyframes pulse{0%,100%{box-shadow:0 0 0 0 #f8717155}50%{box-shadow:0 0 0 12px #f8717100}}
     @keyframes spin{to{transform:rotate(360deg)}}
@@ -25,6 +31,10 @@
     .fadeUp{animation:fadeUp 0.22s ease}
     .msg{animation:fadeIn 0.2s ease}
     select,input,button,textarea{-webkit-appearance:none;font-family:inherit}
+    @media (prefers-reduced-motion: reduce){
+      .fadeUp,.msg{animation:none}
+      *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}
+    }
   </style>
 </head>
 <body>

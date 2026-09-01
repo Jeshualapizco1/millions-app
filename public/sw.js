@@ -4,12 +4,12 @@
 // fallback siempre fallaba: cero soporte offline pese a interceptar todo.
 // Este sí cachea, y deja pasar sin tocar todo lo que sea datos.
 // ============================================================================
-const VERSION = "millions-v2";
+const VERSION = "millions-v3";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(SHELL).then((c) => c.addAll(["/", "/manifest.json", "/icon.png"])).catch(() => {}));
+  e.waitUntil(caches.open(SHELL).then((c) => c.addAll(["/", "/manifest.json", "/icon.png", "/icon-192.png", "/icon-512-maskable.png", "/icon-192-maskable.png", "/apple-touch-icon.png"])).catch(() => {}));
   self.skipWaiting();
 });
 

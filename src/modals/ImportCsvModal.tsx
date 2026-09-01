@@ -73,7 +73,7 @@ export default function ImportCsvModal({
     <div style={{ flex: 1, minWidth: 120 }}>
       <label style={S.lbl}>{label}</label>
       <select
-        style={{ ...S.inp, fontSize: 13, padding: "9px 11px" }}
+        style={{ ...S.inp, padding: "9px 11px" }}
         value={effectiveMap[key] ?? ""}
         onChange={(e) => { setTouched(true); setMap((m) => ({ ...effectiveMap, ...m, [key]: e.target.value === "" ? undefined : Number(e.target.value) })); }}
       >
@@ -95,7 +95,7 @@ export default function ImportCsvModal({
         type="file"
         accept=".csv,text/csv,text/plain"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) readFile(f); }}
-        style={{ ...S.inp, marginBottom: 10, padding: "9px 11px", fontSize: 13 }}
+        style={{ ...S.inp, marginBottom: 10, padding: "9px 11px" }}
       />
       <textarea
         style={{ ...S.inp, marginBottom: 12, minHeight: 70, fontFamily: "monospace", fontSize: 12, resize: "vertical" }}
@@ -151,7 +151,7 @@ export default function ImportCsvModal({
                   <span style={{ fontSize: 13 }}>{skip ? "⬜" : "☑️"}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.description}</div>
-                    <div style={{ fontSize: 10.5, color: r.duplicate ? C.amber : C.muted }}>
+                    <div style={{ fontSize: 11, color: r.duplicate ? C.amber : C.muted }}>
                       {r.date.toLocaleDateString("es-MX")}{r.duplicate ? " · ya existe uno igual" : ""}
                     </div>
                   </div>

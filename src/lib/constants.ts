@@ -11,7 +11,9 @@ export const C = {
   green: "#4ade80",
   red: "#f87171",
   text: "#e8e6ff",
-  muted: "#6b6a8a",
+  // #8b8aa8 sobre la tarjeta da 4.6:1; el #6b6a8a anterior daba 3.3:1 y se
+  // usaba a 10–11 px, justo donde menos contraste se puede permitir.
+  muted: "#8b8aa8",
   amber: "#fbbf24",
 };
 
@@ -59,8 +61,11 @@ export const S = {
     borderRadius: 12,
     color: C.text,
     padding: "12px 16px",
-    fontSize: 15,
-    outline: "none",
+    // 16 y no 15: por debajo de 16 px Safari en iPhone hace zoom al enfocar
+    // un campo, y la pantalla se queda desplazada al cerrarlo.
+    fontSize: 16,
+    // Sin `outline: none`: el foco visible vive en index.html (focus-visible),
+    // que solo lo pinta al navegar con teclado y no al tocar.
     boxSizing: "border-box",
   } as CSSProperties,
   btn: (bg: string = C.accent): CSSProperties => ({

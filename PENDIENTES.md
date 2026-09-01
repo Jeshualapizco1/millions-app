@@ -44,28 +44,15 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 - [ ] **E2 Iconos SVG (Lucide inline) en tab bar y acciones** (`App.tsx:923`,
       `TxRow.tsx`, `Metas.tsx`, `Perfil.tsx`). Los emoji de categorías, cuentas
       y metas se quedan: son datos del usuario.
-- [ ] **E3 Números tabulares:** `fontVariantNumeric: "tabular-nums"` en `fmt()`
-      y en las cifras grandes `letterSpacing: -0.02em`.
-- [ ] **E4 Contraste.** `C.muted` #6b6a8a sobre `C.card` da 3.3:1 y se usa a
-      10–11 px. Subir a #8b8aa8; nada menor a 11 px; pestañas de 9 → 11 px.
 - [ ] **E5 `Modal` de verdad:** Escape, `role="dialog"` + `aria-modal`, focus
       trap, bloqueo de scroll del body, `maxHeight: 92dvh` (no `vh`),
       confirmación antes de descartar un formulario con cambios. `Fab.tsx:61` igual.
-- [ ] **E6 Inputs a 16 px.** `S.inp` está en 15 y Safari hace zoom; hay campos
-      a 13 (`ImportCsvModal.tsx:76`, `Historial.tsx:104`) y 14 (`CreditForm.tsx:50`).
 - [ ] **E7 Skeletons** en dashboard y gráficas (`Dashboard.tsx:10`, `App.tsx:771`);
       spinner en botones en vez de `"..."` (`AuthScreen.tsx:100`, `LegalGate.tsx:99`).
-- [ ] **E8 Un solo saldo total.** Header (`App.tsx:853`) y hero del Dashboard
-      repiten el número. Quitar el hero y poner el delta vs. mes anterior.
 - [ ] **E9 Estilos duplicados fuera de `S`:** `AuthScreen.tsx:19`,
       `CreditForm.tsx:50` redefinen `inp`/`lbl`; botón Gasto/Ingreso copiado en
       `ManualTxModal.tsx:38`, `EditTxModal.tsx:62`, `RecurringModal.tsx:67`; caja
       de error copiada 9 veces. Un componente para cada uno.
-- [ ] **E10 PWA/meta:** icono maskable con zona segura + 192 y 180 px,
-      `theme-color` = `C.surface`, quitar `orientation: portrait`,
-      `<meta name="color-scheme" content="dark">`.
-- [ ] E11 Alerta de presupuesto lleva a "metas" donde presupuestos es la 2ª
-      tarjeta; `autoFocus` en el paso 3 del arranque abre el teclado al entrar.
 
 ## F. Accesibilidad (cero `aria`, `htmlFor`, `h1`, `nav`, `main`, `focus-visible`)
 
@@ -73,11 +60,8 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 - [ ] F2 `<div onClick>` → `<button>`: `Cuentas.tsx:22`, `Dashboard.tsx:255`,
       `Perfil.tsx:35`, `LegalGate.tsx:59`, `App.tsx:846,869`, `Metas.tsx:72,113`,
       `ImportCsvModal.tsx:150`, `AuthScreen.tsx:90,107`.
-- [ ] F3 `focus-visible` global en `index.html`; `S.inp` fuerza `outline: none`
-      sin sustituto.
 - [ ] F4 Toasts con `role="status"` y `aria-live`; FAB con `aria-label`; tab bar
       con `aria-current`.
-- [ ] F5 `prefers-reduced-motion` para `fadeUp`, `slideUp`, `pulse` en `index.html`.
 
 ---
 

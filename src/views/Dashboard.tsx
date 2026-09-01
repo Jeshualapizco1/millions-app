@@ -30,7 +30,6 @@ export interface Comparison {
 export default function Dashboard({
   accs,
   txs,
-  totBal,
   totI,
   totG,
   totalDebt,
@@ -55,7 +54,6 @@ export default function Dashboard({
 }: {
   accs: Account[];
   txs: Transaction[];
-  totBal: number;
   totI: number;
   totG: number;
   totalDebt: number;
@@ -86,19 +84,17 @@ export default function Dashboard({
 
   return (
     <div className="fadeUp">
-      {/* Saldo total */}
-      <div style={{ background: "linear-gradient(135deg,#1a1a3e,#0f0f2e)", border: `1px solid ${C.accent}33`, borderRadius: 24, padding: "24px 20px", marginBottom: 14, textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: C.accent + "11" }} />
-        <div style={{ position: "absolute", bottom: -20, left: -20, width: 80, height: 80, borderRadius: "50%", background: "#9333ea11" }} />
-        <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8 }}>Saldo Total</div>
-        <div style={{ fontSize: 40, fontWeight: 900, color: totBal >= 0 ? C.green : C.red, letterSpacing: -1 }}>{fmt(totBal)}</div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 16, flexWrap: "wrap" }}>
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Ingresos</div><div style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{fmt(totI)}</div></div>
+      {/* Ingresos, gastos y deuda del período. El saldo total ya vive en el
+          header: repetirlo aquí en grande era el número más visible de la
+          pantalla, dos veces. El patrimonio neto de abajo trae el delta. */}
+      <div style={{ ...S.card, padding: "14px 16px" }}>
+        <div style={{ display: "flex", gap: 14 }}>
+          <div style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Ingresos</div><div style={{ fontSize: 16, fontWeight: 800, color: C.green }}>{fmt(totI)}</div></div>
           <div style={{ width: 1, background: C.border }} />
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Gastos</div><div style={{ fontSize: 14, fontWeight: 700, color: C.red }}>{fmt(totG)}</div></div>
-          {totalDebt > 0 && <><div style={{ width: 1, background: C.border }} /><div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Deudas</div><div style={{ fontSize: 14, fontWeight: 700, color: C.amber }}>{fmt(totalDebt)}</div></div></>}
+          <div style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Gastos</div><div style={{ fontSize: 16, fontWeight: 800, color: C.red }}>{fmt(totG)}</div></div>
+          {totalDebt > 0 && <><div style={{ width: 1, background: C.border }} /><div style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 11, color: C.muted }}>Deudas</div><div style={{ fontSize: 16, fontWeight: 800, color: C.amber }}>{fmt(totalDebt)}</div></div></>}
         </div>
-        <div style={{ fontSize: 10, color: C.muted, marginTop: 10 }}>Ingresos y gastos de: {periodLabel.toLowerCase()}</div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 8, textAlign: "center" }}>{periodLabel}</div>
       </div>
 
       {/* Patrimonio neto: activos menos deudas, el número que resume todo */}
@@ -128,7 +124,7 @@ export default function Dashboard({
                 <div style={{ height: 200 }}>
                   <Suspense fallback={<ChartFallback h={200} />}><NetWorthChart data={netWorth} /></Suspense>
                 </div>
-                <div style={{ fontSize: 10, color: C.muted, marginTop: 8, lineHeight: 1.4 }}>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 8, lineHeight: 1.4 }}>
                   El dato de hoy es exacto. Los meses anteriores se reconstruyen a partir de tus movimientos,
                   así que un saldo o una deuda que hayas ajustado a mano no se refleja ahí.
                 </div>
@@ -146,13 +142,13 @@ export default function Dashboard({
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Llevas gastado</div>
               <div style={{ fontSize: 17, fontWeight: 800, color: C.red }}>{fmt(projection.spentSoFar)}</div>
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{fmt(projection.dailyRate)} por día</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{fmt(projection.dailyRate)} por día</div>
             </div>
             <div style={{ width: 1, background: C.border }} />
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Cerrarías en</div>
               <div style={{ fontSize: 17, fontWeight: 800, color: C.amber }}>{fmt(projection.projectedSpend)}</div>
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>día {projection.daysElapsed} de {projection.daysInMonth}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>día {projection.daysElapsed} de {projection.daysInMonth}</div>
             </div>
           </div>
           {projection.pendingFixed > 0 && (
@@ -277,7 +273,7 @@ export default function Dashboard({
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontWeight: 800, color: Number(a.balance) >= 0 ? C.green : C.red, fontSize: 15 }}>{fmtCurrency(a.balance, a.currency)}</div>
-              {a.currency && a.currency !== "MXN" && <div style={{ fontSize: 10, color: C.muted }}>≈ {fmt(toBase(a.balance, a.currency, fx))}</div>}
+              {a.currency && a.currency !== "MXN" && <div style={{ fontSize: 11, color: C.muted }}>≈ {fmt(toBase(a.balance, a.currency, fx))}</div>}
             </div>
           </div>
         ))}

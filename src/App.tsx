@@ -1087,7 +1087,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {showBudgetAlert && (
         <div style={{ background: C.amber + "18", borderBottom: `1px solid ${C.amber}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 18 }}>⚠️</span>
-          <span onClick={() => setTab("metas")} style={{ flex: 1, fontSize: 13, color: C.amber, fontWeight: 600, cursor: "pointer" }}>
+          <span onClick={() => { setTab("metas"); setTimeout(() => document.getElementById("presupuestos")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} style={{ flex: 1, fontSize: 13, color: C.amber, fontWeight: 600, cursor: "pointer" }}>
             Presupuesto al límite: {budgetOver.join(", ")} — Toca para ver
           </span>
           <button onClick={() => hideAlert(budgetKey)} title="No volver a mostrar este aviso" style={{ background: "none", border: "none", color: C.amber, cursor: "pointer", fontSize: 15, padding: "2px 6px", lineHeight: 1 }}>✕</button>
@@ -1096,7 +1096,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {/* El padding inferior deja libre la barra de pestañas fija */}
       <div style={{ padding: "16px 14px calc(env(safe-area-inset-bottom,0px) + 150px)", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} proximos={proximosItems} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} nombre={userName} onArranque={() => setTab("arranque")} onAddCredit={() => { setTab("creditos"); setMCredit(true); }} onCapture={() => { setFab(true); startMic(); }} />}
+        {tab === "dash" && <Dashboard accs={accs} txs={txs} totI={totI} totG={totG} totalDebt={totalDebt} proximos={proximosItems} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} nombre={userName} onArranque={() => setTab("arranque")} onAddCredit={() => { setTab("creditos"); setMCredit(true); }} onCapture={() => { setFab(true); startMic(); }} />}
         {tab === "metas" && <Metas budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} aiUso={aiUso} />}
@@ -1111,7 +1111,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         {([["dash", "📊", "Inicio"], ["metas", "🎯", "Metas"], ["creditos", "💳", "Créditos"], ["analisis", "🤖", "Análisis"], ["hist", "📋", "Historial"], ["accs", "🏦", "Cuentas"]] as [Tab, string, string][]).map(([k, icon, label]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, minWidth: 0, padding: "9px 2px 7px", background: "none", border: "none", cursor: "pointer", borderTop: tab === k ? `2px solid ${C.accent}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
             <span style={{ fontSize: 18 }}>{icon}</span>
-            <span style={{ fontSize: 9, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
+            <span style={{ fontSize: 11, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
           </button>
         ))}
       </div>

@@ -104,11 +104,11 @@ export default function Historial({
 
         {/* Categoría y cuenta */}
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <select style={{ ...S.inp, flex: 1, fontSize: 13, padding: "10px 12px" }} value={cat} onChange={(e) => { setCat(e.target.value); setShown(PAGE); }}>
+          <select style={{ ...S.inp, flex: 1, padding: "10px 12px" }} value={cat} onChange={(e) => { setCat(e.target.value); setShown(PAGE); }}>
             <option value="">Toda categoría</option>
             {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
           </select>
-          <select style={{ ...S.inp, flex: 1, fontSize: 13, padding: "10px 12px" }} value={accId} onChange={(e) => { setAccId(e.target.value); setShown(PAGE); }}>
+          <select style={{ ...S.inp, flex: 1, padding: "10px 12px" }} value={accId} onChange={(e) => { setAccId(e.target.value); setShown(PAGE); }}>
             <option value="">Toda cuenta</option>
             {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
           </select>

@@ -202,7 +202,8 @@ export default function Arranque({
           {paso === 3 && (
             <>
               <label style={S.lbl}>Techo mensual de gasto</label>
-              <input autoFocus style={{ ...S.inp, marginBottom: 14, fontSize: 20, fontWeight: 700 }} type="number" inputMode="decimal" placeholder="0.00" value={techo} onChange={(e) => setTecho(e.target.value)} />
+              {/* Sin autoFocus: abría el teclado al entrar y tapaba la explicación de qué es el techo. */}
+              <input style={{ ...S.inp, marginBottom: 14, fontSize: 20, fontWeight: 700 }} type="number" inputMode="decimal" placeholder="0.00" value={techo} onChange={(e) => setTecho(e.target.value)} />
               {parseFloat(ingMonto) > 0 && (
                 <button
                   onClick={() => setTecho(String(Math.round(parseFloat(ingMonto) * 0.7)))}

@@ -98,7 +98,7 @@ export default function Metas({
       </div>
 
       {/* Presupuestos */}
-      <div style={S.card}>
+      <div id="presupuestos" style={{ ...S.card, scrollMarginTop: 90 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: 16 }}>📋 Presupuestos</div>

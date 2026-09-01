@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { C, CREDIT_TYPES } from "../lib/constants";
+import { C, CREDIT_TYPES, S } from "../lib/constants";
 import type { CreditType } from "../types";
 
 /** Estado del formulario: los campos numéricos pueden ser string (vacío) o number (al editar). */
@@ -47,7 +47,7 @@ export default function CreditForm({
         : { credit_limit: "", cut_day: "", payment_day: "" }),
     }));
   const s: Record<string, CSSProperties> = {
-    inp: { width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, color: C.text, padding: "11px 14px", fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 12 },
+    inp: { ...S.inp, padding: "11px 14px", marginBottom: 12 },
     lbl: { fontSize: 12, color: C.muted, marginBottom: 5, display: "block", fontWeight: 500 },
     row: { display: "flex", gap: 10 },
   };
