@@ -41,6 +41,26 @@ export const daysUntilDayOfMonth = (day: number | null | undefined): number | nu
   return Math.round((next.getTime() - today.getTime()) / 864e5);
 };
 
+/**
+ * El próximo día `day` del mes, como DATE de Postgres ("2026-09-05").
+ *
+ * Se arma con getFullYear/getMonth/getDate y NO con toISOString: en México
+ * este último devuelve el día siguiente durante toda la tarde, y una regla
+ * mensual creada a las 7pm arrancaría un día tarde. Si el día no existe en el
+ * mes (31 en septiembre), cae en el último, igual que los cortes de tarjeta.
+ */
+export const nextMonthlyDate = (day: number, now: Date = new Date()): string => {
+  const d = Math.min(Math.max(Math.round(day) || 1, 1), 31);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const y = today.getFullYear();
+  const m = today.getMonth();
+  const esteMes = new Date(y, m, Math.min(d, lastDayOfMonth(y, m)));
+  const objetivo =
+    esteMes.getTime() >= today.getTime() ? esteMes : new Date(y, m + 1, Math.min(d, lastDayOfMonth(y, m + 1)));
+  const dos = (n: number) => String(n).padStart(2, "0");
+  return `${objetivo.getFullYear()}-${dos(objetivo.getMonth() + 1)}-${dos(objetivo.getDate())}`;
+};
+
 /** ¿Un timestamp cae en el mes/año local dados? */
 export const inMonth = (iso: string, year: number, month: number): boolean => {
   const d = new Date(iso);

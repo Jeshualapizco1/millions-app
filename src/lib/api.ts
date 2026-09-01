@@ -302,10 +302,16 @@ export const api = {
   async getProfile(): Promise<Profile> {
     const { data, error } = await sbClient
       .from("profiles")
-      .select("id,name,base_currency,timezone,monthly_budget,legal_accepted_at,legal_version,deletion_requested_at,created_at")
+      .select("id,name,base_currency,timezone,monthly_budget,legal_accepted_at,legal_version,deletion_requested_at,onboarded_at,created_at")
       .single();
     if (error) fail(error);
     return { ...data!, monthly_budget: data!.monthly_budget === null ? null : Number(data!.monthly_budget) };
+  },
+  /** Marca el arranque guiado como terminado. La fecha la pone Postgres. */
+  async completeOnboarding(): Promise<string> {
+    const { data, error } = await sbClient.rpc("complete_onboarding");
+    if (error) fail(error);
+    return data as string;
   },
   async setMonthlyBudget(amount: number | null): Promise<void> {
     const { error } = await sbClient.from("profiles").update({ monthly_budget: amount }).eq("id", await uid());

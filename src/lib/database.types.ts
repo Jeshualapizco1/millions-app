@@ -448,6 +448,7 @@ export type Database = {
           legal_version: string | null
           monthly_budget: number | null
           name: string | null
+          onboarded_at: string | null
           timezone: string
           updated_at: string
         }
@@ -460,6 +461,7 @@ export type Database = {
           legal_version?: string | null
           monthly_budget?: number | null
           name?: string | null
+          onboarded_at?: string | null
           timezone?: string
           updated_at?: string
         }
@@ -472,6 +474,7 @@ export type Database = {
           legal_version?: string | null
           monthly_budget?: number | null
           name?: string | null
+          onboarded_at?: string | null
           timezone?: string
           updated_at?: string
         }
@@ -681,6 +684,7 @@ export type Database = {
       accept_legal: { Args: { p_version: string }; Returns: string }
       request_account_deletion: { Args: Record<string, never>; Returns: string }
       cancel_account_deletion: { Args: Record<string, never>; Returns: undefined }
+      complete_onboarding: { Args: Record<string, never>; Returns: string }
       import_transactions: { Args: { p_rows: Json }; Returns: number }
       ai_spend_this_month: { Args: Record<string, never>; Returns: number }
       ai_calls_this_month: { Args: { p_user: string }; Returns: number }

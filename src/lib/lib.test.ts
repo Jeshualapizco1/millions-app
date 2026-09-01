@@ -3,7 +3,7 @@
 // para que no vuelva sin que nos enteremos.
 // ============================================================================
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, parseDateOnly } from "./dates";
+import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, nextMonthlyDate, parseDateOnly } from "./dates";
 import { GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRIVACIDAD, TERMINOS } from "./legal";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
 import { fmtShort } from "./format";
@@ -65,6 +65,30 @@ describe("fechas", () => {
   it("si el día del mes ya pasó, salta al mes siguiente", () => {
     vi.useFakeTimers(); at("2026-09-20T10:00:00");
     expect(daysUntilDayOfMonth(5)).toBe(15); // 5 de octubre
+  });
+});
+
+describe("nextMonthlyDate", () => {
+  it("si el día todavía no pasa, cae en este mes", () => {
+    expect(nextMonthlyDate(15, new Date(2026, 8, 1, 9, 0))).toBe("2026-09-15");
+  });
+
+  it("si el día ya pasó, cae en el siguiente", () => {
+    expect(nextMonthlyDate(5, new Date(2026, 8, 20, 9, 0))).toBe("2026-10-05");
+  });
+
+  it("hoy mismo cuenta como próximo, no como pasado", () => {
+    expect(nextMonthlyDate(10, new Date(2026, 8, 10, 23, 0))).toBe("2026-09-10");
+  });
+
+  it("el día 31 en un mes de 30 cae en el último, sin desbordarse", () => {
+    expect(nextMonthlyDate(31, new Date(2026, 8, 1, 9, 0))).toBe("2026-09-30");
+  });
+
+  it("de tarde en México NO se corre al día siguiente", () => {
+    // Con toISOString, las 7pm del 1 de septiembre en Culiacán ya son el 2 en
+    // UTC: la regla mensual habría arrancado un día tarde, cada mes.
+    expect(nextMonthlyDate(5, new Date(2026, 8, 1, 19, 30))).toBe("2026-09-05");
   });
 });
 

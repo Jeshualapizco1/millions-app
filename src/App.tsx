@@ -13,7 +13,7 @@ import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
 import { ACC_COLORS, C } from "./lib/constants";
 import { daysUntil, fmt, monthLabel } from "./lib/format";
-import { daysUntilDate, diasRestantesDeGracia } from "./lib/dates";
+import { daysUntilDate, diasRestantesDeGracia, nextMonthlyDate } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
@@ -22,6 +22,7 @@ import { findByName } from "./lib/names";
 import { GRACIA_DIAS, LEGAL_VERSION } from "./lib/legal";
 import Perfil from "./views/Perfil";
 import LegalGate from "./views/LegalGate";
+import Arranque, { type ArranqueResult } from "./views/Arranque";
 import { hasForeign, toBase } from "./lib/currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./lib/alerts";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
@@ -141,6 +142,56 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   const diasParaBorrado = diasRestantesDeGracia(profile?.deletion_requested_at, GRACIA_DIAS);
+
+  // ── Arranque guiado ───────────────────────────────────────────────────────
+  const cerrarArranque = async () => {
+    const at = await api.completeOnboarding();
+    setProfile((p) => (p ? { ...p, onboarded_at: at } : p));
+  };
+
+  /**
+   * Todo lo del arranque se escribe aquí, de un tirón. Las cuentas primero
+   * porque el ingreso fijo necesita un id real, no un nombre.
+   *
+   * Salta las cuentas cuyo nombre ya existe: si alguien abandonó a medias y
+   * volvió a entrar, reintentar no debe dejarle dos "BBVA".
+   */
+  const terminarArranque = async (r: ArranqueResult) => {
+    const yaExisten = new Set(accsRef.current.map((a) => a.name.trim().toLowerCase()));
+    for (const [i, c] of r.cuentas.entries()) {
+      if (yaExisten.has(c.name.toLowerCase())) continue;
+      await api.addAccount({ ...c, color: ACC_COLORS[(accsRef.current.length + i) % ACC_COLORS.length] });
+    }
+    const cuentas = await api.getAccounts();
+    setAccs(cuentas);
+
+    if (r.ingreso) {
+      const cuenta = cuentas.find((a) => a.name.trim().toLowerCase() === r.ingreso!.cuenta.trim().toLowerCase());
+      // Sin cuenta no hay regla, pero tampoco se aborta el arranque: perder el
+      // techo y las cuentas por un ingreso mal atado sería peor.
+      if (cuenta) {
+        await api.upsertRecurring({
+          name: r.ingreso.name,
+          kind: "ingreso",
+          amount: r.ingreso.amount,
+          accountId: cuenta.id,
+          category: "Nómina",
+          frequency: "mensual",
+          next_run: nextMonthlyDate(r.ingreso.dia),
+        });
+        setRecurring(await api.getRecurring());
+        setUpcoming(await api.getUpcoming(7));
+      }
+    }
+
+    if (r.techo !== null) {
+      await api.setMonthlyBudget(r.techo);
+      setProfile((p) => (p ? { ...p, monthly_budget: r.techo } : p));
+    }
+
+    await cerrarArranque();
+    push({ kind: "ok", text: "Listo, tu app ya tiene con qué trabajar" });
+  };
 
   // ── Cola offline ──────────────────────────────────────────────────────────
   const { pending, syncing, enqueue, flush } = useOfflineQueue({
@@ -713,6 +764,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       nuevaVersion={!!profile.legal_accepted_at}
       onAccept={aceptarLegal}
       onSignOut={onSignOut}
+    />
+  );
+
+  // Va después del portón legal a propósito: primero se acepta el aviso, y
+  // solo entonces tiene sentido pedirle datos a alguien.
+  if (profile && !profile.onboarded_at) return (
+    <Arranque
+      nombre={userName}
+      cuentasExistentes={accs.map((a) => a.name)}
+      onFinish={terminarArranque}
+      onSkip={cerrarArranque}
     />
   );
 

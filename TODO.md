@@ -214,19 +214,44 @@ Contiene: nombre, correo y antigüedad · cambiar contraseña · cerrar sesión 
 exportar todo a CSV (el derecho de acceso ARCO) · aviso y términos · constancia
 de qué versión se aceptó y cuándo · borrar cuenta.
 
-## Paso 4 — Que el usuario nuevo se quede ⏳ SIGUE
+## Paso 4 — Que el usuario nuevo se quede 🔨 EN CURSO
 
-- [ ] **Arranque guiado.** La brecha más grande y la más barata de cerrar. Hoy un
-      desconocido entra a un tablero vacío. Cinco preguntas al entrar (cuentas,
-      renta, techo mensual) y la app cobra sentido de inmediato.
-      *Evidencia:* en la cuenta principal hay 0 movimientos fijos, 0
-      presupuestos y 0 metas — media app sin usar por falta de configuración,
-      no de funciones.
+- [x] **Arranque guiado** — hecho el 1 de septiembre. `src/views/Arranque.tsx`,
+      tres pantallas: qué cuentas tienes y con cuánto · cuánto entra al mes y a
+      qué cuenta · techo mensual de gasto. Al terminar, la persona ya tiene
+      cuentas, una regla de ingreso mensual y `monthly_budget` — o sea saldo,
+      patrimonio neto y proyección de cierre, que es media app que antes
+      arrancaba apagada.
+      - Migración `0015_onboarding.sql`: columna `profiles.onboarded_at` y la
+        RPC `complete_onboarding()`. **Ya aplicada** al proyecto. Vive en la
+        base y no en el navegador porque cambiar de teléfono no debería volver
+        a preguntar lo mismo, y porque "cuántos terminaron el arranque" es la
+        cifra que va a querer mirar el panel de uso del paso 5.
+      - Las cuentas que ya existían quedaron marcadas como hechas en la propia
+        migración: nadie con la app montada ve el arranque.
+      - **Se puede saltar**, entero o los dos últimos pasos. Obligar a
+        configurar antes de dejar ver nada es la forma más rápida de que
+        alguien cierre y no vuelva.
+      - Reintentar no duplica: al terminar se saltan las cuentas cuyo nombre ya
+        existe, por si alguien abandonó a medias.
+      - Los bancos comunes en México van como chips de un toque; teclear menos
+        es la mitad de terminar el arranque.
+      - `nextMonthlyDate` en `lib/dates.ts` (5 pruebas): arma el `next_run`
+        con getFullYear/getMonth/getDate y **no** con `toISOString`, que de
+        tarde en México devuelve el día siguiente — la regla habría arrancado
+        un día tarde todos los meses. El día 31 cae en el último del mes.
+      - **`App.tsx` no ganó ni un `useState`:** todo el estado del arranque es
+        local a la vista.
+- [ ] **Estado vacío con tres botones** para quien salta el arranque. Hoy
+      aterriza en el tablero vacío de siempre.
 - [ ] **Mostrar los límites del plan gratuito** dentro de la app: cuántas
       consultas de IA quedan y cuándo termina la promoción.
 - [ ] **Contador de días restantes** de los 60.
-- [ ] Decidir qué pasa el día 61: ¿se bloquea la IA y sigue el registro manual,
-      o se bloquea todo? *Recomendación: dejar la app usable sin IA.*
+- [ ] **Decidir qué pasa el día 61** — bloquea los dos puntos de arriba:
+      ¿se bloquea la IA y sigue el registro manual, o se bloquea todo?
+      *Recomendación: dejar la app usable sin IA.*
+- [ ] Probar el arranque en el navegador. La cuenta actual tiene
+      `onboarded_at` en null y 0 cuentas, así que lo verá en la próxima carga.
 
 ## Paso 5 — Después del lanzamiento
 
@@ -496,6 +521,18 @@ cambio.
   nunca se purga (crece con los deploys, con archivos hasheados; inofensivo).
 - **Recibos en Storage.**
 - **Recordatorios por correo** (pospuesto; `pg_cron` listo, falta proveedor).
+
+## 🧾 El ledger de migraciones no cuadra con la base
+
+Encontrado el 1 de septiembre al aplicar la 0015. No rompe nada hoy, pero
+levantar el proyecto desde cero saldría distinto a lo que hay en producción:
+
+- **La 0014 no está registrada** en `supabase_migrations`. Sus columnas y su
+  cron están vivos —verificado—, así que se aplicó con SQL suelto en vez de
+  como migración. Falta registrarla.
+- **`0006_recurring_service_grant` está en la base pero NO en el repo.** Es al
+  revés que la anterior: se aplicó algo que no quedó en control de versiones y
+  hoy nadie sabe exactamente qué hace sin ir a leerlo de la base.
 
 ## 🚫 Descartado
 

@@ -59,6 +59,8 @@ export interface Profile {
   legal_version: string | null;
   /** Cuándo pidió borrar su cuenta. Null = no la ha pedido. */
   deletion_requested_at: string | null;
+  /** Cuándo terminó (o saltó) el arranque guiado. Null = nunca lo ha visto. */
+  onboarded_at: string | null;
   /** Alta de la cuenta: base del contador de los 60 días de promoción. */
   created_at: string;
 }
