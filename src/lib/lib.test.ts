@@ -16,6 +16,7 @@ import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./ale
 import { findByName } from "./names";
 import { consultasRestantes, textoAiUso } from "./aiUso";
 import { BodySchema } from "../../netlify/lib/chatSchema";
+import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../../netlify/lib/zona";
 import type { Account, Budget, Credit, Transaction } from "../types";
 
 // localStorage mínimo: las pruebas corren en Node y solo lo usa lib/alerts.
@@ -745,5 +746,39 @@ describe("esquema del chat", () => {
     expect(body([{ type: "tool_result", tool_use_id: "t", content: "x".repeat(4001) }]).success).toBe(false);
     expect(body("").success).toBe(false);
     expect(body([]).success).toBe(false);
+  });
+});
+
+// ── El asesor vive en la zona de la persona ─────────────────────────────────
+// La función corre en UTC. A las 02:00Z del 1 de septiembre, en Mazatlán
+// todavía es 31 de agosto a las 7 de la tarde: el asesor decía "hoy es 1 de
+// septiembre, llevas gastado $0" a alguien que estaba cerrando agosto.
+describe("hoy en la zona de la persona", () => {
+  const nocheDeFinDeMes = new Date("2026-09-01T02:00:00Z");
+
+  it("a las 02:00Z del día 1, en Mazatlán sigue siendo 31 de agosto", () => {
+    const hoy = hoyEnZona("America/Mazatlan", nocheDeFinDeMes);
+    expect(hoy).toEqual({ iso: "2026-08-31", y: 2026, m: 8, d: 31, diasMes: 31 });
+  });
+
+  it("en UTC sí es 1 de septiembre, y el mes tiene 30 días", () => {
+    expect(hoyEnZona("UTC", nocheDeFinDeMes)).toEqual({ iso: "2026-09-01", y: 2026, m: 9, d: 1, diasMes: 30 });
+  });
+
+  it("un movimiento de las 23:00 locales del 31 pertenece a agosto, no a septiembre", () => {
+    const hoy = hoyEnZona("America/Mazatlan", nocheDeFinDeMes);
+    // 23:00 en Mazatlán (UTC-7) = 06:00Z del día siguiente
+    expect(mismoMesEnZona("2026-09-01T06:00:00Z", hoy, "America/Mazatlan")).toBe(true);
+    expect(mismoMesEnZona("2026-09-01T08:00:00Z", hoy, "America/Mazatlan")).toBe(false);
+  });
+
+  it("una zona inválida o vacía cae a Mazatlán en vez de tirar al asesor", () => {
+    expect(hoyEnZona("Marte/Olympus", nocheDeFinDeMes).iso).toBe("2026-08-31");
+    expect(hoyEnZona(null, nocheDeFinDeMes).iso).toBe("2026-08-31");
+  });
+
+  it("la cota para consultar el mes es un día antes del primero, en UTC", () => {
+    const hoy = hoyEnZona("America/Mazatlan", new Date("2026-09-15T12:00:00Z"));
+    expect(desdeMesHolgado(hoy)).toBe("2026-08-31T00:00:00.000Z");
   });
 });

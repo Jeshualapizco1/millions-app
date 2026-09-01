@@ -7,6 +7,7 @@
 import type { Handler } from "@netlify/functions";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { BodySchema } from "../lib/chatSchema";
+import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../lib/zona";
 import type { Database } from "../../src/lib/database.types";
 import { contextoParaAsesor } from "../../src/lib/onboarding";
 
@@ -180,13 +181,28 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
 
   if (intent === "capture") return CAPTURE_PROMPT(accList, catList);
 
-  const [{ data: txs }, { data: credits }, { data: budgets }, { data: goals }, { data: fijos }, { data: survey }] = await Promise.all([
+  // "Hoy" y "este mes" son los de la persona, no los del servidor (UTC):
+  // desde las 17:00 del último día, en Mazatlán, el asesor creía que ya era
+  // el mes siguiente y comparaba contra un mes vacío.
+  const { data: perfil } = await getAdmin().from("profiles").select("timezone").eq("id", userId).maybeSingle();
+  const tz = perfil?.timezone || "America/Mazatlan";
+  const hoy = hoyEnZona(tz);
+
+  const [{ data: txs }, { data: txsMes }, { data: credits }, { data: budgets }, { data: goals }, { data: fijos }, { data: survey }] = await Promise.all([
     getAdmin()
       .from("transactions")
-      .select("kind,amount,description,date,category:categories(name)")
+      .select("kind,amount,description,date")
       .eq("user_id", userId)
       .order("date", { ascending: false })
-      .limit(60),
+      .limit(15),
+    // El mes completo, no "los últimos 60": con 60 movimientos al mes, los
+    // presupuestos y el ritmo se calculaban sobre una fracción.
+    getAdmin()
+      .from("transactions")
+      .select("kind,amount,date,category:categories(name)")
+      .eq("user_id", userId)
+      .gte("date", desdeMesHolgado(hoy))
+      .limit(5000),
     getAdmin().from("credits").select("name,total_debt").eq("user_id", userId).is("archived_at", null),
     getAdmin().from("budgets").select("amount,category:categories(name)").eq("user_id", userId).eq("period", "mensual"),
     getAdmin().from("goals").select("name,target_amount,current_amount,target_date").eq("user_id", userId),
@@ -196,12 +212,7 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
     getAdmin().from("user_survey").select("goal,pains,current_tool,dream").eq("user_id", userId).maybeSingle(),
   ]);
 
-  const now = new Date();
-  const isThisMonth = (d: string) => {
-    const t = new Date(d);
-    return t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth();
-  };
-  const monthTxs = (txs ?? []).filter((t) => isThisMonth(t.date));
+  const monthTxs = (txsMes ?? []).filter((t) => mismoMesEnZona(t.date, hoy, tz));
   const monthG = monthTxs.filter((t) => t.kind === "gasto").reduce((s, t) => s + Number(t.amount), 0);
   const monthI = monthTxs.filter((t) => t.kind === "ingreso").reduce((s, t) => s + Number(t.amount), 0);
   const catMap: Record<string, number> = {};
@@ -228,13 +239,12 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
   const activos = (accounts ?? []).reduce((s, a) => s + Number(a.balance), 0);
   const deuda = (credits ?? []).reduce((s, c) => s + Number(c.total_debt), 0);
 
-  const diaHoy = now.getDate();
-  const diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const diaHoy = hoy.d;
+  const diasMes = hoy.diasMes;
   const ritmo = diaHoy > 0 ? monthG / diaHoy : 0;
-  const fijosPendientes = (fijos ?? []).filter((f) => {
-    const d = new Date(`${f.next_run}T12:00:00`);
-    return d >= now && d.getMonth() === now.getMonth();
-  });
+  // next_run es un DATE ("2026-09-15"): se compara como texto contra el hoy
+  // de la persona, sin pasar por new Date y su zona.
+  const fijosPendientes = (fijos ?? []).filter((f) => f.next_run >= hoy.iso && f.next_run.slice(0, 7) === hoy.iso.slice(0, 7));
   const fijoGastoPend = fijosPendientes.filter((f) => f.kind === "gasto").reduce((s, f) => s + Number(f.amount), 0);
   const cierre = monthG + ritmo * (diasMes - diaHoy) + fijoGastoPend;
 
@@ -265,7 +275,7 @@ Puedes proponer acciones con las herramientas disponibles. Reglas:
 - Al proponerla no digas que ya quedó hecha: falta que la persona confirme en pantalla.
 - Cuando recibas el resultado de una herramienta, la acción YA se ejecutó. Confírmalo en pasado ("listo, ya moví...") y no vuelvas a pedir confirmación.
 
-DATOS (mes en curso salvo que se indique). Hoy es ${now.toISOString().slice(0, 10)}, día ${diaHoy} de ${diasMes}.
+DATOS (mes en curso salvo que se indique). Hoy es ${hoy.iso}, día ${diaHoy} de ${diasMes}.
 PATRIMONIO NETO: ${fmt(activos - deuda)} (${fmt(activos)} en cuentas − ${fmt(deuda)} de deuda)
 Cuentas: ${accList || "Sin cuentas"}
 Este mes — Ingresos: ${fmt(monthI)} | Gastos: ${fmt(monthG)}

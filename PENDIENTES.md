@@ -20,17 +20,6 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-- [ ] **B2 El asesor calcula el mes sobre 60 movimientos y vive en UTC.**
-      `chat.ts:186-192` `limit(60)` alimenta `monthG`, `catMap`, `ritmo`,
-      `cierre`; `:202-206, 234-242, 271` usan la hora del servidor. Después de
-      las 17:00 del último día cree que ya es el mes siguiente. *Fix:* consulta
-      del mes filtrada por fecha; y/m/d con
-      `Intl.DateTimeFormat('en-CA', { timeZone: profile.timezone })`.
-- [ ] **B3 Recurrentes e importaciones caen en el mes anterior.**
-      `supabase/migrations/0005_recurring.sql:55` y `0008_import_transactions.sql:44`
-      castean `date::timestamptz` en sesión UTC: la renta del día 1 queda el 31
-      a las 17:00 local. *Fix:* `(v_next::timestamp at time zone p.timezone)`
-      leyendo `profiles.timezone`.
 - [ ] **B4 Revertir un sobrepago infla la deuda.** `0003_rpc.sql:105` recorta
       con `greatest(..., 0)` pero `:175` suma el monto completo. *Fix:* rechazar
       `p_amount > total_debt` en `pay_credit`, o guardar el delta real.
@@ -53,8 +42,6 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
       `on conflict (id) do nothing` sin tocar el saldo cuando no insertó.
 - [ ] **B9 El asesor apaga el arrastre de un presupuesto.** `src/lib/api.ts:344`
       upsert con `rollover: p.rollover ?? false`; `actions.ts:95` nunca lo manda.
-- [ ] **B10 `run_recurring_rules` sin aislamiento.** `0005:48-63`: una excepción
-      en una regla aborta el job para todos; sin `for update skip locked`.
 - [ ] **B11 Inyección de prompt con datos propios.** `chat.ts:255-283` interpola
       nombres y `dream` (2000 chars) sin delimitar. *Fix:* bloque `<datos>` con
       instrucción de tratarlo como datos; recortar `dream` a 300.
