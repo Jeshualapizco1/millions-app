@@ -16,11 +16,6 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
 ## A. Críticos — antes de abrir el registro a nadie
 
-- [ ] **A6 El cliente puede mandar bloques `document` / `image` por URL.**
-      `chat.ts:62-65` acepta `z.record(z.string(), z.unknown())`. El límite de
-      64 KB no aplica porque Anthropic descarga el recurso. *Fix:* esquema
-      discriminado por `type`: `text`, `tool_use`, `tool_result` (content string
-      ≤ 4000); rechazar `image`, `document`, `source`.
 - [ ] **A7 ✔ Ledger de migraciones.** La `0014` está aplicada y no registrada;
       en producción conviven dos firmas de `apply_transaction` (8 y 9 params);
       la `0006_recurring_service_grant` existe en la base y no en el repo.

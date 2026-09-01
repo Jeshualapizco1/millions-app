@@ -6,7 +6,7 @@
 // ============================================================================
 import type { Handler } from "@netlify/functions";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { z } from "zod";
+import { BodySchema } from "../lib/chatSchema";
 import type { Database } from "../../src/lib/database.types";
 import { contextoParaAsesor } from "../../src/lib/onboarding";
 
@@ -66,22 +66,9 @@ const getAdmin = (): SupabaseClient<Database> => {
   return _admin;
 };
 
-// El contenido puede ser texto plano o los bloques crudos de Anthropic: al
-// confirmar una acción, el cliente devuelve el turno del asistente tal cual
-// (incluidos los bloques de razonamiento) más el resultado de la herramienta.
-const ContentSchema = z.union([
-  z.string().min(1).max(4000),
-  z.array(z.record(z.string(), z.unknown())).min(1).max(20),
-]);
-
-const BodySchema = z.object({
-  intent: z.enum(["capture", "advise"]),
-  messages: z
-    .array(z.object({ role: z.enum(["user", "assistant"]), content: ContentSchema }))
-    .min(1)
-    .max(24),
-});
-
+// Esquema del body en netlify/lib/chatSchema.ts: bloques discriminados por
+// tipo, sin `image` ni `document` (Anthropic descargaria el recurso a
+// nuestro costo). Vive aparte para poder probarse sin Supabase.
 /**
  * Lo que el asesor puede proponer. Recibe NOMBRES, no ids: el modelo solo ve
  * nombres en su contexto y así no puede inventarse un UUID. El cliente los

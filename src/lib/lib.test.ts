@@ -15,6 +15,7 @@ import { fromBase, hasForeign, SELECTOR_DE_MONEDA_ACTIVO, toBase } from "./curre
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./alerts";
 import { findByName } from "./names";
 import { consultasRestantes, textoAiUso } from "./aiUso";
+import { BodySchema } from "../../netlify/lib/chatSchema";
 import type { Account, Budget, Credit, Transaction } from "../types";
 
 // localStorage mínimo: las pruebas corren en Node y solo lo usa lib/alerts.
@@ -705,5 +706,44 @@ describe("consultas de IA restantes", () => {
     expect(textoAiUso({ hoy: 15, tope: 15 })).toEqual({ texto: "Se acabaron las consultas de hoy. Mañana se renuevan.", agotado: true });
     expect(textoAiUso({ hoy: 14, tope: 15 })).toEqual({ texto: "Te queda 1 consulta de IA hoy, de 15.", agotado: false });
     expect(textoAiUso({ hoy: 3, tope: 15 })).toEqual({ texto: "Te quedan 12 consultas de IA hoy, de 15.", agotado: false });
+  });
+});
+
+// ── Lo que la función de IA acepta del cliente ──────────────────────────────
+// Un bloque image/document con source.url hace que Anthropic descargue el
+// recurso: el límite de 64 KB del body no lo cubría. Esto amarra que solo
+// pasen los bloques que el flujo usa y que lo demás se rechace o se descarte.
+describe("esquema del chat", () => {
+  const body = (content: unknown, role: "user" | "assistant" = "user") =>
+    BodySchema.safeParse({ intent: "advise", messages: [{ role, content }] });
+
+  it("acepta texto plano y el ciclo de acción completo", () => {
+    expect(body("¿cómo voy?").success).toBe(true);
+    const turno = [
+      { type: "thinking", thinking: "…", signature: "abc" },
+      { type: "text", text: "Te propongo transferir" },
+      { type: "tool_use", id: "toolu_1", name: "transferir", input: { desde: "A", hacia: "B", monto: 100 } },
+    ];
+    expect(body(turno, "assistant").success).toBe(true);
+    expect(body([{ type: "tool_result", tool_use_id: "toolu_1", content: "Hecho", is_error: false }]).success).toBe(true);
+  });
+
+  it("rechaza image y document, aunque vengan disfrazados entre bloques válidos", () => {
+    expect(body([{ type: "image", source: { type: "url", url: "https://x/y.png" } }]).success).toBe(false);
+    expect(body([{ type: "text", text: "hola" }, { type: "document", source: { type: "url", url: "https://x/y.pdf" } }]).success).toBe(false);
+    expect(body([{ type: "otro", data: "x" }]).success).toBe(false);
+  });
+
+  it("descarta las llaves que no son del bloque, como un source colado en un texto", () => {
+    const r = body([{ type: "text", text: "hola", source: { type: "url", url: "https://x" } }]);
+    expect(r.success).toBe(true);
+    const bloque = (r.data!.messages[0].content as any[])[0];
+    expect(bloque).toEqual({ type: "text", text: "hola" });
+  });
+
+  it("acota el tamaño: tool_result de más de 4000 caracteres no pasa", () => {
+    expect(body([{ type: "tool_result", tool_use_id: "t", content: "x".repeat(4001) }]).success).toBe(false);
+    expect(body("").success).toBe(false);
+    expect(body([]).success).toBe(false);
   });
 });
