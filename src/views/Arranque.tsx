@@ -85,7 +85,13 @@ export default function Arranque({
 
   const saltar = async () => {
     setGuardando(true);
-    try { await onSkip(); } catch { setGuardando(false); }
+    setError(null);
+    try {
+      await onSkip();
+    } catch (e: any) {
+      setError(e?.message || "No se pudo continuar. Inténtalo de nuevo.");
+      setGuardando(false);
+    }
   };
 
   const titulo = ["", "¿Qué cuentas tienes?", "¿Cuánto entra al mes?", "¿Cuánto quieres gastar?"][paso];

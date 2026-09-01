@@ -20,12 +20,6 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-- [ ] **B7 Arranque guiado.** Cerrar la app en la pantalla de confeti reinicia
-      las 5 preguntas (`App.tsx:163`, `faseArranque` es estado local);
-      `terminarArranque` (`App.tsx:187-222`) duplica la regla "Nómina" al
-      reintentar; `Onboarding.tsx:113` `onExplorar` y `Arranque.tsx:88` tragan
-      el error. *Fix:* iniciar en `"configurar"` si `user_survey.completed`;
-      buscar la regla por nombre+cuenta antes de crear; errores visibles.
 - [ ] **B8 `import_transactions` no es idempotente.** `0008:8-55`: un reintento
       duplica hasta 2000 filas y su saldo. *Fix:* `id` opcional por fila con
       `on conflict (id) do nothing` sin tocar el saldo cuando no insertó.

@@ -162,7 +162,19 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // profiles.onboarded_at marca el final del recorrido entero, no el de las
   // preguntas: si se marcara al contestarlas, quien cerrara la app en la
   // pantalla de cierre nunca veria la parte de configurar.
-  const [faseArranque, setFaseArranque] = useState<"preguntas" | "configurar">("preguntas");
+  //
+  // Arranca en "cargando" hasta saber si ya contestó las preguntas: si cerró
+  // la app en la pantalla de cierre, se retoma en configurar y no se le
+  // vuelven a hacer las cinco preguntas.
+  const [faseArranque, setFaseArranque] = useState<"cargando" | "preguntas" | "configurar">("cargando");
+  useEffect(() => {
+    if (!profile || profile.onboarded_at) return;
+    let vivo = true;
+    api.surveyDone()
+      .then((hecha) => { if (vivo) setFaseArranque(hecha ? "configurar" : "preguntas"); })
+      .catch(() => { if (vivo) setFaseArranque("preguntas"); });
+    return () => { vivo = false; };
+  }, [profile?.id, profile?.onboarded_at]);
 
   const guardarRespuestas = async (r: Respuestas) => {
     await api.saveOnboarding(r, true);
@@ -197,9 +209,12 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
     if (r.ingreso) {
       const cuenta = cuentas.find((a) => a.name.trim().toLowerCase() === r.ingreso!.cuenta.trim().toLowerCase());
+      // Si ya existe una regla con ese nombre en esa cuenta, es un reintento:
+      // no se crea una segunda "Nómina".
+      const yaHay = cuenta && recurring.some((x) => x.accountId === cuenta.id && x.name.trim().toLowerCase() === r.ingreso!.name.trim().toLowerCase());
       // Sin cuenta no hay regla, pero tampoco se aborta el arranque: perder el
       // techo y las cuentas por un ingreso mal atado sería peor.
-      if (cuenta) {
+      if (cuenta && !yaHay) {
         await api.upsertRecurring({
           name: r.ingreso.name,
           kind: "ingreso",
@@ -822,6 +837,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // Va después del portón legal a propósito: primero se acepta el aviso, y
   // solo entonces tiene sentido pedirle datos a alguien. Y después del muro de
   // pago: no tiene caso configurar una app que no se va a poder usar.
+  if (profile && !profile.onboarded_at && faseArranque === "cargando") return (
+    <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg }}>
+      <div style={{ width: 28, height: 28, border: `3px solid ${C.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+    </div>
+  );
   if (profile && !profile.onboarded_at) return faseArranque === "preguntas" ? (
     <Onboarding
       nombre={userName}

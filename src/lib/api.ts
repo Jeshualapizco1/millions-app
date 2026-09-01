@@ -512,6 +512,17 @@ export const api = {
    * `completed: false` es quien tocó "Ahora no": queda constancia de que ya lo
    * vio, pero sus respuestas vacías no deben contar en las estadísticas.
    */
+  /**
+   * ¿Ya contestó (o saltó) las preguntas del arranque? Sirve para retomar en
+   * la parte de configurar si cerró la app en la pantalla de cierre, en vez
+   * de volver a hacerle las cinco preguntas.
+   */
+  async surveyDone(): Promise<boolean> {
+    const { data, error } = await sbClient.from("user_survey").select("completed").eq("user_id", await uid()).maybeSingle();
+    if (error) fail(error);
+    return !!data;
+  },
+
   async saveOnboarding(r: Respuestas, completed = true): Promise<string> {
     const { data, error } = await sbClient.rpc("save_onboarding", {
       p_goal: r.goal ?? undefined,

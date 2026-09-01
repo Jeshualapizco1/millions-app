@@ -34,7 +34,7 @@ export default function Onboarding({
   /** "Configurar mis cuentas": pasa al arranque de configuracion. */
   onConfigurar: () => void;
   /** "Prefiero explorar": cierra sin configurar. Las respuestas ya se guardaron. */
-  onExplorar: () => void;
+  onExplorar: () => Promise<void>;
 }) {
   const [paso, setPaso] = useState(0);
   const [r, setR] = useState<Respuestas>(RESPUESTAS_VACIAS);
@@ -76,6 +76,18 @@ export default function Onboarding({
     }
   };
 
+  /** "Prefiero explorar primero": si falla, se ve, no se traga. */
+  const explorar = async () => {
+    setGuardando(true);
+    setError("");
+    try {
+      await onExplorar();
+    } catch (e: any) {
+      setError(e?.message || "No se pudo continuar. Inténtalo de nuevo.");
+      setGuardando(false);
+    }
+  };
+
   // ── Pantalla de cierre ────────────────────────────────────────────────────
   if (cierre) {
     const b = bienvenida(nombre, r);
@@ -110,11 +122,13 @@ export default function Onboarding({
           Configurar mis cuentas
         </button>
         <button
-          onClick={onExplorar}
-          style={{ width: "100%", background: "none", border: "none", color: C.muted, fontSize: 13, padding: 14, cursor: "pointer" }}
+          onClick={explorar}
+          disabled={guardando}
+          style={{ width: "100%", background: "none", border: "none", color: C.muted, fontSize: 13, padding: 14, cursor: "pointer", opacity: guardando ? 0.6 : 1 }}
         >
           Prefiero explorar primero
         </button>
+        {error && <div style={{ fontSize: 13, color: C.red, fontWeight: 600, textAlign: "center", marginTop: 4 }}>{error}</div>}
       </Marco>
     );
   }
