@@ -812,7 +812,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setAccs(a); setTxs(t); setCredits(cr); setBudgets(b); setGoals(g);
   };
 
-  const { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso } =
+  const { txLoading, sendTx, draft, accDraft, draftError, updateDraft, confirmDraft, discardDraft, updateAccDraft, confirmAccDraft, discardAccDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso } =
     useAI({ applyTx, applyNewAcc, setTxInput, setLive, categoryNames: () => categories.filter((c) => !c.hidden).map((c) => c.name), actionContext, onActionDone: reloadAfterAction, onActionDoneError: (e) => oops(e, "Se hizo, pero no pude refrescar tus datos. Recarga la app.") });
 
   const { mic, voiceOK, startMic, stopMic } = useVoice({
@@ -1134,6 +1134,10 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         updateDraft={updateDraft}
         onConfirmDraft={async () => { if (await confirmDraft()) setFab(false); }}
         onDiscardDraft={() => { discardDraft(); setFab(false); }}
+        accDraft={accDraft}
+        updateAccDraft={updateAccDraft}
+        onConfirmAccDraft={async () => { if (await confirmAccDraft()) setFab(false); }}
+        onDiscardAccDraft={() => { discardAccDraft(); setFab(false); }}
         aiUso={aiUso}
       />
 

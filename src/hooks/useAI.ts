@@ -31,6 +31,17 @@ export interface ParsedNewAcc {
   currency?: string;
 }
 
+/**
+ * Una cuenta dictada, todavía sin crear. El saldo va como texto porque es un
+ * campo editable: convertirlo a número en cada tecla impide escribir "1.".
+ */
+export interface AccDraft {
+  accountName: string;
+  balance: string;
+  icon: string;
+  dicho: string;
+}
+
 const AI_GREETING =
   "¡Hola! Soy tu asesor financiero 🤖\n\nAnalizo tus cuentas, gastos, ingresos, créditos, presupuestos y metas — y puedo hacer cosas por ti.\n\nEjemplos:\n• ¿Cómo voy con mis presupuestos?\n• Transfiere 2000 de Efectivo a BanRegio\n• Pon un presupuesto de 8 mil en Alimentación\n• Dame un análisis completo";
 
@@ -76,6 +87,7 @@ export function useAI({
   const [txLoading, setTxLoading] = useState(false);
   const [txHistory, setTxHistory] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState<TxDraft | null>(null);
+  const [accDraft, setAccDraft] = useState<AccDraft | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
 
   const [aiMsgs, setAiMsgs] = useState<AiMsg[]>([{ role: "assistant", text: AI_GREETING }]);
@@ -140,7 +152,13 @@ export function useAI({
         return;
       }
       if (p.action === "nueva_cuenta" && p.accountName) {
-        await applyNewAcc({ accountName: p.accountName, balance: p.balance, icon: p.icon });
+        // Igual que un movimiento: se propone y la persona confirma. El saldo
+        // inicial entra al patrimonio neto, y ahí un número mal entendido no
+        // se nota hasta mucho después.
+        setAccDraft({ accountName: String(p.accountName), balance: String(p.balance ?? 0), icon: String(p.icon ?? "🏦"), dicho: text });
+        setDraftError(null);
+        setLive("");
+        return;
       }
       setTxHistory([...newHist, { role: "assistant" as const, content: reply }].slice(-CAPTURE_TURNS));
       setLive("✅ " + reply);
@@ -180,6 +198,42 @@ export function useAI({
     } finally {
       setTxLoading(false);
     }
+  };
+
+  const updateAccDraft = (patch: Partial<AccDraft>) => {
+    setAccDraft((d) => (d ? { ...d, ...patch } : d));
+    setDraftError(null);
+  };
+
+  /** Aquí, y solo aquí, la cuenta se crea. Devuelve si quedó guardada. */
+  const confirmAccDraft = async (): Promise<boolean> => {
+    if (!accDraft || txLoading) return false;
+    const nombre = accDraft.accountName.trim();
+    if (!nombre) { setDraftError("Ponle un nombre a la cuenta"); return false; }
+    const saldo = Number(accDraft.balance);
+    if (!Number.isFinite(saldo)) { setDraftError("El saldo tiene que ser un número"); return false; }
+    setTxLoading(true);
+    try {
+      await applyNewAcc({ accountName: nombre, balance: saldo, icon: accDraft.icon });
+      setTxHistory((h) => [...h, { role: "assistant" as const, content: `Cuenta creada: ${nombre} con ${saldo}.` }].slice(-CAPTURE_TURNS));
+      setAccDraft(null);
+      setDraftError(null);
+      setLive("✅ Cuenta creada");
+      setTimeout(() => setLive(""), 2500);
+      return true;
+    } catch (e: any) {
+      setDraftError(e?.message || "No se pudo crear la cuenta");
+      return false;
+    } finally {
+      setTxLoading(false);
+    }
+  };
+
+  const discardAccDraft = () => {
+    setAccDraft(null);
+    setDraftError(null);
+    setLive("");
+    setTxHistory((h) => [...h, { role: "assistant" as const, content: "La persona descartó esa cuenta; no se creó." }].slice(-CAPTURE_TURNS));
   };
 
   const discardDraft = () => {
@@ -279,5 +333,5 @@ export function useAI({
     ]);
   };
 
-  return { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso };
+  return { txLoading, sendTx, draft, accDraft, draftError, updateDraft, confirmDraft, discardDraft, updateAccDraft, confirmAccDraft, discardAccDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso };
 }

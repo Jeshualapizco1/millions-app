@@ -190,13 +190,34 @@ export const api = {
   },
 
   // ── Transacciones (siempre vía RPC atómica) ───────────────────────────────
+  /**
+   * Todo el historial, en páginas.
+   *
+   * PostgREST corta la respuesta en su tope de filas (1000 por omisión en
+   * Supabase) SIN avisar: con un historial largo, la app se quedaba con un
+   * pedazo y los totales, la dona y la gráfica de 6 meses salían mal sin que
+   * nada fallara. Se pide por rangos hasta que una página venga incompleta.
+   *
+   * Sigue trayendo todo: los períodos, el patrimonio y las gráficas necesitan
+   * el historial completo. Cargar solo lo reciente exige mover esos cálculos
+   * al servidor, y eso es trabajo aparte.
+   */
   async getTxs(): Promise<Transaction[]> {
-    const { data, error } = await sbClient
-      .from("transactions")
-      .select(TX_SELECT)
-      .order("date", { ascending: false });
-    if (error) fail(error);
-    return (data as unknown as RawTx[]).map(normTx);
+    const PAGINA = 1000;
+    const todas: RawTx[] = [];
+    for (let desde = 0; ; desde += PAGINA) {
+      const { data, error } = await sbClient
+        .from("transactions")
+        .select(TX_SELECT)
+        .order("date", { ascending: false })
+        .order("id", { ascending: false }) // desempate estable entre páginas
+        .range(desde, desde + PAGINA - 1);
+      if (error) fail(error);
+      const filas = (data ?? []) as unknown as RawTx[];
+      todas.push(...filas);
+      if (filas.length < PAGINA) break;
+    }
+    return todas.map(normTx);
   },
   async applyTx(p: {
     accountId: string;

@@ -1,6 +1,7 @@
 import { C, S } from "../lib/constants";
 import TxDraftChips from "./TxDraftChips";
-import type { TxDraft } from "../hooks/useAI";
+import AccDraftChips from "./AccDraftChips";
+import type { AccDraft, TxDraft } from "../hooks/useAI";
 import { textoAiUso, type AiUso } from "../lib/aiUso";
 import type { Account } from "../types";
 
@@ -26,6 +27,10 @@ export default function Fab({
   updateDraft,
   onConfirmDraft,
   onDiscardDraft,
+  accDraft,
+  updateAccDraft,
+  onConfirmAccDraft,
+  onDiscardAccDraft,
   aiUso,
 }: {
   fab: boolean;
@@ -49,6 +54,11 @@ export default function Fab({
   updateDraft: (patch: Partial<TxDraft>) => void;
   onConfirmDraft: () => void;
   onDiscardDraft: () => void;
+  /** Una cuenta dictada esperando confirmación. Manda igual que el borrador de movimiento. */
+  accDraft: AccDraft | null;
+  updateAccDraft: (patch: Partial<AccDraft>) => void;
+  onConfirmAccDraft: () => void;
+  onDiscardAccDraft: () => void;
   /** Consumo de IA del día; null mientras no se sepa. */
   aiUso: AiUso | null;
 }) {
@@ -62,11 +72,20 @@ export default function Fab({
       {fab && (
         // Con un borrador en pantalla, tocar el fondo NO cierra: se perdería
         // lo capturado sin que nadie lo decidiera. Hay que guardar o descartar.
-        <div style={{ position: "fixed", inset: 0, background: "#000b", zIndex: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end", animation: "fadeIn 0.15s ease" }} onClick={() => { if (draft) return; stopMic(); onClose(); }}>
+        <div style={{ position: "fixed", inset: 0, background: "#000b", zIndex: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end", animation: "fadeIn 0.15s ease" }} onClick={() => { if (draft || accDraft) return; stopMic(); onClose(); }}>
           <div style={{ background: C.card, borderRadius: "24px 24px 0 0", padding: "20px", paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 20px)", animation: "slideUp 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ width: 36, height: 4, background: C.border, borderRadius: 2, margin: "0 auto 20px" }} />
 
-            {draft ? (
+            {accDraft ? (
+              <AccDraftChips
+                draft={accDraft}
+                error={draftError}
+                busy={txLoading}
+                update={updateAccDraft}
+                onConfirm={onConfirmAccDraft}
+                onDiscard={onDiscardAccDraft}
+              />
+            ) : draft ? (
               <TxDraftChips
                 draft={draft}
                 error={draftError}

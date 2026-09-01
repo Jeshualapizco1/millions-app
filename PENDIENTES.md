@@ -28,8 +28,11 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## D. Mejoras de funcionamiento
 
-- [ ] D8 `nueva_cuenta` por voz guarda directo, sin borrador.
-- [ ] D9 Paginación real de `getTxs()`: hoy trae todo el historial en el boot.
+- [ ] **D9 Carga perezosa del historial.** `getTxs()` ya no se trunca en
+      silencio (pagina por rangos), pero sigue trayendo todo en el arranque.
+      Cargar solo lo reciente exige mover al servidor lo que hoy se calcula
+      con el historial completo: períodos, patrimonio, gráfica de 6 meses y
+      dona. Vale la pena cuando alguien tenga miles de movimientos.
 
 ## E. Mejoras visuales
 
