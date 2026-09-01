@@ -24,9 +24,8 @@ Cerrados B1–B14 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## C. Bugs bajos
 
-- [ ] C10 `ai_usage` con `on delete cascade`: purgar cuentas borra su gasto del
-      mes y el freno global subestima. `on delete set null`.
-- [ ] C12 `chat.ts:214` suma saldos sin convertir moneda (ya anotado en TODO).
+Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
+
 ## D. Mejoras de funcionamiento
 
 - [ ] **D1 Refresco al volver a la app.** `useFinanceData` carga una vez y nunca

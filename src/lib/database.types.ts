@@ -62,7 +62,8 @@ export type Database = {
           model: string | null
           tokens_in: number
           tokens_out: number
-          user_id: string
+          /** Null = la cuenta se borró; la fila sobrevive para el presupuesto. */
+          user_id: string | null
         }
         Insert: {
           cost_usd?: number

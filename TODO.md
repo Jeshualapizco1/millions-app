@@ -84,11 +84,12 @@ quitar minas antes de que entren desconocidos.
       (`src/lib/periods.ts:50-52`) no convierten, así que una sola cuenta en
       dólares corrompía en silencio gastos, ingresos, la dona, la gráfica de 6
       meses, **los presupuestos** y **la proyección de cierre**.
-- [ ] **Bug sin registrar hasta hoy:** `netlify/functions/chat.ts:214` suma
-      saldos **sin convertir** (`accounts.reduce((s, a) => s + Number(a.balance), 0)`).
-      El cliente sí convierte; el asesor no. Con una cuenta en dólares, la IA
-      afirma un patrimonio neto equivocado y lo afirma con seguridad. Se cierra
-      con el arreglo de fondo de multi-moneda.
+- [x] **El asesor ya convierte los saldos** (1 de septiembre). Sumaba
+      `Number(a.balance)` a secas, así que con una cuenta en dólares afirmaba
+      un patrimonio neto equivocado y lo afirmaba con seguridad. Ahora usa el
+      mismo `toBase` que el cliente y le dice al modelo cuál era el monto
+      original. **No cierra el multi-moneda de fondo:** las transacciones
+      siguen sin guardar su moneda, y por eso el selector sigue apagado.
 
 ## Captura — borrador editable ✅ HECHO (1 de septiembre)
 

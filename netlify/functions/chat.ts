@@ -10,6 +10,7 @@ import { BodySchema } from "../lib/chatSchema";
 import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../lib/zona";
 import type { Database } from "../../src/lib/database.types";
 import { contextoParaAsesor } from "../../src/lib/onboarding";
+import { toBase, type FxRates } from "../../src/lib/currency";
 
 /**
  * Un modelo por tarea, no el más caro para todo.
@@ -167,16 +168,28 @@ Duda: {"action":"ninguna","reply":"Aclaración"}`;
 async function buildContext(intent: "capture" | "advise", userId: string): Promise<string> {
   const { data: accounts } = await getAdmin()
     .from("accounts")
-    .select("id,name,balance")
+    .select("id,name,balance,currency")
     .eq("user_id", userId)
     .is("archived_at", null);
+  // Los saldos se convierten a pesos con la misma función que usa el cliente.
+  // Sin esto, una cuenta en dólares entraba al patrimonio como si sus unidades
+  // fueran pesos y el asesor afirmaba una cifra equivocada con seguridad.
+  const { data: tasas } = await getAdmin().from("fx_rates").select("quote,rate").eq("base", "MXN");
+  const fx: FxRates = Object.fromEntries((tasas ?? []).map((r) => [r.quote, Number(r.rate)]));
+  const enPesos = (a: { balance: number | string; currency?: string | null }) =>
+    toBase(Number(a.balance), a.currency ?? "MXN", fx);
   const { data: categories } = await getAdmin()
     .from("categories")
     .select("name")
     .eq("user_id", userId)
     .eq("hidden", false)
     .order("sort_order");
-  const accList = (accounts ?? []).map((a) => `${a.name}: ${fmt(a.balance)}`).join(", ");
+  const accList = (accounts ?? [])
+    .map((a) => {
+      const otra = a.currency && a.currency !== "MXN";
+      return `${a.name}: ${fmt(enPesos(a))}${otra ? ` (son ${Number(a.balance).toFixed(2)} ${a.currency}, ya convertidos)` : ""}`;
+    })
+    .join(", ");
   const catList = (categories ?? []).map((c) => c.name).join(", ");
 
   if (intent === "capture") return CAPTURE_PROMPT(accList, catList);
@@ -236,7 +249,7 @@ async function buildContext(intent: "capture" | "advise", userId: string): Promi
     })
     .join("\n");
 
-  const activos = (accounts ?? []).reduce((s, a) => s + Number(a.balance), 0);
+  const activos = (accounts ?? []).reduce((s, a) => s + enPesos(a), 0);
   const deuda = (credits ?? []).reduce((s, c) => s + Number(c.total_debt), 0);
 
   const diaHoy = hoy.d;
