@@ -72,6 +72,26 @@ export const marcarIntento = async (p: PendingTx): Promise<"reintentar" | "desca
 export const soportaCola = () => typeof indexedDB !== "undefined";
 
 /**
+ * ¿El fallo fue de sesión (JWT vencido, reloj desfasado, sin login)? No es
+ * culpa del movimiento: se deja en la cola sin gastarle un intento. Antes
+ * un JWT expirado al volver a la app consumía los 5 intentos en segundos y
+ * descartaba un gasto real.
+ */
+export const esFalloDeSesion = (e: unknown): boolean => {
+  const msg = String((e as Error)?.message ?? e).toLowerCase();
+  return (
+    msg.includes("jwt") ||
+    msg.includes("sesión expirada") ||
+    msg.includes("sesion expirada") ||
+    msg.includes("no autenticado") ||
+    msg.includes("not authenticated") ||
+    msg.includes("refresh token") ||
+    msg.includes("invalid claim") ||
+    msg.includes("401")
+  );
+};
+
+/**
  * ¿El fallo fue por falta de red? Solo eso se encola. Un rechazo del servidor
  * (monto inválido, cuenta ajena) no mejora reintentándolo: se reporta.
  */

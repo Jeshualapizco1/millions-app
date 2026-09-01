@@ -20,11 +20,6 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-- [ ] **B6 Cola offline.** `src/hooks/useOfflineQueue.ts:73-87`: listeners con
-      el `flush` del primer render, dos vaciados concurrentes al volver a la app;
-      `:52-59` + `lib/offlineQueue.ts:78-88`: un JWT expirado o el desfase de
-      reloj consumen los 5 intentos y se descarta un gasto real. *Fix:* lock en
-      `useRef`; errores de auth/JWT no incrementan `attempts`.
 - [ ] **B7 Arranque guiado.** Cerrar la app en la pantalla de confeti reinicia
       las 5 preguntas (`App.tsx:163`, `faseArranque` es estado local);
       `terminarArranque` (`App.tsx:187-222`) duplica la regla "Nómina" al

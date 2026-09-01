@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { logError } from "../lib/errorLog";
-import { encolar, esFalloDeRed, listar, marcarIntento, quitar, soportaCola, type PendingTx } from "../lib/offlineQueue";
+import { encolar, esFalloDeRed, esFalloDeSesion, listar, marcarIntento, quitar, soportaCola, type PendingTx } from "../lib/offlineQueue";
 
 /**
  * Vacía la cola cuando hay red. Se dispara al volver la conexión, al volver a
@@ -19,6 +19,11 @@ export function useOfflineQueue({
 }) {
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  // Candado real. `syncing` es estado y los listeners de abajo se instalan
+  // una sola vez con el flush del primer render, así que siempre lo veían en
+  // false: "online" y "visibilitychange" al volver a la app lanzaban dos
+  // vaciados a la vez sobre la misma cola.
+  const vaciando = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!soportaCola()) return;
@@ -28,41 +33,49 @@ export function useOfflineQueue({
   }, []);
 
   const flush = useCallback(async () => {
-    if (!soportaCola() || syncing) return;
+    if (!soportaCola() || vaciando.current) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
 
-    let items: PendingTx[];
-    try {
-      items = await listar();
-    } catch {
-      return;
-    }
-    if (!items.length) return;
-
+    vaciando.current = true;
     setSyncing(true);
     let ok = 0;
-    for (const p of items) {
+    try {
+      let items: PendingTx[];
       try {
-        await api.applyTx(
-          { accountId: p.accountId, kind: p.kind, amount: p.amount, description: p.description, category: p.category, clientId: p.id, date: p.date },
-          []
-        );
-        await quitar(p.id);
-        ok++;
-      } catch (e) {
-        if (esFalloDeRed(e)) break; // sigue sin red: se deja para después
-        // El servidor lo rechazó: reintentar no lo va a arreglar solo
-        const r = await marcarIntento(p);
-        if (r === "descartado") {
-          logError(e, { action: "movimiento offline descartado", description: p.description, amount: p.amount });
-          onDropped(p);
+        items = await listar();
+      } catch {
+        return;
+      }
+      if (!items.length) return;
+
+      for (const p of items) {
+        try {
+          await api.applyTx(
+            { accountId: p.accountId, kind: p.kind, amount: p.amount, description: p.description, category: p.category, clientId: p.id, date: p.date },
+            []
+          );
+          await quitar(p.id);
+          ok++;
+        } catch (e) {
+          if (esFalloDeRed(e)) break; // sigue sin red: se deja para después
+          // Sin sesión válida nada va a entrar, y no es culpa del movimiento:
+          // se deja intacto y se vuelve a intentar cuando la haya.
+          if (esFalloDeSesion(e)) break;
+          // El servidor lo rechazó: reintentar no lo va a arreglar solo
+          const r = await marcarIntento(p);
+          if (r === "descartado") {
+            logError(e, { action: "movimiento offline descartado", description: p.description, amount: p.amount });
+            onDropped(p);
+          }
         }
       }
+    } finally {
+      vaciando.current = false;
+      setSyncing(false);
     }
-    setSyncing(false);
     await refresh();
     if (ok) onSynced(ok);
-  }, [syncing, refresh, onSynced, onDropped]);
+  }, [refresh, onSynced, onDropped]);
 
   /** Guarda un movimiento para enviarlo cuando haya red. */
   const enqueue = useCallback(async (p: Omit<PendingTx, "attempts" | "queuedAt">) => {

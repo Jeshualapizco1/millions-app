@@ -14,6 +14,7 @@ import { buildRows, guessColumns, parseAmount, parseCSV, parseDate } from "./csv
 import { fromBase, hasForeign, SELECTOR_DE_MONEDA_ACTIVO, toBase } from "./currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./alerts";
 import { findByName } from "./names";
+import { esFalloDeRed, esFalloDeSesion } from "./offlineQueue";
 import { consultasRestantes, textoAiUso } from "./aiUso";
 import { BodySchema } from "../../netlify/lib/chatSchema";
 import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../../netlify/lib/zona";
@@ -780,5 +781,20 @@ describe("hoy en la zona de la persona", () => {
   it("la cota para consultar el mes es un día antes del primero, en UTC", () => {
     const hoy = hoyEnZona("America/Mazatlan", new Date("2026-09-15T12:00:00Z"));
     expect(desdeMesHolgado(hoy)).toBe("2026-08-31T00:00:00.000Z");
+  });
+});
+
+// ── Cola offline: qué se reintenta y qué no ─────────────────────────────────
+describe("cola offline", () => {
+  it("un fallo de sesión no es un rechazo del servidor: se deja en la cola sin gastar intentos", () => {
+    expect(esFalloDeSesion(new Error("JWT expired"))).toBe(true);
+    expect(esFalloDeSesion(new Error("Sesión expirada"))).toBe(true);
+    expect(esFalloDeSesion(new Error("invalid claim: missing sub claim"))).toBe(true);
+    expect(esFalloDeSesion(new Error("El monto debe ser mayor a cero"))).toBe(false);
+  });
+
+  it("un fallo de red se distingue de un rechazo", () => {
+    expect(esFalloDeRed(new Error("Failed to fetch"))).toBe(true);
+    expect(esFalloDeRed(new Error("La cuenta indicada no existe"))).toBe(false);
   });
 });
