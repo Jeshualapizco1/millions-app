@@ -16,14 +16,6 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
 ## A. Críticos — antes de abrir el registro a nadie
 
-- [ ] **A5 Topes de IA con carrera y sin registro garantizado.**
-      `netlify/functions/chat.ts:305-334` lee contadores antes y `:374-381`
-      inserta en `ai_usage` después de llamar a Anthropic, ignorando el `error`
-      del insert y sin timeout. N peticiones concurrentes pasan todas el tope;
-      si Netlify corta a los 10 s el gasto ocurrió y no se contó. *Fix:* RPC
-      `reserve_ai_call(p_user)` que cuenta e inserta en una sentencia con
-      `pg_advisory_xact_lock(hashtext(p_user::text))` y costo estimado; actualizar
-      la fila al terminar; `AbortSignal.timeout(8500)` en el fetch.
 - [ ] **A6 El cliente puede mandar bloques `document` / `image` por URL.**
       `chat.ts:62-65` acepta `z.record(z.string(), z.unknown())`. El límite de
       64 KB no aplica porque Anthropic descarga el recurso. *Fix:* esquema
@@ -117,8 +109,6 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
       `p_category_id` / `p_recurring_id` sean del usuario (solo FK).
 - [ ] C10 `ai_usage` con `on delete cascade`: purgar cuentas borra su gasto del
       mes y el freno global subestima. `on delete set null`.
-- [ ] C11 `chat.ts:362` `res.json()` sin guardia: un 529/HTML de Anthropic sale
-      como 500 en vez de 502 controlado.
 - [ ] C12 `chat.ts:214` suma saldos sin convertir moneda (ya anotado en TODO).
 - [ ] C13 `recurring_rules.next_run` sin mínimo: una regla con fecha de hace
       años genera 60 filas/día durante meses. CHECK o tope en el catch-up.

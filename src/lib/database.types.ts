@@ -75,9 +75,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cost_usd?: number
           created_at?: string
           id?: never
           intent?: string
+          model?: string | null
           tokens_in?: number
           tokens_out?: number
           user_id?: string
@@ -739,6 +741,18 @@ export type Database = {
       ai_spend_this_month: { Args: Record<string, never>; Returns: number }
       ai_calls_this_month: { Args: { p_user: string }; Returns: number }
       ai_calls_today: { Args: { p_user: string }; Returns: number }
+      reserve_ai_call: {
+        Args: {
+          p_user: string
+          p_intent: string
+          p_model: string
+          p_estimated_cost: number
+          p_day_limit: number
+          p_month_limit: number
+          p_budget_usd: number
+        }
+        Returns: { reserva: number | null; hoy: number; mes: number; gastado: number; motivo: string | null }[]
+      }
       advance_date: {
         Args: {
           p_date: string

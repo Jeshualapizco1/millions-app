@@ -21,9 +21,19 @@ import { contextoParaAsesor } from "../../src/lib/onboarding";
  * Precios en USD por millón de tokens.
  */
 const MODELS = {
-  capture: { id: "claude-haiku-4-5", inUsd: 1, outUsd: 5, maxTokens: 1000 },
-  advise: { id: "claude-sonnet-5", inUsd: 2, outUsd: 10, maxTokens: 2000 },
+  // estUsd: lo que se reserva ANTES de llamar, por si la función muere a
+  // medias. Un poco por encima de lo medido en producción ($0.00077 y
+  // $0.00438), para que la estimación nunca subestime.
+  capture: { id: "claude-haiku-4-5", inUsd: 1, outUsd: 5, maxTokens: 1000, estUsd: 0.001 },
+  advise: { id: "claude-sonnet-5", inUsd: 2, outUsd: 10, maxTokens: 2000, estUsd: 0.005 },
 } as const;
+
+/**
+ * Netlify corta la función a los 10 s. Si Anthropic no contestó a los 8.5,
+ * se corta aquí con un mensaje claro en vez de un 502 mudo del proxy — y la
+ * reserva se queda, porque a esas alturas el gasto pudo haber ocurrido.
+ */
+const ANTHROPIC_TIMEOUT_MS = 8500;
 
 /**
  * Tope diario: es el único que se le puede explicar a una persona («15 al día»)
@@ -320,42 +330,52 @@ export const handler: Handler = async (event) => {
     if (!parsed.success) return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Body inválido" }) };
     const { intent, messages } = parsed.data;
 
-    // ── Límites: por día, por mes y presupuesto global ─────────────────────
-    if (hoy >= RATE_LIMIT_PER_DAY)
-      return { statusCode: 429, headers: h, body: JSON.stringify({ error: `Llegaste a tus ${RATE_LIMIT_PER_DAY} consultas de hoy. Mañana se renuevan; mientras tanto puedes registrar movimientos a mano.`, uso: uso(hoy) }) };
+    const modelo = MODELS[intent];
 
-    const { data: mesUsuario, error: errMes } = await getAdmin().rpc("ai_calls_this_month", { p_user: userId });
-    if (errMes) {
+    // ── Límites: por día, por mes y presupuesto global, en UNA transacción ──
+    // La RPC cuenta, decide e inserta la fila bajo un advisory lock. Antes se
+    // leían los contadores aquí y se insertaba después de llamar a Anthropic:
+    // N peticiones a la vez veían todas "14 de 15" y todas pasaban, y si la
+    // función moría a medias el gasto no se registraba. Ahora la fila existe
+    // antes de gastar, con costo estimado, y se corrige al terminar.
+    const { data: reservas, error: errReserva } = await getAdmin().rpc("reserve_ai_call", {
+      p_user: userId,
+      p_intent: intent,
+      p_model: modelo.id,
+      p_estimated_cost: modelo.estUsd,
+      p_day_limit: RATE_LIMIT_PER_DAY,
+      p_month_limit: RATE_LIMIT_PER_MONTH,
+      p_budget_usd: MONTHLY_BUDGET_USD,
+    });
+    const reserva = reservas?.[0];
+    if (errReserva || !reserva) {
       // Un control de gasto que ante un error deja pasar no es un control.
-      console.error("no se pudo verificar el consumo del usuario:", errMes.message);
+      console.error("no se pudo reservar la llamada:", errReserva?.message ?? "sin fila");
       return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
     }
-    if (Number(mesUsuario ?? 0) >= RATE_LIMIT_PER_MONTH)
+    console.log(`presupuesto: ${Number(reserva.gastado).toFixed(5)} de ${MONTHLY_BUDGET_USD} USD · usuario ${reserva.hoy}/${RATE_LIMIT_PER_DAY} hoy, ${reserva.mes}/${RATE_LIMIT_PER_MONTH} este mes`);
+    if (reserva.motivo === "dia")
+      return { statusCode: 429, headers: h, body: JSON.stringify({ error: `Llegaste a tus ${RATE_LIMIT_PER_DAY} consultas de hoy. Mañana se renuevan; mientras tanto puedes registrar movimientos a mano.`, uso: uso(reserva.hoy) }) };
+    if (reserva.motivo === "mes")
       return { statusCode: 429, headers: h, body: JSON.stringify({ error: "Llegaste al límite de consultas de este mes. Se renueva el día 1." }) };
-
-    // Freno de mano global: si el mes ya costó lo presupuestado, la IA se
-    // apaga sola. El resto de la app sigue funcionando sin ella.
-    const { data: gastoMes, error: errGasto } = await getAdmin().rpc("ai_spend_this_month");
-    if (errGasto) {
-      console.error("no se pudo verificar el presupuesto:", errGasto.message);
+    if (reserva.motivo === "presupuesto" || reserva.reserva === null) {
+      // Freno de mano global: si el mes ya costó lo presupuestado, la IA se
+      // apaga sola. El resto de la app sigue funcionando sin ella.
+      console.error(`presupuesto de IA agotado: ${reserva.gastado} USD de ${MONTHLY_BUDGET_USD}`);
       return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
     }
-    const gastado = Number(gastoMes ?? 0);
-    console.log(`presupuesto: ${gastado.toFixed(5)} de ${MONTHLY_BUDGET_USD} USD · usuario ${hoy}/${RATE_LIMIT_PER_DAY} hoy, ${mesUsuario}/${RATE_LIMIT_PER_MONTH} este mes`);
-    if (gastado >= MONTHLY_BUDGET_USD) {
-      console.error(`presupuesto de IA agotado: ${gastado} USD de ${MONTHLY_BUDGET_USD}`);
-      return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
-    }
+    const reservaId = reserva.reserva;
 
     // ── Contexto en servidor + llamada a Anthropic ──────────────────────────
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error("Configuración incompleta: falta ANTHROPIC_API_KEY en este entorno");
 
-    const modelo = MODELS[intent];
-
     const system = await buildContext(intent, userId);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    let res: Response;
+    try {
+      res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
+      signal: AbortSignal.timeout(ANTHROPIC_TIMEOUT_MS),
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
@@ -372,10 +392,20 @@ export const handler: Handler = async (event) => {
         // Haiku no admite output_config.effort, por eso solo se manda en advise.
         ...(intent === "advise" ? { output_config: { effort: "medium" }, tools: TOOLS } : {}),
       }),
-    });
-    const data: any = await res.json();
-    if (!res.ok) {
-      console.error("anthropic error:", res.status, JSON.stringify(data).slice(0, 500));
+      });
+    } catch (e) {
+      // Timeout o red caída. La reserva SE QUEDA con su costo estimado: no
+      // hay manera de saber si Anthropic alcanzó a procesarla.
+      console.error("anthropic sin respuesta:", e instanceof Error ? e.message : e);
+      return { statusCode: 504, headers: h, body: JSON.stringify({ error: "El asistente tardó demasiado en responder. Inténtalo de nuevo en un momento." }) };
+    }
+    // Un 529 o una página HTML de Anthropic no deben acabar en un 500 mudo.
+    const data: any = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      console.error("anthropic error:", res.status, JSON.stringify(data ?? "(sin JSON)").slice(0, 500));
+      // Respondió con error: no hubo gasto, la reserva no debe contar.
+      const { error: errLibera } = await getAdmin().from("ai_usage").delete().eq("id", reservaId);
+      if (errLibera) console.error("no se pudo liberar la reserva:", errLibera.message);
       return { statusCode: 502, headers: h, body: JSON.stringify({ error: "El servicio de IA no está disponible" }) };
     }
 
@@ -383,16 +413,15 @@ export const handler: Handler = async (event) => {
     const text = blocks.filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
     const toolUse = blocks.find((b) => b.type === "tool_use");
 
+    // La reserva se corrige con lo real. Si esto falla, queda la estimación,
+    // que es mejor que nada — y se registra, no se traga.
     const tokensIn = data.usage?.input_tokens ?? 0;
     const tokensOut = data.usage?.output_tokens ?? 0;
-    await getAdmin().from("ai_usage").insert({
-      user_id: userId,
-      intent,
-      model: modelo.id,
-      tokens_in: tokensIn,
-      tokens_out: tokensOut,
-      cost_usd: costOf(modelo, tokensIn, tokensOut),
-    });
+    const { error: errCierre } = await getAdmin()
+      .from("ai_usage")
+      .update({ tokens_in: tokensIn, tokens_out: tokensOut, cost_usd: costOf(modelo, tokensIn, tokensOut) })
+      .eq("id", reservaId);
+    if (errCierre) console.error("no se pudo cerrar la reserva:", errCierre.message);
 
     // Si propuso una acción, viaja al cliente SIN ejecutarse. `raw` lleva el
     // turno completo del asistente para poder continuar la conversación con
@@ -403,8 +432,8 @@ export const handler: Handler = async (event) => {
       // `uso` ya cuenta esta llamada: es lo que el cliente va a mostrar.
       body: JSON.stringify(
         toolUse
-          ? { text, action: { toolUseId: toolUse.id, name: toolUse.name, input: toolUse.input }, raw: blocks, uso: uso(hoy + 1) }
-          : { text, uso: uso(hoy + 1) }
+          ? { text, action: { toolUseId: toolUse.id, name: toolUse.name, input: toolUse.input }, raw: blocks, uso: uso(reserva.hoy + 1) }
+          : { text, uso: uso(reserva.hoy + 1) }
       ),
     };
   } catch (e) {

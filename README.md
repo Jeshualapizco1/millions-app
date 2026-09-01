@@ -157,6 +157,7 @@ node supabase/tests/flows.mjs         # transferencias, pagos, abonos, reversió
 node supabase/tests/recurring.mjs     # motor de recurrentes
 node supabase/tests/idempotency.mjs   # que un reintento no duplique
 node supabase/tests/ai-actions.mjs    # ciclo de acciones del asesor
+node supabase/tests/ai-reserve.mjs    # topes de IA bajo concurrencia (no llama a Anthropic)
 ```
 
 ---
