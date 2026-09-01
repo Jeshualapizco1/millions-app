@@ -56,6 +56,7 @@ const tx = async <T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBReq
 
 export const encolar = (p: PendingTx) => tx("readwrite", (s) => s.put(p));
 export const listar = () => tx<PendingTx[]>("readonly", (s) => s.getAll());
+export const obtener = (id: string) => tx<PendingTx | undefined>("readonly", (s) => s.get(id));
 export const quitar = (id: string) => tx("readwrite", (s) => s.delete(id));
 
 /** Marca un intento fallido; a las 5 veces se descarta para no reintentar eternamente. */

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { logError } from "../lib/errorLog";
-import { encolar, esFalloDeRed, esFalloDeSesion, listar, marcarIntento, quitar, soportaCola, type PendingTx } from "../lib/offlineQueue";
+import { encolar, esFalloDeRed, esFalloDeSesion, listar, marcarIntento, obtener, quitar, soportaCola, type PendingTx } from "../lib/offlineQueue";
 
 /**
  * Vacía la cola cuando hay red. Se dispara al volver la conexión, al volver a
@@ -77,6 +77,32 @@ export function useOfflineQueue({
     if (ok) onSynced(ok);
   }, [refresh, onSynced, onDropped]);
 
+  /**
+   * ¿Este movimiento sigue esperando a salir? Un movimiento en cola no existe
+   * todavía en el servidor: borrarlo o editarlo con las RPC fallaría, y al
+   * sincronizar reaparecería el original.
+   */
+  const enCola = useCallback(async (id: string): Promise<PendingTx | null> => {
+    if (!soportaCola()) return null;
+    try {
+      return (await obtener(id)) ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  /** Lo saca de la cola: es el "borrar" de un movimiento que nunca se envió. */
+  const quitarDeCola = useCallback(async (id: string) => {
+    await quitar(id);
+    await refresh();
+  }, [refresh]);
+
+  /** Lo corrige en la cola, conservando su id para que siga siendo idempotente. */
+  const corregirEnCola = useCallback(async (p: PendingTx) => {
+    await encolar(p);
+    await refresh();
+  }, [refresh]);
+
   /** Guarda un movimiento para enviarlo cuando haya red. */
   const enqueue = useCallback(async (p: Omit<PendingTx, "attempts" | "queuedAt">) => {
     await encolar({ ...p, attempts: 0, queuedAt: new Date().toISOString() });
@@ -99,5 +125,5 @@ export function useOfflineQueue({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { pending, syncing, enqueue, flush, refresh };
+  return { pending, syncing, enqueue, flush, refresh, enCola, quitarDeCola, corregirEnCola };
 }

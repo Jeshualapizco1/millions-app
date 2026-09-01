@@ -3,6 +3,7 @@
 // Funciones puras: reciben el estado actual y devuelven números. Sin red.
 // ============================================================================
 import type { Account, Credit, Transaction, Upcoming } from "../types";
+import { parseDateOnly } from "./dates";
 import { monthLabel } from "./format";
 import { toBase, type FxRates } from "./currency";
 
@@ -101,10 +102,14 @@ export const projectMonth = (
 
   // Los fijos ya ocurridos están dentro de spentSoFar; aquí solo los que faltan
   // y caen todavía dentro de este mes.
+  // Desde el ARRANQUE de hoy, no desde este instante: el vencimiento se ancla
+  // al mediodía, así que después de las 12:00 un fijo que vence hoy y que el
+  // cron todavía no registró desaparecía de la proyección.
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const restOfMonth = upcoming.filter((u) => {
-    const d = new Date(`${u.due}T12:00:00`);
-    return d >= now && d < endOfMonth;
+    const d = parseDateOnly(u.due);
+    return d >= startOfDay && d < endOfMonth;
   });
   const pendingFixed = restOfMonth.filter((u) => u.kind === "gasto").reduce((s, u) => s + u.amount, 0);
   const pendingIncome = restOfMonth.filter((u) => u.kind === "ingreso").reduce((s, u) => s + u.amount, 0);

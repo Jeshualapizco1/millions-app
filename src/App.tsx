@@ -13,7 +13,7 @@ import { importId } from "./lib/csvImport";
 import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
 import { ACC_COLORS, C } from "./lib/constants";
-import { daysUntil, fmt, monthLabel } from "./lib/format";
+import { daysUntil, fmt, monthLabel, numero } from "./lib/format";
 import { daysUntilDate, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate } from "./lib/dates";
 import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
 import { netWorthHistory, projectMonth } from "./lib/analytics";
@@ -241,7 +241,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   // ── Cola offline ──────────────────────────────────────────────────────────
-  const { pending, syncing, enqueue, flush } = useOfflineQueue({
+  const { pending, syncing, enqueue, flush, enCola, quitarDeCola, corregirEnCola } = useOfflineQueue({
     onSynced: async (n) => {
       const [a, t] = await Promise.all([api.getAccounts(), api.getTxs()]);
       setAccs(a);
@@ -315,6 +315,24 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const deleteTx = async (id: string) => {
     const tx = txsRef.current.find((t) => t.id === id);
     if (!tx) return;
+
+    // Si sigue en la cola offline nunca llegó al servidor: se quita de ahí.
+    // `reverse_transaction` fallaría con "no encontrada" y el movimiento
+    // reaparecería en cuanto la cola se vaciara.
+    const pendiente = await enCola(id);
+    if (pendiente) {
+      try {
+        await quitarDeCola(id);
+        setTxs((p) => p.filter((t) => t.id !== id));
+        const delta = tx.type === "gasto" ? tx.amount : -tx.amount;
+        setAccs((p) => p.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance + delta } : a)));
+        push({ kind: "ok", text: `Eliminado: ${tx.description}` });
+      } catch (e) {
+        oops(e, "No se pudo eliminar");
+      }
+      return;
+    }
+
     try {
       await api.deleteTx(id); // reverse_transaction: revierte saldo y efectos en la misma transacción
       setTxs((p) => p.filter((t) => t.id !== id));
@@ -324,9 +342,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         push({ kind: "ok", text: `Eliminado: ${tx.description}`, action: { label: "Deshacer", onClick: () => redoTx(tx) } }, 6000);
       } else {
         // transferencia / pago / abono: el servidor revirtió varios saldos — recargar lo afectado
-        api.getAccounts().then(setAccs).catch(console.error);
-        if (tx.kind === "pago_credito") api.getCredits().then(setCredits).catch(console.error);
-        if (tx.kind === "abono_meta") api.getGoals().then(setGoals).catch(console.error);
+        // Si la recarga falla, los saldos en pantalla quedan viejos: se avisa
+        // en vez de dejarlo solo en la consola, que nadie mira.
+        api.getAccounts().then(setAccs).catch((e) => oops(e, "Se eliminó, pero no pude refrescar tus saldos. Recarga la app."));
+        if (tx.kind === "pago_credito") api.getCredits().then(setCredits).catch((e) => oops(e, "Se eliminó, pero no pude refrescar tus créditos."));
+        if (tx.kind === "abono_meta") api.getGoals().then(setGoals).catch((e) => oops(e, "Se eliminó, pero no pude refrescar tus metas."));
         push({ kind: "ok", text: "Movimiento eliminado y saldos revertidos" });
       }
     } catch (e) {
@@ -354,10 +374,13 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const saveEditAcc = async () => {
     if (!editAcc || !editAcc.name.trim()) return;
     const prev = accs;
-    setAccs((p) => p.map((a) => (a.id === editAcc.id ? { ...a, ...editAcc, balance: Number(editAcc.balance) } : a)));
+    // Un campo de saldo vacío vale 0, no NaN: NaN llegaba a Postgres y volvía
+    // como un rechazo sin mensaje.
+    const saldo = numero(editAcc.balance, 0);
+    setAccs((p) => p.map((a) => (a.id === editAcc.id ? { ...a, ...editAcc, balance: saldo } : a)));
     setEditAcc(null);
     try {
-      await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: parseFloat(String(editAcc.balance)), icon: editAcc.icon, color: editAcc.color, currency: editAcc.currency });
+      await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: saldo, icon: editAcc.icon, color: editAcc.color, currency: editAcc.currency });
     } catch (e) {
       setAccs(prev);
       oops(e, "No se pudo guardar la cuenta");
@@ -444,7 +467,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // ── Goals ──────────────────────────────────────────────────────────────────
   const saveNewGoal = async () => {
     if (!goalForm.name || !goalForm.target_amount) return;
-    const p: GoalUpsert = { name: goalForm.name, target_amount: parseFloat(String(goalForm.target_amount)), current_amount: parseFloat(String(goalForm.current_amount || 0)), target_date: goalForm.target_date || null, icon: goalForm.icon, color: goalForm.color, notes: goalForm.notes || null };
+    const meta = numero(goalForm.target_amount, 0);
+    if (!(meta > 0)) { push({ kind: "error", text: "La meta debe ser mayor a cero" }); return; }
+    const p: GoalUpsert = { name: goalForm.name, target_amount: meta, current_amount: numero(goalForm.current_amount, 0), target_date: goalForm.target_date || null, icon: goalForm.icon, color: goalForm.color, notes: goalForm.notes || null };
     setMGoal(false);
     try {
       const s = await api.addGoal(p);
@@ -455,7 +480,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
   const saveEditGoal = async () => {
     if (!editGoal) return;
-    const p = { id: editGoal.id!, name: editGoal.name, target_amount: parseFloat(String(editGoal.target_amount)), current_amount: parseFloat(String(editGoal.current_amount || 0)), target_date: editGoal.target_date || null, icon: editGoal.icon, color: editGoal.color, notes: editGoal.notes || null };
+    const meta = numero(editGoal.target_amount, 0);
+    if (!(meta > 0)) { push({ kind: "error", text: "La meta debe ser mayor a cero" }); return; }
+    const p = { id: editGoal.id!, name: editGoal.name, target_amount: meta, current_amount: numero(editGoal.current_amount, 0), target_date: editGoal.target_date || null, icon: editGoal.icon, color: editGoal.color, notes: editGoal.notes || null };
     const prev = goals;
     setGoals((pr) => pr.map((g) => (g.id === editGoal.id ? { ...g, ...p } : g)));
     setEditGoal(null);
@@ -525,10 +552,29 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   };
 
   const doEditTx = async (p: { id: string; accountId: string; kind: TxType; amount: number; description: string; category: string; date: string }) => {
+    // Todavía en la cola: se corrige ahí. `update_transaction` fallaría, y al
+    // sincronizar entraría al servidor la versión vieja, sin la corrección.
+    const pendiente = await enCola(p.id);
+    if (pendiente) {
+      const viejo = txsRef.current.find((t) => t.id === p.id);
+      const acc = accsRef.current.find((a) => a.id === p.accountId);
+      await corregirEnCola({ ...pendiente, accountId: p.accountId, accountName: acc?.name ?? pendiente.accountName, kind: p.kind, amount: p.amount, description: p.description, category: p.category, date: p.date });
+      setAccs((prev) => prev.map((a) => {
+        let saldo = a.balance;
+        if (viejo && a.id === viejo.accountId) saldo -= viejo.type === "gasto" ? -viejo.amount : viejo.amount;
+        if (a.id === p.accountId) saldo += p.kind === "gasto" ? -p.amount : p.amount;
+        return saldo === a.balance ? a : { ...a, balance: saldo };
+      }));
+      setTxs((prev) => prev.map((t) => (t.id === p.id ? { ...t, ...p, type: p.kind, accountName: acc?.name ?? t.accountName } : t)).sort((a, b) => b.date.localeCompare(a.date)));
+      setEditTx(null);
+      push({ kind: "ok", text: "Movimiento corregido. Se enviará al volver la red." });
+      return;
+    }
+
     const saved = await api.updateTx(p, accsRef.current);
     setTxs((prev) => prev.map((t) => (t.id === saved.id ? saved : t)).sort((a, b) => b.date.localeCompare(a.date)));
     // Editar puede mover monto y cuenta a la vez: el servidor ya reajustó, refrescamos
-    api.getAccounts().then(setAccs).catch(console.error);
+    api.getAccounts().then(setAccs).catch((e) => oops(e, "Se guardó, pero no pude refrescar tus saldos. Recarga la app."));
     setEditTx(null);
     push({ kind: "ok", text: "Movimiento actualizado" });
   };

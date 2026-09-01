@@ -7,7 +7,7 @@ import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, diasRestante
 import { COBRO_INCOMPLETO, CORREO_ARCO, DOMICILIO, GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRUEBA_DIAS, PRIVACIDAD, RESPONSABLE, TERMINOS } from "./legal";
 import { bienvenida, contextoParaAsesor, PREGUNTAS, RESPUESTAS_VACIAS, type Respuestas } from "./onboarding";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
-import { fmtShort } from "./format";
+import { fmtShort, numero } from "./format";
 import { netWorthHistory, projectMonth } from "./analytics";
 import { budgetProgress, totalBudgetStatus } from "./budgets";
 import { buildRows, guessColumns, importId, parseAmount, parseCSV, parseDate } from "./csvImport";
@@ -226,6 +226,20 @@ describe("proyección de cierre de mes", () => {
     const up = [{ ruleId: "r", name: "Renta", kind: "gasto" as const, amount: 12000, accountId: "a", due: "2026-10-01" }];
     const p = projectMonth([], up, new Date());
     expect(p.pendingFixed).toBe(0);
+  });
+
+  it("un fijo que vence hoy sigue contando por la tarde", () => {
+    // El vencimiento se anclaba al mediodía y se comparaba contra el instante
+    // actual: a las 6 de la tarde la renta de hoy, que el cron aún no había
+    // registrado, se esfumaba de la proyección.
+    const up = [{ ruleId: "r", name: "Renta", kind: "gasto" as const, amount: 12000, accountId: "a", due: "2026-09-10" }];
+    vi.useFakeTimers(); at("2026-09-10T18:00:00");
+    expect(projectMonth([], up, new Date()).pendingFixed).toBe(12000);
+    at("2026-09-10T08:00:00");
+    expect(projectMonth([], up, new Date()).pendingFixed).toBe(12000);
+    // y uno de ayer sí queda fuera: o ya se registró, o se perdió
+    at("2026-09-11T08:00:00");
+    expect(projectMonth([], up, new Date()).pendingFixed).toBe(0);
   });
 });
 
@@ -827,5 +841,21 @@ describe("lo que la persona escribió va al prompt recortado", () => {
     expect(entre.length).toBeLessThanOrEqual(300);
     expect(entre).not.toContain("\n");
     expect(entre.startsWith("quiero ignorar todo lo anterior")).toBe(true);
+  });
+});
+
+describe("números que vienen de un formulario", () => {
+  it("un campo vacío o con basura vale el respaldo, no NaN", () => {
+    expect(numero("", 0)).toBe(0);
+    expect(numero("   ", 0)).toBe(0);
+    expect(numero("-", 0)).toBe(0);
+    expect(numero(null, 0)).toBe(0);
+    expect(numero(undefined, 7)).toBe(7);
+  });
+
+  it("los números de verdad pasan intactos, negativos incluidos", () => {
+    expect(numero("1250.75")).toBe(1250.75);
+    expect(numero("-300")).toBe(-300);
+    expect(numero(42)).toBe(42);
   });
 });

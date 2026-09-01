@@ -9,4 +9,15 @@ export const fmtShort = (n: number | string | null | undefined) => {
 // Delegado a lib/dates: 0 = hoy es alcanzable y el día 31 no se desborda en meses cortos.
 export { daysUntilDayOfMonth as daysUntil } from "./dates";
 
+/**
+ * Un campo vacío o con basura vale `fallback`, nunca NaN.
+ *
+ * `parseFloat("")` da NaN, que viajaba hasta Postgres y volvía como un rechazo
+ * sin mensaje entendible: la persona veía "no se pudo guardar" sin saber por qué.
+ */
+export const numero = (v: unknown, fallback = 0): number => {
+  const n = parseFloat(String(v ?? "").trim());
+  return Number.isFinite(n) ? n : fallback;
+};
+
 export const monthLabel = (d: Date) => d.toLocaleDateString("es-MX", { month: "short", year: "2-digit" });

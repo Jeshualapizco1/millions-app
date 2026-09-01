@@ -40,7 +40,10 @@ export function useVoice({
   }, [stopMic]);
 
   const startMic = useCallback(() => {
-    if (!voiceOK || mic) return;
+    // `mic` solo se enciende en `onstart`, que llega un instante después: dos
+    // toques rápidos creaban dos reconocedores y el segundo dejaba el
+    // micrófono abierto sin que nada lo apagara. El ref sí es inmediato.
+    if (!voiceOK || mic || recRef.current) return;
     const rec = new SR();
     rec.lang = "es-MX";
     rec.interimResults = true;
@@ -58,8 +61,13 @@ export function useVoice({
       cbRef.current.onResult(final || interim);
       if (final) cbRef.current.onFinal(final);
     };
-    rec.start();
+    // Antes de arrancar: si `start()` tarda, un segundo toque ya lo encuentra.
     recRef.current = rec;
+    try {
+      rec.start();
+    } catch {
+      recRef.current = null; // el navegador lo rechazó (ya había uno vivo)
+    }
   }, [voiceOK, mic, SR]);
 
   return { mic, voiceOK, startMic, stopMic };

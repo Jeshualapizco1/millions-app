@@ -24,17 +24,6 @@ Cerrados B1–B14 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## C. Bugs bajos
 
-- [ ] C1 `useAI.ts:100-101` prefill de cuenta con `includes`: "BBVA" cae en
-      "BBVA Oro". Usar `findByName`; vacío si ambiguo.
-- [ ] C2 `App.tsx:295-311` borrar/editar un movimiento aún en cola offline falla
-      y reaparece al sincronizar.
-- [ ] C3 `App.tsx:307-309, 511` recargas con `.catch(console.error)`: saldos
-      obsoletos sin aviso. Usar `oops`.
-- [ ] C4 `useVoice.ts:42-63` doble toque antes de `onstart` crea dos reconocedores.
-- [ ] C5 `analytics.ts:105-107` un fijo con `due` hoy desaparece de la
-      proyección después del mediodía si el cron no corrió.
-- [ ] C6 `App.tsx:330,340` `parseFloat` de input vacío → `NaN` → rechazo de
-      Postgres sin mensaje.
 - [ ] C7 `transfer` entre monedas distintas mueve unidades sin convertir;
       rechazarlo mientras el selector de moneda esté apagado.
 - [ ] C8 `update_transaction` pone `notes`/`category_id` en null si se omiten;

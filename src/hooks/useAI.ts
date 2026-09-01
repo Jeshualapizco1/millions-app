@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type { AiUso } from "../lib/aiUso";
 import { describeAction, runAction, type ActionContext } from "../lib/actions";
+import { findByName } from "../lib/names";
 import type { AiMsg, ChatMsg, ProposedAction, TxType } from "../types";
 
 /** Lo que la IA extrae del lenguaje natural para registrar una transacción. */
@@ -112,9 +113,17 @@ export function useAI({
         // El nombre de cuenta se resuelve YA contra las cuentas reales: si el
         // modelo dijo algo que no existe, el borrador sale con la cuenta vacía
         // y la persona la elige, en vez de fallar al guardar y perder lo dicho.
+        //
+        // Con `findByName` y no con `includes`: exacta primero, parcial solo si
+        // no hay ambigüedad. Con "BBVA" y "BBVA Oro", el `includes` prellenaba
+        // la primera que encontrara y la persona confirmaba sin mirar.
         const cuentas = actionContext().accs;
-        const dicha = String(p.accountName ?? "").toLowerCase();
-        const match = dicha ? cuentas.find((a) => a.name.toLowerCase().includes(dicha)) : undefined;
+        let match;
+        try {
+          match = findByName(cuentas, String(p.accountName ?? ""), "la cuenta");
+        } catch {
+          match = undefined; // no existe o es ambigua: que la elija la persona
+        }
         setDraft({
           description: p.description || text,
           amount: Number(p.amount),
