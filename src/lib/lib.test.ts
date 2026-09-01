@@ -4,7 +4,7 @@
 // ============================================================================
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate, parseDateOnly } from "./dates";
-import { COBRO_INCOMPLETO, GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRUEBA_DIAS, PRIVACIDAD, TERMINOS } from "./legal";
+import { COBRO_INCOMPLETO, CORREO_ARCO, DOMICILIO, GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRUEBA_DIAS, PRIVACIDAD, RESPONSABLE, TERMINOS } from "./legal";
 import { bienvenida, contextoParaAsesor, PREGUNTAS, RESPUESTAS_VACIAS, type Respuestas } from "./onboarding";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
 import { fmtShort } from "./format";
@@ -465,10 +465,18 @@ describe("legal", () => {
     expect(privacidad).toContain("Anthropic");
   });
 
-  // Este falla a propósito mientras RESPONSABLE / DOMICILIO / CORREO_ARCO
-  // sigan en PENDIENTE: es el recordatorio de que el aviso aún no es válido.
-  it.fails("los datos del responsable ya están llenos", () => {
+  // Fue un recordatorio en rojo mientras RESPONSABLE / DOMICILIO / CORREO_ARCO
+  // estaban en PENDIENTE. Llenados el 1 de septiembre, ahora monta guardia:
+  // sin los tres el aviso vuelve a ser inválido ante la LFPDPPP.
+  it("los datos del responsable están llenos", () => {
     expect(LEGAL_INCOMPLETO).toBe(false);
+  });
+
+  it("el aviso muestra al responsable, su domicilio y el correo ARCO", () => {
+    const privacidad = [PRIVACIDAD.intro, ...PRIVACIDAD.sections.flatMap((s) => s.body)].join(" ");
+    expect(privacidad).toContain(RESPONSABLE);
+    expect(privacidad).toContain(DOMICILIO);
+    expect(privacidad).toContain(CORREO_ARCO);
   });
 
   // Igual que el anterior: el muro de fin de prueba sin precio ni contacto es

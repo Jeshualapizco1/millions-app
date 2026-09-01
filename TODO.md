@@ -191,7 +191,7 @@ Pendiente, en paneles externos:
       cae en spam.
 - [ ] Considerar códigos de invitación para controlar el ritmo de entrada.
 
-## Paso 3 — Marco legal 🔶 CÓDIGO LISTO, FALTAN LOS DATOS DEL RESPONSABLE
+## Paso 3 — Marco legal ✅ HECHO (falta la revisión de un abogado)
 
 Hecho en código (migración `0014_legal_and_account_deletion.sql`):
 
@@ -222,9 +222,16 @@ Hecho en código (migración `0014_legal_and_account_deletion.sql`):
 
 Pendiente:
 
-- [ ] **Llenar `RESPONSABLE`, `DOMICILIO` y `CORREO_ARCO`** en `src/lib/legal.ts`.
-      Sin los tres, el aviso es inválido. Hay un test marcado `it.fails` que
-      pasará a verde en cuanto se llenen: es el recordatorio.
+- [x] **`RESPONSABLE`, `DOMICILIO` y `CORREO_ARCO` llenos** (1 de septiembre):
+      María de Jesús Acosta García, Culiacán, Sinaloa, `hola@millionsapp.com`.
+      `LEGAL_VERSION` subió a **2026-09-01.2** porque la `2026-09-01` ya se
+      había aceptado con los datos en PENDIENTE: dejar la misma cadena
+      apuntando a un texto distinto haría que la constancia dijera que alguien
+      aceptó algo que nunca vio. La app vuelve a pedir la aceptación, que es
+      justo para lo que existe el portón.
+      El test que fallaba a propósito pasó a montar guardia: ahora verifica que
+      los tres aparezcan de verdad en el aviso —incluido el `intro`, donde
+      viven el nombre y el domicilio—.
 - [ ] Que un abogado revise los textos antes de abrir el registro.
 
 > **La migración 0014 ya está aplicada.** Verificado el 1 de septiembre contra

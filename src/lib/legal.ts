@@ -10,15 +10,26 @@
 // que alguien aceptó algo que nunca vio.
 // ============================================================================
 
-/** Sube esto (fecha del cambio) cada vez que edites PRIVACIDAD o TERMINOS. */
-export const LEGAL_VERSION = "2026-09-01";
+/**
+ * Sube esto cada vez que edites PRIVACIDAD o TERMINOS.
+ *
+ * Es la fecha del cambio; si en un mismo día hay dos revisiones se le agrega
+ * `.2`, `.3`, etc. Lo único que importa es que la cadena cambie: de eso
+ * depende que la app vuelva a pedir la aceptación.
+ *
+ * La `.2` de hoy es justo ese caso. La versión `2026-09-01` se publicó con los
+ * datos del responsable en "PENDIENTE" y alguien alcanzó a aceptarla; dejar la
+ * misma cadena apuntando ahora a un texto con la identidad real haría que la
+ * constancia dijera que aceptó algo que nunca vio, que es exactamente lo que
+ * este mecanismo existe para impedir.
+ */
+export const LEGAL_VERSION = "2026-09-01.2";
 
 // ── Datos del responsable (LFPDPPP art. 16) ─────────────────────────────────
 // El aviso es inválido sin identidad, domicilio y un medio de contacto real.
-// TODO(antes de abrir el registro): sustituir los tres valores marcados.
-export const RESPONSABLE = "PENDIENTE — nombre o razón social del responsable";
-export const DOMICILIO = "PENDIENTE — domicilio del responsable";
-export const CORREO_ARCO = "PENDIENTE — correo de contacto";
+export const RESPONSABLE = "María de Jesús Acosta García";
+export const DOMICILIO = "Las Ramblas 3112, Fracc. Espacios Barcelona, Culiacán, Sinaloa, C.P. 80059, México";
+export const CORREO_ARCO = "hola@millionsapp.com";
 
 /** Días que la cuenta sobrevive tras pedir el borrado. Debe coincidir con la migración 0014. */
 export const GRACIA_DIAS = 30;
