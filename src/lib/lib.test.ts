@@ -12,7 +12,7 @@ import { budgetProgress, totalBudgetStatus } from "./budgets";
 import { buildRows, guessColumns, parseAmount, parseCSV, parseDate } from "./csvImport";
 import { fromBase, hasForeign, SELECTOR_DE_MONEDA_ACTIVO, toBase } from "./currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./alerts";
-import { findByName } from "./actions";
+import { findByName } from "./names";
 import type { Account, Budget, Credit, Transaction } from "../types";
 
 // localStorage mínimo: las pruebas corren en Node y solo lo usa lib/alerts.

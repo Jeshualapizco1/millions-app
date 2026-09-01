@@ -18,7 +18,7 @@ import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import { logError } from "./lib/errorLog";
-import { findByName } from "./lib/actions";
+import { findByName } from "./lib/names";
 import { GRACIA_DIAS, LEGAL_VERSION } from "./lib/legal";
 import Perfil from "./views/Perfil";
 import LegalGate from "./views/LegalGate";
