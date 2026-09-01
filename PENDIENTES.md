@@ -16,15 +16,7 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
 ## A. Críticos — antes de abrir el registro a nadie
 
-- [ ] **A7 ✔ Ledger de migraciones.** La `0014` está aplicada y no registrada;
-      en producción conviven dos firmas de `apply_transaction` (8 y 9 params);
-      la `0006_recurring_service_grant` existe en la base y no en el repo.
-      *Fix:* `drop function if exists public.apply_transaction(uuid, public.tx_kind,
-      numeric, text, uuid, timestamptz, text, uuid)` en una migración; volcar la
-      0006 real al repo; registrar la 0014. **Mientras tanto
-      `supabase/tests/e2e.mjs` falla en el paso 4** ("Could not choose the
-      best candidate function") y no llega al paso 7 de profiles sellado, que
-      se verificó aparte el 1 de septiembre.
+Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
