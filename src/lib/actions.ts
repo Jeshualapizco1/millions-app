@@ -15,7 +15,13 @@ export interface ActionContext {
   goals: Goal[];
 }
 
-const findByName = <T extends { name: string }>(list: T[], name: string, tipo: string): T => {
+/**
+ * Exacto primero, luego parcial **único**. Si hay varios candidatos falla en
+ * vez de tomar el primero: con cuentas como "BBVA" y "BBVA Oro", quedarse con
+ * la que aparezca antes en la lista mueve dinero a la cuenta equivocada sin
+ * decir nada. La usa también la captura por voz, no solo el asesor.
+ */
+export const findByName = <T extends { name: string }>(list: T[], name: string, tipo: string): T => {
   const needle = (name ?? "").trim().toLowerCase();
   const exact = list.find((x) => x.name.toLowerCase() === needle);
   if (exact) return exact;

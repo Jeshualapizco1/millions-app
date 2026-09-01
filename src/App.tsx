@@ -18,6 +18,7 @@ import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import { logError } from "./lib/errorLog";
+import { findByName } from "./lib/actions";
 import { GRACIA_DIAS, LEGAL_VERSION } from "./lib/legal";
 import Perfil from "./views/Perfil";
 import LegalGate from "./views/LegalGate";
@@ -156,8 +157,16 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // ── Transactions (una RPC atómica por operación; sin ids temporales) ───────
   const applyTx = async (tx: ParsedTx): Promise<{ ok: boolean; error?: string }> => {
     const cur = accsRef.current;
-    const acc = cur.find((a) => tx.accountName && a.name.toLowerCase().includes(tx.accountName.toLowerCase()));
-    if (!acc) return { ok: false, error: `No encontré la cuenta "${tx.accountName ?? ""}". Cuentas: ${cur.map((a) => a.name).join(", ")}` };
+    // Misma resolución que usa el asesor: exacta primero y, si es parcial,
+    // solo cuando no hay ambigüedad. El `includes` de antes tomaba la primera
+    // coincidencia, así que con "BBVA" y "BBVA Oro" podía cargar el gasto a la
+    // cuenta que no era — en silencio.
+    let acc: Account;
+    try {
+      acc = findByName(cur, tx.accountName ?? "", "la cuenta");
+    } catch (e: any) {
+      return { ok: false, error: e?.message || "No encontré esa cuenta" };
+    }
     // Id decidido aquí: si hay que encolarlo, el reintento no lo duplica.
     const clientId = crypto.randomUUID();
     const date = new Date().toISOString();
@@ -562,12 +571,14 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setAccs(a); setTxs(t); setCredits(cr); setBudgets(b); setGoals(g);
   };
 
-  const { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction } =
+  const { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction } =
     useAI({ applyTx, applyNewAcc, setTxInput, setLive, categoryNames: () => categories.filter((c) => !c.hidden).map((c) => c.name), actionContext, onActionDone: reloadAfterAction });
 
   const { mic, voiceOK, startMic, stopMic } = useVoice({
     onResult: (t) => { setLive(t); setTxInput(t); },
-    onFinal: (final) => { setFab(false); setTimeout(() => sendTx(final.trim()), 200); },
+    // El sheet YA NO se cierra al terminar de hablar: lo que sigue es el
+    // borrador con los chips, y cerrarlo lo dejaría sin dónde aparecer.
+    onFinal: (final) => { sendTx(final.trim()); },
     onStop: () => setLive(""),
   });
   useEffect(() => { if (!fab) stopMic(); }, [fab, stopMic]);
@@ -788,7 +799,24 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       </div>
 
       {/* FAB + sheet */}
-      <Fab fab={fab} onOpen={() => setFab(true)} onClose={() => setFab(false)} mic={mic} live={live} txLoading={txLoading} txInput={txInput} setTxInput={setTxInput} voiceOK={voiceOK} startMic={startMic} stopMic={stopMic} onSend={sendTx} onManual={() => { setFab(false); setMMan(true); }} onTransfer={() => { setFab(false); setMTransfer(true); }} />
+      <Fab
+        fab={fab}
+        // Un solo toque para empezar a hablar: abrir el sheet enciende el
+        // micrófono. `startMic` corre dentro del gesto del click, que es lo
+        // que el navegador exige para conceder el permiso.
+        onOpen={() => { setFab(true); startMic(); }}
+        onClose={() => setFab(false)}
+        mic={mic} live={live} txLoading={txLoading} txInput={txInput} setTxInput={setTxInput}
+        voiceOK={voiceOK} startMic={startMic} stopMic={stopMic} onSend={sendTx}
+        onManual={() => { setFab(false); setMMan(true); }}
+        onTransfer={() => { setFab(false); setMTransfer(true); }}
+        accs={accs}
+        draft={draft}
+        draftError={draftError}
+        updateDraft={updateDraft}
+        onConfirmDraft={async () => { if (await confirmDraft()) setFab(false); }}
+        onDiscardDraft={() => { discardDraft(); setFab(false); }}
+      />
 
       {/* Toasts */}
       <Toasts toasts={toasts} onDismiss={dismiss} />

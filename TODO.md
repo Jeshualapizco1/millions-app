@@ -4,8 +4,9 @@ Tres partes: el **plan de lanzamiento público**, el **análisis de mercado** qu
 lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
 > Para arrancar el proyecto en otra máquina: **[README.md](README.md)**.
-> Última actualización: 31 de agosto de 2026.
-> **Siguiente tarea: paso 4 (arranque guiado para el usuario nuevo).**
+> Última actualización: 1 de septiembre de 2026.
+> **Siguiente tarea: paso 4 (arranque guiado), en cuanto se decida qué pasa el
+> día 61.**
 
 ---
 
@@ -23,6 +24,75 @@ confirman que un usuario no puede ver ni tocar los datos de otro
 el iCloud del propio usuario y su costo por usuario es cero. Millions corre la IA
 en el servidor con nuestra API key, así que **cada usuario cuesta dinero**. Todo
 el paso 1 existe por eso.
+
+## Paso 0 — Destrabar el registro 🔨 EN CURSO (1 de septiembre)
+
+Salió de la revisión de la propuesta de rediseño. No es producto nuevo: es
+quitar minas antes de que entren desconocidos.
+
+- [x] **Ocultar el selector de moneda** — hecho el 1 de septiembre.
+      Bandera `SELECTOR_DE_MONEDA_ACTIVO` en `src/lib/currency.ts`, con el
+      porqué al lado y una prueba que se pone roja si alguien la enciende sin
+      arreglar el fondo. La conversión de saldos, `fx` y `toBase` **siguen
+      intactos**: una cuenta que ya tenga otra moneda se sigue mostrando y
+      convirtiendo, y el modal la enseña sin dejar cambiarla. Las cuentas
+      nuevas nacen en pesos. Era el único bloqueador duro para abrir el
+      registro.
+      *El porqué:* `Transaction` no guarda moneda y `sumSpend`/`sumIncome`
+      (`src/lib/periods.ts:50-52`) no convierten, así que una sola cuenta en
+      dólares corrompía en silencio gastos, ingresos, la dona, la gráfica de 6
+      meses, **los presupuestos** y **la proyección de cierre**.
+- [ ] **Bug sin registrar hasta hoy:** `netlify/functions/chat.ts:214` suma
+      saldos **sin convertir** (`accounts.reduce((s, a) => s + Number(a.balance), 0)`).
+      El cliente sí convierte; el asesor no. Con una cuenta en dólares, la IA
+      afirma un patrimonio neto equivocado y lo afirma con seguridad. Se cierra
+      con el arreglo de fondo de multi-moneda.
+
+## Captura — borrador editable ✅ HECHO (1 de septiembre)
+
+**El problema:** no existía ningún momento entre "hablaste" y "quedó escrito en
+la base". `useVoice.onFinal` disparaba `sendTx` a los 200 ms y lo que el modelo
+decidiera se guardaba. Así fue como un gasto de mentoría acabó en "Otros" y se
+descubrió semanas después: no fue un error del modelo, fue que no había dónde
+corregirlo.
+
+- [x] **La captura produce un borrador, no una escritura.** `sendTx` deja de
+      llamar `applyTx`; `useAI` expone `draft`, `updateDraft`, `confirmDraft` y
+      `discardDraft`. Es el mismo patrón que ya usaba el asesor con
+      `ProposedAction` / `confirmAction`, reusado tal cual. **`App.tsx` no ganó
+      ni un `useState`.**
+- [x] **Cuatro campos editables** en `src/components/TxDraftChips.tsx`: monto,
+      gasto/ingreso, cuenta y categoría, más la descripción. Son exactamente
+      los que el modelo puede equivocar y los que no se corrigen después sin ir
+      a buscar el movimiento. Gasto/ingreso entró porque es el error más caro:
+      los mismos $5,000 suman o restan según ese campo.
+- [x] **Un toque para hablar.** El FAB abre el sheet **y** enciende el
+      micrófono (`startMic` corre dentro del gesto del click, que es lo que el
+      navegador exige para el permiso). De dos toques a uno.
+- [x] **Si falla al guardar, el borrador se queda.** Antes un error de cuenta
+      perdía la captura entera.
+- [x] **Tocar el fondo no cierra si hay borrador.** Perder lo capturado sin que
+      nadie lo decidiera es justo lo que veníamos a evitar.
+- [x] **El modelo se entera de lo que se descartó**, para que un "no, fueron
+      200" no se conteste sobre un movimiento que nunca existió.
+- [x] **Bug encontrado de paso:** `applyTx` resolvía la cuenta con un `includes`
+      simple, así que con "BBVA" y "BBVA Oro" podía cargar el gasto a la que no
+      era, en silencio. Ahora usa el `findByName` de `lib/actions.ts` —exacta
+      primero, parcial solo si no hay ambigüedad— que ya usaba el asesor.
+      6 pruebas nuevas.
+
+Pendiente de esto:
+
+- [ ] **Probarlo en el navegador con voz real.** Compila, las 60 pruebas pasan y
+      el build sale limpio, pero el flujo completo (dictar → chips → guardar)
+      todavía no se ha ejercitado a mano.
+- [ ] `nueva_cuenta` sigue guardando directo, sin borrador. Es menos dañino
+      —una cuenta mal nombrada se ve de inmediato— pero queda anotado.
+- [ ] "Mantener presionado para hablar" **no** se implementó. Exige
+      `continuous: true` y parada manual, y en la PWA de iOS eso es frágil. Con
+      el auto-corte de silencio actual son 2 toques (hablar + guardar) y si
+      corta a media frase **ahora se ve en los chips** en vez de guardarse
+      truncado. Revisar con el rediseño.
 
 ## Paso 1 — Bajar el costo por usuario ✅ HECHO
 
@@ -43,7 +113,10 @@ el paso 1 existe por eso.
         Mazatlán, no UTC. Reemplazó al tope por hora, que dejaba un hueco:
         20/hora durante un día eran 480 llamadas, más que el mes entero.
       - `AI_CALLS_PER_USER_MONTH` = 400 — que nadie solo agote el presupuesto
-      - `AI_MONTHLY_BUDGET_USD` = 40 — freno de mano global
+      - `AI_MONTHLY_BUDGET_USD` = 40 — freno de mano global.
+        ⚠️ **Por confirmar en el panel de Netlify.** El default del código es
+        **50** (`netlify/functions/chat.ts:32`); si la variable no está puesta
+        allá, el tope real es 50, no 40.
 - [x] **Falla cerrado.** Si no se puede verificar el presupuesto, la IA no
       responde. Un control de gasto que ante un error deja pasar no es control.
 - [x] **Salida digna al frenar:** el mensaje dice que se puede seguir capturando
@@ -121,8 +194,11 @@ Pendiente:
 - [ ] **Llenar `RESPONSABLE`, `DOMICILIO` y `CORREO_ARCO`** en `src/lib/legal.ts`.
       Sin los tres, el aviso es inválido. Hay un test marcado `it.fails` que
       pasará a verde en cuanto se llenen: es el recordatorio.
-- [ ] **Aplicar la migración 0014** al proyecto de Supabase.
 - [ ] Que un abogado revise los textos antes de abrir el registro.
+
+> **La migración 0014 ya está aplicada.** Verificado el 1 de septiembre contra
+> el proyecto: `profiles` tiene `legal_version`, `legal_accepted_at` y
+> `deletion_requested_at`, y el cron `millions-purge-accounts` está activo.
 
 > **Buena noticia:** Millions no mueve dinero ni custodia fondos, así que **no
 > es una ITF** bajo la Ley Fintech y no requiere registro ante CNBV.
@@ -159,8 +235,90 @@ de qué versión se aceptó y cuándo · borrar cuenta.
       tiene y nosotros no.
 - [ ] Notificaciones push reales: la ventaja de los créditos mexicanos solo sirve
       si avisa **antes** del corte, y hoy hay que abrir la app.
+      **Alternativa sin app nativa: un `.ics` con los días de corte y pago.**
+      Empezar por la versión que se genera y descarga en el cliente, con
+      `RRULE` mensual: cero servidor, cero token, cero superficie de privacidad.
+      La suscripción por URL exige una tabla de tokens, y ese token queda en
+      texto plano en los servidores de Apple/Google y en los logs de Netlify;
+      solo vale la pena si alguien pide que se actualice solo. Cuidado con
+      `BYMONTHDAY=31`: se salta los meses de 30 días, hay que mapear 29/30/31
+      a `BYMONTHDAY=-1`.
+      **No sustituye el push del todo:** cubre fechas fijas (corte, pago,
+      renta), no lo reactivo ("llevas 80% de Alimentación el día 12"), que es
+      lo que haría abrir la app.
 - [ ] Definir precio si la promoción funciona. Referencia: $149 MXN/mes o
       $1,420 MXN/año (MonAi).
+
+## Paso 6 — Identidad de marca y rediseño ⏸️ PAUSADO (se contrata)
+
+Decisión del 1 de septiembre: la identidad visual la hace un diseñador
+externo. Aquí queda medido lo que se le entrega, para no pagar por que alguien
+tome decisiones de producto que ya están tomadas.
+
+**Lo que de verdad está mal, medido y no estimado:**
+
+- **593 bloques `style={{}}`** en `src`. Concentrados: Dashboard 92, Metas 59,
+  CreditCard 31 — el 31% de los bloques y casi todo lo que se ve.
+- **Falta escala tipográfica.** 17 tamaños distintos entre 9 y 40 px, elegidos
+  según hizo falta. Es lo que más la hace ver casera.
+
+**Lo que NO está mal, contra lo que parecía:**
+
+- **La paleta ya está centralizada** en `src/lib/constants.ts` (`C` con 12
+  colores semánticos, `S` con card/inp/btn/btnO/lbl), y los componentes ya la
+  consumen. Solo hay 21 literales hex fuera de ahí, y casi todos son variantes
+  alfa de la misma paleta (`#7c6af733` = `C.accent + "33"`). Las decisiones de
+  color reales que sobreviven son seis, no cuarenta.
+- **Los ~32 colores de categorías, cuentas y metas son datos del usuario**, no
+  tokens: viven en `categories.color`, `accounts.color` y `goals.color`. No se
+  pueden centralizar y no se deben — son cómo el usuario distingue lo suyo.
+
+**Ruta de migración cuando llegue la marca** (la de menor riesgo es no migrar):
+extender `S`, que ya existe y ya se consume. Primero agregar `T` (tipografía),
+`SP` (espaciado) y `R` (radios) con los valores **extraídos de lo que ya está
+en pantalla**, para que ese paso no cambie un pixel; después una vista completa
+a la vez, empezando por Dashboard.
+
+## Arquitectura de información — decidida, no construida
+
+Se decide **antes** de contratar: el diseñador necesita saber cuántas pantallas
+son y cuáles. Se construye **una sola vez**, cuando llegue la dirección visual
+— implementarla hoy es reescribir Dashboard para volverlo a reescribir.
+
+**De seis pestañas a cuatro:** Inicio · Créditos · Asesor · Movimientos.
+
+- **Cuentas deja de ser pestaña.** `src/views/Cuentas.tsx` (39 líneas) es casi
+  el mismo componente que la tarjeta "Mis cuentas" del Dashboard; solo agrega
+  "N transacciones". Es redundancia, no jerarquía.
+- **Presupuestos baja a drill-down** desde una barra de total en Inicio.
+- **Metas de ahorro NO baja del todo:** en Inicio queda la más cercana a
+  cumplirse. Es el objeto motivacional y hay 0 metas creadas — no está sin usar
+  por estar visible de más.
+- **Movimientos fijos se mudan a Perfil.** Hoy viven en Metas (`Metas.tsx:53`)
+  y es fácil olvidarlos al reacomodar.
+- **No renombrar Créditos a "Deudas":** la app modela hipoteca y auto, que son
+  créditos; y el diferenciador se llama tarjeta de crédito mexicana.
+
+**Orden de Inicio:** patrimonio neto (número y delta) · ritmo del mes en una
+línea · lo que urge (pagos próximos + avisos) · **recientes** · presupuesto
+total · cuentas colapsado · la meta más cercana.
+
+**Hallazgos del Dashboard actual, para que no se repitan:**
+
+- **Patrimonio neto no está enterrado** — es la segunda tarjeta
+  (`Dashboard.tsx:88-125`), con delta y gráfica. Lo que sobra es el hero de
+  "Saldo Total" que **repite el número que ya está en el header**
+  (`App.tsx:706`). El arreglo es borrar el duplicado, no subir el patrimonio.
+- **El ritmo del mes ya existe completo** ("Cierre de mes estimado",
+  `Dashboard.tsx:128-158`). El problema es que son cuatro cifras donde basta
+  una frase.
+- **"Próximos pagos" ya está a 7 días** (`api.getUpcoming(7)`), pero **solo
+  cubre `recurring_rules`, no los días de corte y pago de los créditos**, que
+  viven en un banner aparte. La mitad que falta es justo el diferenciador.
+- **La gráfica de patrimonio (200px), la dona, la comparativa mes a mes y el
+  selector de período** bajan a un "Análisis del mes". Ojo: hoy el selector de
+  período gobierna *todas* las cifras de abajo, así que quitarlo de Inicio es
+  decidir que Inicio es "este mes".
 
 ---
 
@@ -296,7 +454,8 @@ cola offline idempotente · multi-moneda.
 ### Rendimiento y calidad
 - Bundle de 669 KB → partido en `react`/`supabase`/`charts` con gráficas
   diferidas: carga inicial de ~200 KB a ~129 KB gzip.
-- `npm test`: 43 pruebas unitarias.
+- `npm test`: 60 pruebas unitarias, más un `it.fails` esperado (los datos del
+  responsable en `legal.ts`, que se pone verde al llenarlos).
 - Seis suites de integración contra el proyecto real en `supabase/tests/`.
 - CI en GitHub Actions con un paso que falla si aparece una llave secreta en el
   bundle del cliente.
@@ -324,13 +483,17 @@ cambio.
 
 ## ⏳ Pendiente (fuera del lanzamiento)
 
-- **Multi-moneda quedó a medias.** Las cuentas convierten, las transacciones no:
-  `Transaction` no guarda moneda, así que un gasto de $50 USD se muestra y se
-  suma como $50 MXN. **No afecta mientras todo esté en pesos, pero hay que
-  arreglarlo antes de usar Revolut en dólares.**
+- **Multi-moneda completa** — el arreglo de fondo. Ver el paso 0; hoy está
+  contenido ocultando el selector de moneda, no resuelto.
 - **La cola offline solo cubre gastos e ingresos.** Transferencias, pagos y
   abonos fallan sin red en vez de encolarse.
-- **No hay aviso de versión nueva** en la PWA ni refresco al volver a la app.
+- **Chequeo de versión en la PWA de iOS.** No es lo que parecía: la navegación
+  del service worker es red-primero (`public/sw.js:53-66`), así que cualquier
+  recarga trae el bundle nuevo — nadie se queda pegado. Lo que sí pasa es que
+  una PWA de iOS en standalone puede tardar mucho en volver a navegar, y ahí sí
+  se sienta sobre JS viejo. Detalle aparte: `VERSION` está fijo en
+  `"millions-v2"` y nadie lo sube al desplegar, así que la caché de assets
+  nunca se purga (crece con los deploys, con archivos hasheados; inofensivo).
 - **Recibos en Storage.**
 - **Recordatorios por correo** (pospuesto; `pg_cron` listo, falta proveedor).
 

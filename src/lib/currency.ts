@@ -7,6 +7,25 @@
 // por eso la conversión vive en un solo lugar con pruebas propias.
 // ============================================================================
 
+/**
+ * El selector de moneda está apagado a propósito.
+ *
+ * La conversión funciona para SALDOS de cuenta, pero no para transacciones:
+ * `Transaction` no guarda moneda y `sumSpend`/`sumIncome` (periods.ts) suman
+ * los montos crudos. Una sola cuenta en dólares corrompe en silencio gastos,
+ * ingresos, la dona, la gráfica de 6 meses, los presupuestos y la proyección
+ * de cierre — sin error visible, que es lo peor que puede pasar con dinero.
+ *
+ * Hoy no explota porque todas las cuentas están en pesos. Abrir el registro al
+ * público es exactamente el evento que lo activaría, así que se cierra la
+ * puerta hasta que las transacciones guarden su moneda. Una cuenta que YA
+ * tenga otra moneda la sigue mostrando y convirtiendo: apagar la entrada no
+ * es borrar lo que ya existe.
+ *
+ * Para reactivarlo: poner esto en `true` — y antes, arreglar lo de arriba.
+ */
+export const SELECTOR_DE_MONEDA_ACTIVO = false;
+
 export const CURRENCIES = ["MXN", "USD", "EUR", "CAD", "GBP"] as const;
 export type Currency = (typeof CURRENCIES)[number];
 

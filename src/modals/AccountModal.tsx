@@ -1,6 +1,6 @@
 import Modal from "../components/Modal";
 import { ACC_ICONS, C, S } from "../lib/constants";
-import { CURRENCIES, CURRENCY_LABEL } from "../lib/currency";
+import { CURRENCIES, CURRENCY_LABEL, SELECTOR_DE_MONEDA_ACTIVO } from "../lib/currency";
 
 export interface AccountFormState {
   name: string;
@@ -34,10 +34,26 @@ export default function AccountModal({
       <input autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder={isNew ? "Ej: BBVA, Revolut…" : undefined} value={form.name} onChange={(e) => update({ name: e.target.value })} />
       <label style={S.lbl}>{isNew ? "Saldo inicial" : "Saldo actual"}</label>
       <input style={{ ...S.inp, marginBottom: 14 }} type="number" inputMode="decimal" placeholder={isNew ? "0.00" : undefined} value={form.balance} onChange={(e) => update({ balance: e.target.value })} />
-      <label style={S.lbl}>Moneda</label>
-      <select style={{ ...S.inp, marginBottom: 14 }} value={form.currency ?? "MXN"} onChange={(e) => update({ currency: e.target.value })}>
-        {CURRENCIES.map((c) => <option key={c} value={c}>{c} — {CURRENCY_LABEL[c]}</option>)}
-      </select>
+      {SELECTOR_DE_MONEDA_ACTIVO ? (
+        <>
+          <label style={S.lbl}>Moneda</label>
+          <select style={{ ...S.inp, marginBottom: 14 }} value={form.currency ?? "MXN"} onChange={(e) => update({ currency: e.target.value })}>
+            {CURRENCIES.map((c) => <option key={c} value={c}>{c} — {CURRENCY_LABEL[c]}</option>)}
+          </select>
+        </>
+      ) : (
+        // Con el selector apagado, una cuenta que ya venía en otra moneda la
+        // muestra sin poder cambiarla: esconder el dato confundiría más que el
+        // candado. Las cuentas nuevas nacen en pesos.
+        form.currency && form.currency !== "MXN" && (
+          <>
+            <label style={S.lbl}>Moneda</label>
+            <div style={{ ...S.inp, marginBottom: 14, color: C.muted }}>
+              {form.currency} — {CURRENCY_LABEL[form.currency] ?? form.currency}
+            </div>
+          </>
+        )
+      )}
 
       <label style={S.lbl}>Ícono</label>
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>{ACC_ICONS.map((ic) => <button key={ic} onClick={() => update({ icon: ic })} style={{ fontSize: 24, background: form.icon === ic ? C.accent + "33" : "transparent", border: `2px solid ${form.icon === ic ? C.accent : C.border + "44"}`, borderRadius: 10, padding: "6px 8px", cursor: "pointer" }}>{ic}</button>)}</div>

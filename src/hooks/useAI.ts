@@ -12,6 +12,16 @@ export interface ParsedTx {
   accountName?: string;
 }
 
+/**
+ * Lo que la captura extrajo, **todavía sin tocar la base**. Antes se guardaba
+ * directo lo que devolvía el modelo y no había dónde corregirlo: así fue como
+ * un gasto de mentoría acabó en "Otros" y se descubrió semanas después.
+ */
+export interface TxDraft extends ParsedTx {
+  /** Lo que se dictó o escribió, tal cual, para ver qué se está corrigiendo. */
+  dicho: string;
+}
+
 export interface ParsedNewAcc {
   accountName: string;
   balance?: number;
@@ -57,6 +67,8 @@ export function useAI({
 }) {
   const [txLoading, setTxLoading] = useState(false);
   const [txHistory, setTxHistory] = useState<ChatMsg[]>([]);
+  const [draft, setDraft] = useState<TxDraft | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
 
   const [aiMsgs, setAiMsgs] = useState<AiMsg[]>([{ role: "assistant", text: AI_GREETING }]);
   const [aiInput, setAiInput] = useState("");
@@ -81,9 +93,28 @@ export function useAI({
       let reply: string = p.reply || "Listo";
       if (p.action === "transaccion" && Number(p.amount) > 0) {
         if (p.category && !categoryNames().includes(p.category)) p.category = "Otros";
-        const r = await applyTx(p);
-        if (!r.ok) reply = r.error || "No pude registrar el movimiento";
-      } else if (p.action === "nueva_cuenta" && p.accountName) {
+        // El nombre de cuenta se resuelve YA contra las cuentas reales: si el
+        // modelo dijo algo que no existe, el borrador sale con la cuenta vacía
+        // y la persona la elige, en vez de fallar al guardar y perder lo dicho.
+        const cuentas = actionContext().accs;
+        const dicha = String(p.accountName ?? "").toLowerCase();
+        const match = dicha ? cuentas.find((a) => a.name.toLowerCase().includes(dicha)) : undefined;
+        setDraft({
+          description: p.description || text,
+          amount: Number(p.amount),
+          type: p.type === "ingreso" ? "ingreso" : "gasto",
+          category: p.category || "Otros",
+          accountName: match?.name ?? "",
+          dicho: text,
+        });
+        setDraftError(null);
+        // El historial se cierra al confirmar o descartar: si se guardara aquí
+        // la confirmación del modelo, diría "registré $850" de algo que la
+        // persona todavía puede cambiar o tirar.
+        setLive("");
+        return;
+      }
+      if (p.action === "nueva_cuenta" && p.accountName) {
         await applyNewAcc({ accountName: p.accountName, balance: p.balance, icon: p.icon });
       }
       setTxHistory([...newHist, { role: "assistant" as const, content: reply }].slice(-CAPTURE_TURNS));
@@ -95,6 +126,44 @@ export function useAI({
     } finally {
       setTxLoading(false);
     }
+  };
+
+  /** Cambia un campo del borrador. Nada de esto toca la base todavía. */
+  const updateDraft = (patch: Partial<TxDraft>) => {
+    setDraft((d) => (d ? { ...d, ...patch } : d));
+    setDraftError(null);
+  };
+
+  /** Aquí, y solo aquí, el movimiento se escribe. Devuelve si quedó guardado. */
+  const confirmDraft = async (): Promise<boolean> => {
+    if (!draft || txLoading) return false;
+    if (!draft.accountName) { setDraftError("Elige una cuenta"); return false; }
+    if (!(draft.amount > 0)) { setDraftError("El monto debe ser mayor a cero"); return false; }
+    setTxLoading(true);
+    try {
+      const r = await applyTx(draft);
+      // Si falla, el borrador SE QUEDA: perder lo capturado por un error que
+      // se puede corregir en pantalla es justo lo que veníamos a evitar.
+      if (!r.ok) { setDraftError(r.error || "No se pudo registrar"); return false; }
+      const resumen = `Registrado: ${draft.type} de ${draft.amount} en ${draft.category}, cuenta ${draft.accountName}.`;
+      setTxHistory((h) => [...h, { role: "assistant" as const, content: resumen }].slice(-CAPTURE_TURNS));
+      setDraft(null);
+      setDraftError(null);
+      setLive("✅ Registrado");
+      setTimeout(() => setLive(""), 2500);
+      return true;
+    } finally {
+      setTxLoading(false);
+    }
+  };
+
+  const discardDraft = () => {
+    setDraft(null);
+    setDraftError(null);
+    setLive("");
+    // El modelo se entera de que no se guardó, para que un "no, fueron 200"
+    // no se conteste sobre un movimiento que nunca existió.
+    setTxHistory((h) => [...h, { role: "assistant" as const, content: "La persona descartó ese movimiento; no se registró." }].slice(-CAPTURE_TURNS));
   };
 
   const sendAnalysis = async (text: string) => {
@@ -167,5 +236,5 @@ export function useAI({
     ]);
   };
 
-  return { txLoading, sendTx, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction };
+  return { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction };
 }

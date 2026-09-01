@@ -10,8 +10,9 @@ import { fmtShort } from "./format";
 import { netWorthHistory, projectMonth } from "./analytics";
 import { budgetProgress, totalBudgetStatus } from "./budgets";
 import { buildRows, guessColumns, parseAmount, parseCSV, parseDate } from "./csvImport";
-import { fromBase, hasForeign, toBase } from "./currency";
+import { fromBase, hasForeign, SELECTOR_DE_MONEDA_ACTIVO, toBase } from "./currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./alerts";
+import { findByName } from "./actions";
 import type { Account, Budget, Credit, Transaction } from "../types";
 
 // localStorage mínimo: las pruebas corren en Node y solo lo usa lib/alerts.
@@ -314,6 +315,16 @@ describe("conversión de monedas", () => {
     expect(hasForeign([{ currency: "MXN" }])).toBe(false);
   });
 
+  /**
+   * Guardia, no capricho: mientras `Transaction` no guarde su moneda, dejar
+   * elegir moneda al crear una cuenta corrompe en silencio gastos, ingresos,
+   * presupuestos y la proyección de cierre. Si alguien enciende la bandera sin
+   * arreglar eso primero, esta prueba se pone roja y explica por qué.
+   */
+  it("el selector de moneda sigue apagado mientras las transacciones no guarden moneda", () => {
+    expect(SELECTOR_DE_MONEDA_ACTIVO).toBe(false);
+  });
+
   it("el patrimonio consolida las cuentas en otra moneda", () => {
     vi.useFakeTimers(); at("2026-09-15T10:00:00");
     // 1000 MXN + 100 USD (≈1695 MXN) ≈ 2695
@@ -433,5 +444,50 @@ describe("legal", () => {
   // sigan en PENDIENTE: es el recordatorio de que el aviso aún no es válido.
   it.fails("los datos del responsable ya están llenos", () => {
     expect(LEGAL_INCOMPLETO).toBe(false);
+  });
+});
+
+// ============================================================================
+// Resolver un nombre de cuenta: es lo que decide de dónde sale el dinero.
+// ============================================================================
+describe("findByName", () => {
+  const cuentas = [
+    { name: "BBVA Oro" },
+    { name: "BBVA" },
+    { name: "Efectivo" },
+  ];
+
+  it("prefiere la coincidencia exacta aunque otra la contenga", () => {
+    // Con `includes` a secas, "BBVA" caía en "BBVA Oro" por venir primero:
+    // el gasto se cargaba a la cuenta equivocada sin avisar.
+    expect(findByName(cuentas, "BBVA", "la cuenta").name).toBe("BBVA");
+  });
+
+  it("acepta una parcial cuando no hay duda", () => {
+    expect(findByName(cuentas, "efec", "la cuenta").name).toBe("Efectivo");
+  });
+
+  it("el match es en los dos sentidos: 'cuenta Efectivo' encuentra 'Efectivo'", () => {
+    // El modelo suele decir de más ("mi cuenta Efectivo"), y el nombre real
+    // está contenido en lo dicho, no al revés.
+    expect(findByName(cuentas, "mi Efectivo", "la cuenta").name).toBe("Efectivo");
+  });
+
+  it("falla si el nombre coincide con varias, en vez de elegir por su cuenta", () => {
+    expect(() => findByName([{ name: "Nu Débito" }, { name: "Nu Crédito" }], "Nu", "la cuenta"))
+      .toThrow(/coincide con varios/);
+    // Consecuencia del match bidireccional: "bbva o" contiene "BBVA" y a la vez
+    // está contenido en "BBVA Oro". Con dos candidatos, pregunta.
+    expect(() => findByName(cuentas, "bbva o", "la cuenta")).toThrow(/coincide con varios/);
+  });
+
+  it("dice qué cuentas hay cuando no encuentra ninguna", () => {
+    expect(() => findByName(cuentas, "Santander", "la cuenta")).toThrow(/BBVA Oro, BBVA, Efectivo/);
+  });
+
+  it("un nombre vacío no se resuelve al azar", () => {
+    // Cadena vacía: `includes("")` es true para todas, así que sin la guarda
+    // de ambigüedad se habría quedado con la primera de la lista.
+    expect(() => findByName(cuentas, "", "la cuenta")).toThrow();
   });
 });
