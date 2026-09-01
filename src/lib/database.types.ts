@@ -199,8 +199,10 @@ export type Database = {
           amount: number
           created_at: string
           credit_id: string
+          debt_delta: number | null
           id: string
           paid_at: string
+          prev_next_payment_date: string | null
           transaction_id: string | null
           user_id: string
         }

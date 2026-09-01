@@ -34,7 +34,8 @@ const eq = (label, got, want) => { if (Math.abs(got - want) > 0.001) die(label, 
 // Datos base
 const { data: a1 } = await sb.from("accounts").insert({ user_id: uid, name: "Banco", balance: 10000 }).select().single();
 const { data: a2 } = await sb.from("accounts").insert({ user_id: uid, name: "Efectivo", balance: 2000 }).select().single();
-const { data: cr } = await sb.from("credits").insert({ user_id: uid, name: "Tarjeta", type: "tarjeta", total_debt: 3000 }).select().single();
+const { data: cr } = await sb.from("credits").insert({ user_id: uid, name: "Tarjeta", type: "tarjeta", total_debt: 3000, next_payment_date: "2030-01-15" }).select().single();
+const nextPayOf = async (id) => (await sb.from("credits").select("next_payment_date").eq("id", id).single()).data.next_payment_date;
 const { data: go } = await sb.from("goals").insert({ user_id: uid, name: "Viaje", target_amount: 5000 }).select().single();
 const { data: cats } = await sb.from("categories").select("id,name");
 const catId = cats.find((c) => c.name === "Alimentación").id;
@@ -53,6 +54,19 @@ eq("Efectivo", await bal(a2.id), 2700);
 eq("Deuda", await debtOf(cr.id), 2200);
 const { count: pagos } = await sb.from("credit_payments").select("id", { count: "exact", head: true });
 eq("Historial de pagos", pagos, 1);
+eq("Próximo pago avanzó un mes", await nextPayOf(cr.id), "2030-02-15");
+
+console.log("\n── Sobrepago: 5000 contra una deuda de 2200, y deshacerlo ──");
+const { data: sobre, error: soErr } = await sb.rpc("pay_credit", { p_credit_id: cr.id, p_account_id: a1.id, p_amount: 5000 });
+if (soErr) die("pay_credit sobrepago", soErr);
+eq("Banco", await bal(a1.id), 3500);
+eq("Deuda en cero, no negativa", await debtOf(cr.id), 0);
+eq("Próximo pago avanzó otra vez", await nextPayOf(cr.id), "2030-03-15");
+const { error: rsErr } = await sb.rpc("reverse_transaction", { p_id: sobre.id });
+if (rsErr) die("reverse sobrepago", rsErr);
+eq("Banco recuperó el pago", await bal(a1.id), 8500);
+eq("Deuda vuelve a 2200, no a 7200", await debtOf(cr.id), 2200);
+eq("Próximo pago vuelve a febrero", await nextPayOf(cr.id), "2030-02-15");
 
 console.log("\n── Abono a meta: 1000 desde Banco ──");
 const { error: cgErr } = await sb.rpc("contribute_goal", { p_goal_id: go.id, p_amount: 1000, p_account_id: a1.id });
@@ -78,6 +92,7 @@ for (const t of all) {
 eq("Banco", await bal(a1.id), 10000);
 eq("Efectivo", await bal(a2.id), 2000);
 eq("Deuda", await debtOf(cr.id), 3000);
+eq("Próximo pago vuelve al original", await nextPayOf(cr.id), "2030-01-15");
 eq("Meta", await goalOf(go.id), 0);
 const { count: quedan } = await sb.from("transactions").select("id", { count: "exact", head: true });
 eq("Transacciones restantes", quedan, 0);

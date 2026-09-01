@@ -20,12 +20,6 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-- [ ] **B4 Revertir un sobrepago infla la deuda.** `0003_rpc.sql:105` recorta
-      con `greatest(..., 0)` pero `:175` suma el monto completo. *Fix:* rechazar
-      `p_amount > total_debt` en `pay_credit`, o guardar el delta real.
-- [ ] **B5 Banner rojo de crédito vencido imposible de quitar.** Nada avanza
-      `next_payment_date` al pagar (`App.tsx:498`, RPC `pay_credit`). *Fix:*
-      `pay_credit` avanza la fecha al siguiente `payment_day`.
 - [ ] **B6 Cola offline.** `src/hooks/useOfflineQueue.ts:73-87`: listeners con
       el `flush` del primer render, dos vaciados concurrentes al volver a la app;
       `:52-59` + `lib/offlineQueue.ts:78-88`: un JWT expirado o el desfase de
