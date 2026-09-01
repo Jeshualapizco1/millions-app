@@ -4,6 +4,7 @@
 // queda solo para la IA. El proxy de 19 acciones desapareció.
 // ============================================================================
 import type { Tables } from "./database.types";
+import type { AiUso } from "./aiUso";
 import { sbClient } from "./supabase";
 import type { FxRates } from "./currency";
 import type { Account, Budget, Category, CategoryKind, ChatMsg, Profile, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
@@ -90,20 +91,34 @@ export interface AiReply {
   action?: ProposedAction;
   /** Turno completo del asistente, para continuar la conversación tras confirmar. */
   raw?: unknown[];
+  /** Consumo del día, ya contando esta llamada. */
+  uso?: AiUso;
 }
 
-const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promise<AiReply> => {
+const aiToken = async (): Promise<string> => {
   const { data } = await sbClient.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Sesión expirada");
+  return token;
+};
+
+const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promise<AiReply> => {
   const res = await fetch("/.netlify/functions/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await aiToken()}` },
     body: JSON.stringify({ intent, messages }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
   return body as AiReply;
+};
+
+/** Consumo del día sin gastar una llamada: el mismo endpoint, por GET. */
+const aiUsage = async (): Promise<AiUso> => {
+  const res = await fetch("/.netlify/functions/chat", { headers: { Authorization: `Bearer ${await aiToken()}` } });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.uso) throw new Error(body.error || `Error ${res.status}`);
+  return body.uso as AiUso;
 };
 
 export const api = {
@@ -460,6 +475,7 @@ export const api = {
   // ── IA ────────────────────────────────────────────────────────────────────
   aiCapture: (messages: ChatMsg[]) => aiCall("capture", messages),
   aiAdvise: (messages: ChatMsg[]) => aiCall("advise", messages),
+  aiUsage,
 
   // ── Cuenta de usuario ─────────────────────────────────────────────────────
   async changePassword(newPassword: string): Promise<void> {

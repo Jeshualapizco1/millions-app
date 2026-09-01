@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { C, S } from "../lib/constants";
 import { describeAction } from "../lib/actions";
 import type { ActionContext } from "../lib/actions";
+import { textoAiUso, type AiUso } from "../lib/aiUso";
 import type { AiMsg, ProposedAction } from "../types";
 
 const QUICK_QUESTIONS = ["¿Cómo voy con mis presupuestos?", "¿Cuál es mi patrimonio neto?", "¿Cómo voy a cerrar el mes?", "Dame recomendaciones", "¿En qué gasto más?"];
@@ -23,6 +24,7 @@ export default function Analisis({
   actionContext,
   onConfirmAction,
   onDismissAction,
+  aiUso,
 }: {
   aiMsgs: AiMsg[];
   aiLoading: boolean;
@@ -32,14 +34,24 @@ export default function Analisis({
   actionContext: () => ActionContext;
   onConfirmAction: (a: ProposedAction) => void;
   onDismissAction: (a: ProposedAction) => void;
+  /** Consumo del día; null mientras no se sepa. */
+  aiUso: AiUso | null;
 }) {
+  const uso = textoAiUso(aiUso);
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [aiMsgs]);
   return (
     <div className="fadeUp">
       <div style={S.card}>
         <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>🤖 Asesor Financiero</div>
-        <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>Analizo cuentas, gastos, créditos, presupuestos y metas en tiempo real.</div>
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: uso ? 6 : 14 }}>Analizo cuentas, gastos, créditos, presupuestos y metas en tiempo real.</div>
+        {/* Que nadie se entere del tope por un error: el número va a la vista
+            y cuenta también la captura por voz, que pasa por la misma puerta. */}
+        {uso && (
+          <div style={{ fontSize: 12, color: uso.agotado ? C.amber : C.muted, marginBottom: 14, fontWeight: uso.agotado ? 600 : 400 }}>
+            {uso.agotado ? "⏳ " : ""}{uso.texto}{uso.agotado ? "" : " Cuentan también las capturas por voz."}
+          </div>
+        )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
           {QUICK_QUESTIONS.map((q) => (
             <button key={q} onClick={() => onSend(q)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: "6px 12px", fontSize: 12, color: C.aLight, cursor: "pointer" }}>{q}</button>

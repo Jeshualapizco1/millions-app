@@ -14,6 +14,7 @@ import { buildRows, guessColumns, parseAmount, parseCSV, parseDate } from "./csv
 import { fromBase, hasForeign, SELECTOR_DE_MONEDA_ACTIVO, toBase } from "./currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./alerts";
 import { findByName } from "./names";
+import { consultasRestantes, textoAiUso } from "./aiUso";
 import type { Account, Budget, Credit, Transaction } from "../types";
 
 // localStorage mínimo: las pruebas corren en Node y solo lo usa lib/alerts.
@@ -671,5 +672,26 @@ describe("arranque guiado", () => {
     const todo = b.parrafos.join(" ");
     expect(todo).not.toContain("undefined");
     expect(contextoParaAsesor({ goal: "inventada", pains: ["tampoco_existe"] })).toBe("");
+  });
+});
+
+describe("consultas de IA restantes", () => {
+  it("resta lo usado del tope que manda el servidor", () => {
+    expect(consultasRestantes({ hoy: 3, tope: 15 })).toBe(12);
+    expect(consultasRestantes({ hoy: 0, tope: 15 })).toBe(15);
+  });
+
+  it("nunca dice un número negativo, aunque el tope haya bajado a media jornada", () => {
+    expect(consultasRestantes({ hoy: 20, tope: 15 })).toBe(0);
+  });
+
+  it("sin datos no inventa nada", () => {
+    expect(textoAiUso(null)).toBeNull();
+  });
+
+  it("avisa cuando se acabaron y cuenta en singular la última", () => {
+    expect(textoAiUso({ hoy: 15, tope: 15 })).toEqual({ texto: "Se acabaron las consultas de hoy. Mañana se renuevan.", agotado: true });
+    expect(textoAiUso({ hoy: 14, tope: 15 })).toEqual({ texto: "Te queda 1 consulta de IA hoy, de 15.", agotado: false });
+    expect(textoAiUso({ hoy: 3, tope: 15 })).toEqual({ texto: "Te quedan 12 consultas de IA hoy, de 15.", agotado: false });
   });
 });

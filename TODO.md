@@ -14,7 +14,7 @@ App Store / Play Store). Este archivo conserva el plan, el mercado y la historia
 
 **Lo primero, y no es programación:** nada de lo pendiente avanza sin cinco
 valores que solo tú tienes. Están listados en el README bajo *Lo que falta para
-abrir el registro*, y los dos `it.fails` de `npm test` son su recordatorio.
+abrir el registro*, y el `it.fails` de `npm test` es el recordatorio del cobro.
 
 **Lo primero que sí es programación:** probar en el navegador los tres flujos
 que se construyeron el 1 de septiembre y **todavía no se han ejercitado a
@@ -26,12 +26,19 @@ en la misma sesión, así que al entrar verás, en este orden:
    cuentas.
 3. Ya adentro, el FAB abre el sheet **y enciende el micrófono**; al terminar de
    hablar salen los chips en vez de guardarse solo.
+4. Si saltas el arranque, Inicio muestra el **estado vacío con tres botones**
+   (cuenta · arranque guiado · crédito) en vez del tablero en ceros. Con
+   cuenta y sin movimientos, "Recientes" ofrece capturar el primero.
+5. En Análisis y en Perfil aparece **cuántas consultas de IA quedan hoy**. Si
+   no aparece nada, el GET a `/.netlify/functions/chat` falló (con
+   `npm run dev` no hay función; usa `netlify dev`).
 
 *(El muro de fin de prueba no saldrá: la cuenta se dio de alta hace menos de 30
 días. Para verlo, correr el alta hacia atrás en `profiles.created_at`.)*
 
-**Después de eso**, la siguiente tarea es el **estado vacío con tres botones**
-para quien salta el arranque.
+**Después de eso**, el paso 4 queda sin pendientes de código. Lo que sigue es
+el paso 5: el panel de uso o el `.ics` con días de corte y pago, según lo que
+más urja al abrir el registro.
 
 ### Lo que se hizo el 1 de septiembre
 
@@ -360,14 +367,33 @@ contestó, y que una llave desconocida se ignore en vez de pintar "undefined".
       pone verde al llenarlos, igual que con los datos del responsable.
       **No hay cobro automático:** el botón lleva a un correo o enlace. Integrar
       un cobro de verdad (Stripe / Mercado Pago) es trabajo aparte.
-- [ ] **Estado vacío con tres botones** para quien salta el arranque. Hoy
-      aterriza en el tablero vacío de siempre.
-- [ ] **Consultas de IA restantes** dentro de la app. `ai_calls_today` existe
-      como RPC pero la usa el servidor; falta exponerla al cliente.
-- [ ] Probar en el navegador: arranque, chips y muro. La cuenta actual tiene
-      `onboarded_at` en null y 0 cuentas, así que verá el arranque en la
-      próxima carga; y `LEGAL_VERSION` cambió, así que antes verá el portón
-      legal.
+- [x] **Estado vacío con tres botones** — hecho el 1 de septiembre
+      (`src/views/Vacio.tsx`). Sin cuentas, Inicio ya no es "Saldo Total $0"
+      más cinco tarjetas vacías: es crear cuenta · hacer el arranque guiado ·
+      registrar un crédito. La cuenta va primero porque sin ella no se puede
+      capturar ni importar; el crédito entra porque es el diferenciador y no
+      necesita cuenta.
+      - **El arranque se puede reabrir** desde ahí. Es una pestaña sin botón
+        (`tab === "arranque"`), igual que "perfil": **`App.tsx` no ganó ni un
+        `useState`**. Al reabrirlo no vuelve a sellar `onboarded_at` y
+        "saltar" solo regresa a Inicio.
+      - Con cuenta pero sin movimientos, "Recientes" e Historial ofrecen
+        **capturar el primero** con el mismo gesto del FAB (abre el sheet y
+        enciende el micrófono). Cuentas tiene su tarjeta vacía con el patrón
+        de Créditos.
+- [x] **Consultas de IA restantes** — hecho el 1 de septiembre. Sin migración:
+      la RPC sigue siendo solo del servidor. `chat.ts` responde a **`GET`** con
+      `{ uso: { hoy, tope } }` y cada `POST` devuelve `uso` ya contando la
+      llamada. El tope vive **solo** en `AI_CALLS_PER_USER_DAY`; el cliente
+      nunca lo copia, así que no puede desfasarse. Se pide una vez al entrar
+      (`useAI`) y se muestra en Análisis ("Te quedan N consultas de IA hoy")
+      en Perfil y en el sheet de captura, que es donde se gasta. Si el GET
+      falla no se muestra nada: es informativo, el que decide sigue siendo el
+      servidor. `src/lib/aiUso.ts`, 4 pruebas.
+- [ ] Probar en el navegador: arranque, chips, muro, estado vacío y contador
+      de consultas. La cuenta actual tiene `onboarded_at` en null y 0
+      cuentas, así que verá el arranque en la próxima carga; y
+      `LEGAL_VERSION` cambió, así que antes verá el portón legal.
 
 ## Crecimiento — dos programas separados, decidido el 1 de septiembre ⏳ SIGUE
 

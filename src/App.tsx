@@ -49,7 +49,9 @@ import Dashboard, { type Comparison } from "./views/Dashboard";
 import Historial from "./views/Historial";
 import Metas, { type BudgetWithProgress } from "./views/Metas";
 
-type Tab = "dash" | "metas" | "creditos" | "analisis" | "hist" | "accs" | "perfil";
+// "arranque" no está en la barra: es el arranque guiado reabierto desde el
+// estado vacío, para quien lo saltó y se arrepintió.
+type Tab = "dash" | "metas" | "creditos" | "analisis" | "hist" | "accs" | "perfil" | "arranque";
 
 type CreditUpsert = Omit<Credit, "id" | "created_at">;
 type GoalUpsert = Omit<Goal, "id" | "created_at" | "account_id" | "completed_at">;
@@ -217,7 +219,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       setProfile((p) => (p ? { ...p, monthly_budget: r.techo } : p));
     }
 
-    await cerrarArranque();
+    // Reabierto desde el estado vacío ya está marcado: no se vuelve a pedir.
+    if (!profile?.onboarded_at) await cerrarArranque();
     push({ kind: "ok", text: "Listo, tu app ya tiene con qué trabajar" });
   };
 
@@ -650,7 +653,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setAccs(a); setTxs(t); setCredits(cr); setBudgets(b); setGoals(g);
   };
 
-  const { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction } =
+  const { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso } =
     useAI({ applyTx, applyNewAcc, setTxInput, setLive, categoryNames: () => categories.filter((c) => !c.hidden).map((c) => c.name), actionContext, onActionDone: reloadAfterAction });
 
   const { mic, voiceOK, startMic, stopMic } = useVoice({
@@ -835,6 +838,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     />
   );
 
+  // Quien saltó el arranque puede volver a él desde el estado vacío. Aquí
+  // "saltar" solo regresa al inicio: la constancia ya quedó sellada.
+  if (tab === "arranque") return (
+    <Arranque
+      nombre={userName}
+      cuentasExistentes={accs.map((a) => a.name)}
+      onFinish={async (r) => { await terminarArranque(r); setTab("dash"); }}
+      onSkip={async () => setTab("dash")}
+    />
+  );
+
   return (
     <CategoriesProvider categories={categories.filter((c) => !c.hidden)}>
     <div style={{ minHeight: "100dvh", background: C.bg }}>
@@ -908,13 +922,13 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
       {/* El padding inferior deja libre la barra de pestañas fija */}
       <div style={{ padding: "16px 14px calc(env(safe-area-inset-bottom,0px) + 150px)", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} />}
+        {tab === "dash" && <Dashboard accs={accs} txs={txs} totBal={totBal} totI={totI} totG={totG} totalDebt={totalDebt} upcoming={upcoming} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} nombre={userName} onArranque={() => setTab("arranque")} onAddCredit={() => { setTab("creditos"); setMCredit(true); }} onCapture={() => { setFab(true); startMic(); }} />}
         {tab === "metas" && <Metas budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
-        {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} />}
-        {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} />}
+        {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} aiUso={aiUso} />}
+        {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} onCapture={() => { setFab(true); startMic(); }} />}
         {tab === "accs" && <Cuentas accs={accs} txs={txs} fx={fx} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
-        {tab === "perfil" && <Perfil profile={profile} email={session.user?.email ?? ""} txs={txs} onChangePassword={() => setMPass(true)} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} onCancelDeletion={cancelarBorrado} />}
+        {tab === "perfil" && <Perfil profile={profile} email={session.user?.email ?? ""} txs={txs} onChangePassword={() => setMPass(true)} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} onCancelDeletion={cancelarBorrado} aiUso={aiUso} />}
       </div>
 
       {/* Barra de pestañas fija abajo: en un teléfono el pulgar llega ahí,
@@ -946,6 +960,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         updateDraft={updateDraft}
         onConfirmDraft={async () => { if (await confirmDraft()) setFab(false); }}
         onDiscardDraft={() => { discardDraft(); setFab(false); }}
+        aiUso={aiUso}
       />
 
       {/* Toasts */}

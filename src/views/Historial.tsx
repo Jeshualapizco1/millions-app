@@ -23,12 +23,15 @@ export default function Historial({
   onDelete,
   onEdit,
   onImport,
+  onCapture,
 }: {
   txs: Transaction[];
   accs: Account[];
   onDelete: (id: string) => void;
   onEdit: (tx: Transaction) => void;
   onImport: () => void;
+  /** Abre la captura por voz, igual que el FAB. */
+  onCapture: () => void;
 }) {
   const [q, setQ] = useState("");
   const [kind, setKind] = useState("todos");
@@ -118,9 +121,20 @@ export default function Historial({
           {anyFilter && <button onClick={reset} style={{ background: "none", border: "none", color: C.aLight, fontSize: 12, cursor: "pointer" }}>Limpiar filtros</button>}
         </div>
 
-        {filtered.length === 0 && (
-          <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 20 }}>
-            {txs.length === 0 ? "Sin transacciones aún" : "Ningún movimiento coincide con estos filtros"}
+        {filtered.length === 0 && txs.length > 0 && (
+          <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 20 }}>Ningún movimiento coincide con estos filtros</div>
+        )}
+        {txs.length === 0 && (
+          // Todavía no hay nada que filtrar: en vez de un "sin transacciones"
+          // seco, el mismo gesto que el FAB y la salida del CSV para quien
+          // trae el historial de su banco.
+          <div style={{ textAlign: "center", padding: "20px 8px 8px" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Sin movimientos aún</div>
+            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, marginBottom: 18 }}>
+              Toca ＋ y di algo como “gasté 200 en el Ley”, o importa el CSV de tu banco con el botón de arriba.
+            </div>
+            <button onClick={onCapture} style={{ ...S.btn(), padding: "11px 18px" }}>🎙️ Capturar el primero</button>
           </div>
         )}
         {filtered.slice(0, shown).map((t) => <TxRow key={t.id} tx={t} onDelete={onDelete} onEdit={onEdit} />)}

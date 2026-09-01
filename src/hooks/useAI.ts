@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import type { AiUso } from "../lib/aiUso";
 import { describeAction, runAction, type ActionContext } from "../lib/actions";
 import type { AiMsg, ChatMsg, ProposedAction, TxType } from "../types";
 
@@ -75,6 +76,14 @@ export function useAI({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiHistory, setAiHistory] = useState<ChatMsg[]>([]);
 
+  // Consumo del día. Se pide una vez al entrar y después cada respuesta trae
+  // el suyo. Es informativo: si no se puede leer, no se dice nada y la app
+  // sigue igual — el que decide de verdad es el servidor.
+  const [aiUso, setAiUso] = useState<AiUso | null>(null);
+  useEffect(() => {
+    api.aiUsage().then(setAiUso).catch(() => {});
+  }, []);
+
   const sendTx = async (text: string) => {
     if (!text || txLoading) return;
     setTxInput("");
@@ -83,7 +92,8 @@ export function useAI({
     const newHist = [...txHistory, { role: "user" as const, content: text }].slice(-CAPTURE_TURNS);
     setTxHistory(newHist);
     try {
-      const { text: raw } = await api.aiCapture(newHist);
+      const { text: raw, uso } = await api.aiCapture(newHist);
+      if (uso) setAiUso(uso);
       let p: any;
       try {
         p = JSON.parse(raw.replace(/```json|```/g, "").trim());
@@ -174,6 +184,7 @@ export function useAI({
     setAiLoading(true);
     try {
       const reply = await api.aiAdvise(newHist);
+      if (reply.uso) setAiUso(reply.uso);
       let action = reply.action;
       let extra = "";
 
@@ -218,6 +229,7 @@ export function useAI({
     ];
     try {
       const reply = await api.aiAdvise(hist.slice(-ADVISE_TURNS));
+      if (reply.uso) setAiUso(reply.uso);
       setAiHistory([...hist, { role: "assistant" as const, content: reply.raw ?? reply.text }].slice(-ADVISE_TURNS));
       setAiMsgs((m) => [...m, { role: "assistant", text: reply.text || outcome }]);
     } catch {
@@ -236,5 +248,5 @@ export function useAI({
     ]);
   };
 
-  return { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction };
+  return { txLoading, sendTx, draft, draftError, updateDraft, confirmDraft, discardDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso };
 }

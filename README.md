@@ -61,7 +61,7 @@ leer de vuelta**: sácala de console.anthropic.com o de tu gestor de contraseña
 | Comando | Qué hace |
 |---|---|
 | `npx netlify dev` | Levanta la app completa en local |
-| `npm test` | 76 pruebas de la lógica pura (2 fallan a propósito, ver abajo) |
+| `npm test` | 92 pruebas de la lógica pura (1 falla a propósito, ver abajo) |
 | `npm run build` | Typecheck + build de producción |
 
 ---
@@ -138,10 +138,10 @@ compartido: se lee autenticado y solo el backend escribe.
 npm test                                  # unitarias, sin red
 ```
 
-**Dos pruebas fallan a propósito** (`it.fails`) y son recordatorios, no bugs:
-se ponen verdes solas en cuanto se llenen los valores marcados `PENDIENTE` en
-`src/lib/legal.ts`. Si alguna vez ves 78 verdes, es que el lanzamiento ya está
-desbloqueado.
+**Una prueba falla a propósito** (`it.fails`) y es un recordatorio, no un bug:
+se pone verde sola en cuanto se llenen `PRECIO_TEXTO` y `CONTACTO_PAGO` en
+`src/lib/legal.ts`. Si alguna vez ves todo verde, es que el muro de fin de
+prueba ya tiene precio y contacto.
 
 **El paso de pruebas de CI no define variables de entorno**, a propósito: la
 lógica pura no debería necesitarlas. Antes de subir algo, vale la pena correr
@@ -220,7 +220,7 @@ programación:
 | Activar el registro | Supabase → Authentication → Sign In / Providers → *Allow new users to sign up*. **Al final.** |
 | Revisión legal | Que un abogado lea el aviso y los términos |
 
-Los dos `it.fails` de `npm test` son el recordatorio de los cinco valores.
+El `it.fails` de `npm test` es el recordatorio del precio y el contacto de cobro.
 
 ---
 

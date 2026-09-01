@@ -10,6 +10,7 @@ const NetWorthChart = lazy(() => import("../components/NetWorthChart"));
 const ChartFallback = ({ h }: { h: number }) => (
   <div style={{ height: h, display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6a8a", fontSize: 12 }}>Cargando gráfica…</div>
 );
+import Vacio from "./Vacio";
 import { C, S } from "../lib/constants";
 import { fmt } from "../lib/format";
 import { PERIODS, type PeriodKey } from "../lib/periods";
@@ -47,6 +48,10 @@ export default function Dashboard({
   onEditAcc,
   onNewAcc,
   onGoHist,
+  nombre,
+  onArranque,
+  onAddCredit,
+  onCapture,
 }: {
   accs: Account[];
   txs: Transaction[];
@@ -68,7 +73,17 @@ export default function Dashboard({
   onEditAcc: (a: Account) => void;
   onNewAcc: () => void;
   onGoHist: () => void;
+  nombre: string;
+  /** Volver a abrir el arranque guiado para quien lo saltó. */
+  onArranque: () => void;
+  onAddCredit: () => void;
+  /** Abre la captura por voz, igual que el FAB. */
+  onCapture: () => void;
 }) {
+  // Sin cuentas no hay saldo, ni patrimonio, ni nada que graficar: seis
+  // tarjetas en cero no le dicen a nadie qué hacer. Tres botones sí.
+  if (accs.length === 0) return <Vacio nombre={nombre} onNewAcc={onNewAcc} onArranque={onArranque} onAddCredit={onAddCredit} />;
+
   return (
     <div className="fadeUp">
       {/* Saldo total */}
@@ -272,7 +287,16 @@ export default function Dashboard({
           <div style={{ fontWeight: 700, fontSize: 14, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Recientes</div>
           {txs.length > 5 && <button onClick={onGoHist} style={{ background: "none", border: "none", color: C.aLight, fontSize: 12, cursor: "pointer" }}>Ver todo →</button>}
         </div>
-        {txs.length === 0 && <div style={{ color: C.muted, fontSize: 13 }}>Sin transacciones aún</div>}
+        {txs.length === 0 && (
+          // Ya hay cuenta pero ni un movimiento: el siguiente paso es capturar
+          // uno, y el botón abre lo mismo que el FAB con el micrófono encendido.
+          <div style={{ textAlign: "center", padding: "6px 0 2px" }}>
+            <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.5, marginBottom: 12 }}>
+              Sin movimientos aún. Toca ＋ y di algo como “gasté 200 en el Ley”.
+            </div>
+            <button onClick={onCapture} style={{ ...S.btn(), padding: "11px 18px" }}>🎙️ Capturar el primero</button>
+          </div>
+        )}
         {txs.slice(0, 5).map((t) => <TxRow key={t.id} tx={t} />)}
       </div>
     </div>

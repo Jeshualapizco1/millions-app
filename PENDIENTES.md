@@ -142,10 +142,6 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 - [ ] **D2 Corte y pago de tarjetas dentro de "Próximos pagos".** Hoy
       `api.getUpcoming(7)` solo cubre `recurring_rules`; los créditos van en un
       banner aparte. Es el diferenciador del producto.
-- [ ] **D3 Estado vacío con tres botones** para quien salta el arranque
-      (Dashboard, Cuentas, Historial), reusando el patrón de `Creditos.tsx:39`.
-- [ ] **D4 Consultas de IA restantes** visibles en el sheet. `ai_calls_today`
-      existe como RPC; exponerla al cliente.
 - [ ] **D5 Feedback de éxito y anti doble-tap.** `saveNewAcc`, `saveNewCredit`,
       `saveNewGoal`, `saveBudget`, `saveEditAcc` sin toast; `saveTxManual` sin
       `loading`.

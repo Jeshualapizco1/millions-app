@@ -283,9 +283,18 @@ RITMO: ${fmt(ritmo)} de gasto por día. Al ritmo actual, más ${fmt(fijoGastoPen
 ${perfilPersonal}`;
 }
 
+/**
+ * Lo que el cliente muestra como "te quedan N consultas hoy". El tope vive en
+ * una variable de entorno del servidor, así que viaja en cada respuesta: si se
+ * mantuviera una copia en el cliente, tarde o temprano dirían cosas distintas.
+ */
+const uso = (hoy: number) => ({ hoy, tope: RATE_LIMIT_PER_DAY });
+
 export const handler: Handler = async (event) => {
   const h = { "Content-Type": "application/json" };
-  if (event.httpMethod !== "POST") return { statusCode: 405, headers: h, body: JSON.stringify({ error: "Method Not Allowed" }) };
+  // GET = consultar el consumo del día sin gastar una llamada. POST = usar la IA.
+  if (event.httpMethod !== "POST" && event.httpMethod !== "GET")
+    return { statusCode: 405, headers: h, body: JSON.stringify({ error: "Method Not Allowed" }) };
 
   try {
     // ── Auth: JWT del usuario, verificado contra Supabase ───────────────────
@@ -295,6 +304,16 @@ export const handler: Handler = async (event) => {
     if (userErr || !userData.user) return { statusCode: 401, headers: h, body: JSON.stringify({ error: "No autenticado" }) };
     const userId = userData.user.id;
 
+    // ── Consumo del día: va antes de validar el body porque el GET no trae ──
+    const { data: hoyUsuario, error: errHoy } = await getAdmin().rpc("ai_calls_today", { p_user: userId });
+    if (errHoy) {
+      console.error("no se pudo verificar el consumo diario:", errHoy.message);
+      return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
+    }
+    const hoy = Number(hoyUsuario ?? 0);
+
+    if (event.httpMethod === "GET") return { statusCode: 200, headers: h, body: JSON.stringify({ uso: uso(hoy) }) };
+
     // ── Validación ──────────────────────────────────────────────────────────
     if ((event.body?.length ?? 0) > 64_000) return { statusCode: 413, headers: h, body: JSON.stringify({ error: "Body demasiado grande" }) };
     const parsed = BodySchema.safeParse(JSON.parse(event.body || "{}"));
@@ -302,13 +321,8 @@ export const handler: Handler = async (event) => {
     const { intent, messages } = parsed.data;
 
     // ── Límites: por día, por mes y presupuesto global ─────────────────────
-    const { data: hoyUsuario, error: errHoy } = await getAdmin().rpc("ai_calls_today", { p_user: userId });
-    if (errHoy) {
-      console.error("no se pudo verificar el consumo diario:", errHoy.message);
-      return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
-    }
-    if (Number(hoyUsuario ?? 0) >= RATE_LIMIT_PER_DAY)
-      return { statusCode: 429, headers: h, body: JSON.stringify({ error: `Llegaste a tus ${RATE_LIMIT_PER_DAY} consultas de hoy. Mañana se renuevan; mientras tanto puedes registrar movimientos a mano.` }) };
+    if (hoy >= RATE_LIMIT_PER_DAY)
+      return { statusCode: 429, headers: h, body: JSON.stringify({ error: `Llegaste a tus ${RATE_LIMIT_PER_DAY} consultas de hoy. Mañana se renuevan; mientras tanto puedes registrar movimientos a mano.`, uso: uso(hoy) }) };
 
     const { data: mesUsuario, error: errMes } = await getAdmin().rpc("ai_calls_this_month", { p_user: userId });
     if (errMes) {
@@ -327,7 +341,7 @@ export const handler: Handler = async (event) => {
       return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
     }
     const gastado = Number(gastoMes ?? 0);
-    console.log(`presupuesto: ${gastado.toFixed(5)} de ${MONTHLY_BUDGET_USD} USD · usuario ${hoyUsuario}/${RATE_LIMIT_PER_DAY} hoy, ${mesUsuario}/${RATE_LIMIT_PER_MONTH} este mes`);
+    console.log(`presupuesto: ${gastado.toFixed(5)} de ${MONTHLY_BUDGET_USD} USD · usuario ${hoy}/${RATE_LIMIT_PER_DAY} hoy, ${mesUsuario}/${RATE_LIMIT_PER_MONTH} este mes`);
     if (gastado >= MONTHLY_BUDGET_USD) {
       console.error(`presupuesto de IA agotado: ${gastado} USD de ${MONTHLY_BUDGET_USD}`);
       return { statusCode: 503, headers: h, body: JSON.stringify({ error: "El asistente no está disponible por ahora. Puedes seguir registrando movimientos a mano." }) };
@@ -386,10 +400,11 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 200,
       headers: h,
+      // `uso` ya cuenta esta llamada: es lo que el cliente va a mostrar.
       body: JSON.stringify(
         toolUse
-          ? { text, action: { toolUseId: toolUse.id, name: toolUse.name, input: toolUse.input }, raw: blocks }
-          : { text }
+          ? { text, action: { toolUseId: toolUse.id, name: toolUse.name, input: toolUse.input }, raw: blocks, uso: uso(hoy + 1) }
+          : { text, uso: uso(hoy + 1) }
       ),
     };
   } catch (e) {

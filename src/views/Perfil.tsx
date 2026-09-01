@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { C, S } from "../lib/constants";
 import { exportCSV } from "../lib/csv";
+import { consultasRestantes, type AiUso } from "../lib/aiUso";
 import { diasRestantesDeGracia, diasRestantesDePlazo } from "../lib/dates";
 import { GRACIA_DIAS, LEGAL_VERSION, PRUEBA_DIAS, type LegalDoc } from "../lib/legal";
 import LegalModal from "../modals/LegalModal";
@@ -72,6 +73,7 @@ export default function Perfil({
   onSignOut,
   onDeleteAccount,
   onCancelDeletion,
+  aiUso,
 }: {
   profile: Profile | null;
   email: string;
@@ -80,6 +82,8 @@ export default function Perfil({
   onSignOut: () => void;
   onDeleteAccount: () => void;
   onCancelDeletion: () => void;
+  /** Consumo de IA del día; null mientras no se sepa. */
+  aiUso: AiUso | null;
 }) {
   const [verDoc, setVerDoc] = useState<LegalDoc["key"] | null>(null);
   const nombre = profile?.name || email.split("@")[0];
@@ -146,6 +150,22 @@ export default function Perfil({
         <Fila icon="🔑" label="Cambiar contraseña" hint="Mínimo 8 caracteres" onClick={onChangePassword} />
         <Fila icon="↩" label="Cerrar sesión" onClick={onSignOut} />
       </Seccion>
+
+      {aiUso && (
+        <Seccion titulo="Asistente">
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 4px" }}>
+            <span style={{ fontSize: 19, width: 24, textAlign: "center" }}>🤖</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 600, color: C.text }}>
+                {consultasRestantes(aiUso)} de {aiUso.tope} consultas disponibles hoy
+              </div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                Captura por voz y asesor. Se renuevan a medianoche.
+              </div>
+            </div>
+          </div>
+        </Seccion>
+      )}
 
       <Seccion titulo="Tus datos">
         <Fila

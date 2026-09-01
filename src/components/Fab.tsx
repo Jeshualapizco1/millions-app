@@ -1,6 +1,7 @@
 import { C, S } from "../lib/constants";
 import TxDraftChips from "./TxDraftChips";
 import type { TxDraft } from "../hooks/useAI";
+import { textoAiUso, type AiUso } from "../lib/aiUso";
 import type { Account } from "../types";
 
 /** Botón flotante + sheet de captura por voz/texto. */
@@ -25,6 +26,7 @@ export default function Fab({
   updateDraft,
   onConfirmDraft,
   onDiscardDraft,
+  aiUso,
 }: {
   fab: boolean;
   onOpen: () => void;
@@ -47,7 +49,10 @@ export default function Fab({
   updateDraft: (patch: Partial<TxDraft>) => void;
   onConfirmDraft: () => void;
   onDiscardDraft: () => void;
+  /** Consumo de IA del día; null mientras no se sepa. */
+  aiUso: AiUso | null;
 }) {
+  const uso = textoAiUso(aiUso);
   return (
     <>
       {/* FAB */}
@@ -84,6 +89,13 @@ export default function Fab({
               <button style={{ ...S.btn(), padding: "12px 14px" }} onClick={() => onSend(txInput.trim())} disabled={txLoading || !txInput.trim()}>↑</button>
             </div>
             {!voiceOK && <div style={{ fontSize: 11, color: C.muted, marginBottom: 14, textAlign: "center" }}>El dictado por voz no está disponible en este navegador. En iPhone usa Safari; en Android o escritorio, Chrome.</div>}
+            {/* Aquí es donde se gasta: que el tope no sorprenda en la llamada 16.
+                Si se acabó, el botón manual de abajo sigue siendo la salida. */}
+            {uso && (
+              <div style={{ fontSize: 11, color: uso.agotado ? C.amber : C.muted, marginBottom: 14, textAlign: "center", fontWeight: uso.agotado ? 600 : 400 }}>
+                {uso.agotado ? `⏳ ${uso.texto} Mientras tanto, registra a mano.` : uso.texto}
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}><div style={{ flex: 1, height: 1, background: C.border }} /><span style={{ fontSize: 12, color: C.muted }}>o</span><div style={{ flex: 1, height: 1, background: C.border }} /></div>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={{ ...S.btn(`${C.accent}22`), flex: 1, color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onManual}>✏️ Manual</button>

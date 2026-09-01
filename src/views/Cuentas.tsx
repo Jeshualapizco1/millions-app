@@ -34,6 +34,15 @@ export default function Cuentas({
           </div>
         </div>
       ))}
+      {accs.length === 0 && (
+        <div style={{ ...S.card, textAlign: "center", padding: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🏦</div>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Sin cuentas</div>
+          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
+            Banco, efectivo o app de pagos, con el saldo que tenga hoy. Sin una cuenta no hay dónde cargar los gastos.
+          </div>
+        </div>
+      )}
       <button style={{ ...S.btn(), width: "100%" }} onClick={onNew}>＋ Nueva cuenta</button>
     </div>
   );
