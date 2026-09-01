@@ -83,6 +83,43 @@ if (upErr) die("update_transaction", upErr);
 eq("Banco recuperó el gasto", await bal(a1.id), 7500);
 eq("Efectivo absorbió el nuevo", await bal(a2.id), 2200);
 
+console.log("\n── Monedas distintas, referencias ajenas y notas (0025) ──");
+const { data: usd } = await sb.from("accounts").insert({ user_id: uid, name: "Dolares", balance: 500, currency: "USD" }).select().single();
+const { error: mixto } = await sb.rpc("transfer", { p_from_account: a1.id, p_to_account: usd.id, p_amount: 100 });
+eq("transferencia entre monedas distintas rechazada", !!mixto && mixto.message.includes("misma moneda"), true);
+eq("Banco intacto", await bal(a1.id), 7500);
+eq("Dolares intacta", await bal(usd.id), 500);
+await sb.from("accounts").delete().eq("id", usd.id);
+
+// una categoria que no es del usuario no se puede colgar de un movimiento propio
+const { data: ajena } = await admin.from("categories").select("id").neq("user_id", uid).limit(1).single();
+if (ajena) {
+  const { error: catErr } = await sb.rpc("apply_transaction", { p_account_id: a1.id, p_kind: "gasto", p_amount: 5, p_description: "cat ajena", p_category_id: ajena.id });
+  eq("categoria ajena rechazada", !!catErr && catErr.message.includes("no es tuya"), true);
+} else {
+  console.log("  · sin categorias de otro usuario en la base: no se pudo probar C9");
+}
+
+// editar el monto no borra la nota
+const { data: conNota } = await sb.rpc("apply_transaction", { p_account_id: a1.id, p_kind: "gasto", p_amount: 50, p_description: "con nota", p_category_id: catId, p_notes: "acuerdate de esto" });
+await sb.rpc("update_transaction", { p_id: conNota.id, p_account_id: a1.id, p_kind: "gasto", p_amount: 80, p_description: "con nota", p_category_id: catId });
+const { data: trasEditar } = await sb.from("transactions").select("notes,category_id").eq("id", conNota.id).single();
+eq("la nota sobrevive a la edicion", trasEditar.notes, "acuerdate de esto");
+eq("la categoria sobrevive a la edicion", trasEditar.category_id, catId);
+await sb.rpc("reverse_transaction", { p_id: conNota.id });
+
+// deshacer un abono chico no descompleta una meta rebasada
+const { data: meta2 } = await sb.from("goals").insert({ user_id: uid, name: "Viaje", target_amount: 1000, current_amount: 0 }).select().single();
+await sb.rpc("contribute_goal", { p_goal_id: meta2.id, p_amount: 5000 });
+const { data: chico } = await sb.rpc("contribute_goal", { p_goal_id: meta2.id, p_amount: 100 });
+void chico;
+const { data: txAbono } = await sb.from("transactions").select("id").eq("goal_id", meta2.id).order("created_at", { ascending: false }).limit(1);
+if (txAbono.length) await sb.rpc("reverse_transaction", { p_id: txAbono[0].id });
+const { data: meta2After } = await sb.from("goals").select("current_amount,completed_at").eq("id", meta2.id).single();
+eq("la meta rebasada sigue completa tras deshacer un abono", meta2After.completed_at !== null, true);
+await sb.from("goal_contributions").delete().eq("goal_id", meta2.id);
+await sb.from("goals").delete().eq("id", meta2.id);
+
 console.log("\n── Cuenta archivada: no recibe movimientos y pausa sus fijos (0023) ──");
 const { data: a3 } = await sb.from("accounts").insert({ user_id: uid, name: "Vieja", balance: 100 }).select().single();
 const { data: regla } = await sb.from("recurring_rules").insert({ user_id: uid, account_id: a3.id, name: "Suscripción", kind: "gasto", amount: 99, frequency: "mensual", next_run: "2030-01-01", active: true }).select().single();

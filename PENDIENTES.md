@@ -24,18 +24,9 @@ Cerrados B1–B14 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## C. Bugs bajos
 
-- [ ] C7 `transfer` entre monedas distintas mueve unidades sin convertir;
-      rechazarlo mientras el selector de moneda esté apagado.
-- [ ] C8 `update_transaction` pone `notes`/`category_id` en null si se omiten;
-      `reverse_transaction` borra `completed_at` de la meta.
-- [ ] C9 `apply_transaction` / `import_transactions` no validan que
-      `p_category_id` / `p_recurring_id` sean del usuario (solo FK).
 - [ ] C10 `ai_usage` con `on delete cascade`: purgar cuentas borra su gasto del
       mes y el freno global subestima. `on delete set null`.
 - [ ] C12 `chat.ts:214` suma saldos sin convertir moneda (ya anotado en TODO).
-- [ ] C13 `recurring_rules.next_run` sin mínimo: una regla con fecha de hace
-      años genera 60 filas/día durante meses. CHECK o tope en el catch-up.
-
 ## D. Mejoras de funcionamiento
 
 - [ ] **D1 Refresco al volver a la app.** `useFinanceData` carga una vez y nunca
