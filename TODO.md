@@ -8,8 +8,8 @@ lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
 ## Para retomar desde otra máquina
 
-> Última actualización: 2 de septiembre de 2026, madrugada. Todo está en
-> `origin/main` y la CI en verde; no hay nada sin pushear.
+> Última actualización: 2 de septiembre de 2026, tarde, ya en la Mac. Todo
+> está en `origin/main` y la CI en verde; no hay nada sin pushear.
 
 **La lista operativa vive en [PENDIENTES.md](PENDIENTES.md).** Este archivo
 conserva el plan, el mercado y la historia.
@@ -17,25 +17,30 @@ conserva el plan, el mercado y la historia.
 **Estado en una línea:** las secciones A a F de la auditoría están cerradas
 (críticos, medios, bajos, mejoras, visual y accesibilidad), la fase 0 de
 tiendas tiene hecho lo que era código, y la fase 2 —el contenedor de
-Capacitor— está escrita y sincronizada pero **sin compilar**: esta máquina no
-tiene SDK de Android ni Xcode.
+Capacitor— **ya compila en iOS** desde la Mac; falta Android y falta probar
+en teléfonos de verdad.
 
-**Lo primero al abrir la Mac, en este orden:**
+**Lo que se hizo al abrir la Mac (2 de septiembre):** `npm install` (sharp
+pedía bajar libvips a mano por lo lento de la red), `npm test` y `npm run
+build` en verde, y el proyecto de iOS **regenerado con CocoaPods**. Venía de
+Windows con Swift Package Manager, que dejaba fuera el plugin de voz: en iOS
+el micrófono no habría hecho nada. Ahora `xcodebuild` termina en
+`BUILD SUCCEEDED` y el framework de voz está en el bundle. Se abre
+`ios/App/App.xcworkspace`, no el `.xcodeproj`.
 
-1. `npm install` (entraron Capacitor y sus plugins) y `npm run build && npx cap sync`.
-2. `cd ios/App && pod install`, luego `npx cap open ios`. Es la primera vez que
-   el proyecto de iOS se abre: `npx cap add ios` corrió en Windows y puede
-   pedir ajustes menores de firma en Xcode.
-3. Android Studio con `npx cap open android`, en la Mac o en Windows.
-4. Compilar nativo con `VITE_API_BASE=https://millionsjeshua.netlify.app`
-   mientras `app.millionsapp.io` no apunte al sitio.
-5. En Supabase → Auth → Redirect URLs agregar
+**Lo siguiente, en este orden:**
+
+1. En Supabase → Auth → Redirect URLs agregar
    `https://millionsjeshua.netlify.app/auth` y `https://app.millionsapp.io/auth`.
    **Urge aunque no compiles nada:** el registro web ya manda el correo de
    confirmación a `/auth` desde el commit `9c158d5`.
-6. Probar en un teléfono real, empezando por la voz nativa: está escrita sin
-   haberse ejecutado. Después: confirmación de correo por deep link, chips,
-   offline, legal, borrado de cuenta y botón atrás.
+2. Instalar Android Studio (con su JDK) y `npx cap open android`. Es lo único
+   que falta para tener las dos plataformas compilando.
+3. Compilar nativo con `VITE_API_BASE=https://millionsjeshua.netlify.app`
+   mientras `app.millionsapp.io` no apunte al sitio.
+4. Probar en un teléfono real, empezando por la voz nativa: compila, pero
+   nunca se ha ejecutado. Después: confirmación de correo por deep link,
+   chips, offline, legal, borrado de cuenta y botón atrás.
 
 **Decisiones tomadas el 1 de septiembre por la noche:** nombre de tienda
 "Millions - Finanzas con IA", dominio `millionsapp.io`, bundle id

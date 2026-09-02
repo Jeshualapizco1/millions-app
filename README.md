@@ -233,8 +233,17 @@ bundle id `io.millionsapp.app`). Los proyectos `android/` e `ios/` van al repo.
 ```bash
 npm run build && npx cap sync      # copia dist/ a las plataformas y actualiza plugins
 npx cap open android               # Android Studio (Windows o Mac)
-npx cap open ios                   # Xcode (solo Mac; antes: cd ios/App && pod install)
+npx cap open ios                   # Xcode (solo Mac); abre App.xcworkspace, no el .xcodeproj
 ```
+
+- **iOS va por CocoaPods, no por SPM**, y no es un detalle de gusto: el plugin
+  de voz no trae `Package.swift`, así que con SPM se queda fuera del binario y
+  el micrófono no hace nada. `npx cap sync` ya corre `pod install` solo. Si
+  alguna vez hay que regenerar la plataforma:
+  `npx cap add ios --packagemanager CocoaPods` (el flag es obligatorio: el
+  valor por omisión de Capacitor 8 es SPM). Después hay que devolver el
+  `Info.plist` y `Assets.xcassets` del repo, que llevan permisos, orientación
+  e iconos.
 
 - En nativo la función de IA se llama en absoluto (`VITE_API_BASE`, por
   omisión `https://app.millionsapp.io`). Mientras ese dominio no apunte al

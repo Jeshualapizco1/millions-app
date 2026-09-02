@@ -12,9 +12,11 @@ demás vienen de revisión y hay que confirmarlos al abrirlos.
 Orden de trabajo acordado: **A → B → G (fase 0 en paralelo) → C → D → E**. La
 fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
-**Estado al 2 de septiembre:** A–F cerradas. Queda D9 (carga perezosa, no
-urge), lo de fase 0 que es trámite tuyo, y **compilar y probar la fase 2** en
-la Mac y en un teléfono. Empieza por "Para retomar" en [TODO.md](TODO.md).
+**Estado al 2 de septiembre, tarde:** A–F cerradas. **iOS ya compila en la
+Mac** (simulador, sin firma): el proyecto pasó de SPM a CocoaPods porque SPM
+dejaba fuera el plugin de voz. Queda D9 y D10 (ninguno urge), lo de fase 0 que
+es trámite tuyo, **compilar Android** (falta Android Studio) y **probar en
+teléfonos reales**. Empieza por "Para retomar" en [TODO.md](TODO.md).
 
 ---
 
@@ -37,6 +39,13 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
       Cargar solo lo reciente exige mover al servidor lo que hoy se calcula
       con el historial completo: períodos, patrimonio, gráfica de 6 meses y
       dona. Vale la pena cuando alguien tenga miles de movimientos.
+
+- [ ] **D10 La voz nativa falla en silencio.** En `src/hooks/useVoice.ts:98`
+      el `catch` de `startNativo` solo hace `console.warn`: si no hay permiso
+      de micrófono, o el motor no está, la persona toca el micrófono y no pasa
+      absolutamente nada. Debe salir un toast que diga qué falló y, cuando sea
+      el permiso, cómo darlo desde Ajustes. Se descubrió al enlazar el plugin
+      de voz en iOS: mientras estuvo desenlazado, este era el único síntoma.
 
 ## E. Mejoras visuales
 
@@ -140,13 +149,11 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       es el contacto de soporte de la ficha y el de derechos ARCO.
 - [ ] Mover la app de `millionsjeshua.netlify.app` a `app.millionsapp.io`.
 
-**Herramientas en esta Mac (hoy solo hay Command Line Tools)**
+**Herramientas en esta Mac**
 
-- [ ] Xcode desde la App Store (~15 GB) y abrirlo una vez para aceptar la
-      licencia. macOS 15 soporta Xcode 16.
 - [ ] Android Studio + SDK + un emulador; JDK 17 (lo instala Android Studio).
-- [ ] CocoaPods (`brew install cocoapods`) o usar Swift Package Manager desde
-      Capacitor 6+.
+      Es lo único que falta en la Mac: Xcode 26.6 y CocoaPods 1.17 ya están y
+      con eso iOS compila.
 - [ ] Un iPhone y un Android físicos para probar voz y micrófono: el emulador
       no sirve para eso.
 
@@ -173,14 +180,25 @@ Un commit por punto (A2 y A3 comparten uno porque tocan la misma función):
 `bab905d` A1 · `a1480b5` A2+A3 · `7e51525` A4 · `d59090d` A5 · `1ca14f0` A6 ·
 `2071ed0` A7. Todos en `origin/main`, verificados contra producción.
 
-### Fase 2 — El contenedor 🔨 CÓDIGO LISTO, FALTA COMPILAR Y PROBAR
+### Fase 2 — El contenedor 🔨 iOS COMPILA, FALTA ANDROID Y PROBAR EN TELÉFONO
 
-Hecho el 1 de septiembre, sin poder compilar en esta máquina (no hay SDK de
-Android; iOS solo en Mac). Todo está en el repo y `npx cap sync` corre limpio:
+Escrito el 1 de septiembre en Windows, **compilado por primera vez el 2 en la
+Mac**: `xcodebuild` sobre `App.xcworkspace` termina en `BUILD SUCCEEDED` para
+simulador. Android sigue sin compilarse (falta Android Studio).
 
 - [x] Capacitor 8 con `android/` e `ios/` generados, `webDir: dist`, bundle id
       `io.millionsapp.app`, nombre "Millions - Finanzas con IA". Iconos y
       splash nativos generados con `@capacitor/assets` desde `assets/`.
+- [x] **iOS usa CocoaPods, no SPM.** El proyecto que salió de Windows se generó
+      con Swift Package Manager, y `@capacitor-community/speech-recognition` no
+      trae `Package.swift`: quedaba fuera del binario, así que en iOS el
+      micrófono no habría hecho nada. Regenerado el 2 de septiembre con
+      `npx cap add ios --packagemanager CocoaPods`; los 6 plugins entran y
+      `CapacitorCommunitySpeechRecognition.framework` está en el bundle. Se
+      abre `ios/App/App.xcworkspace`, **no** el `.xcodeproj`. De paso entraron
+      los métodos `open url` y `continue userActivity` del `AppDelegate`, que
+      la plantilla de Windows tampoco tenía: sin ellos los deep links de auth
+      y los Universal Links no llegaban a la app.
 - [x] `server.hostname = app.millionsapp.io` con esquema https (G-D5): el
       origen dentro del WebView es el dominio público.
 - [x] `VITE_API_BASE` para la función de IA (`src/lib/native.ts`); CORS y
@@ -201,9 +219,11 @@ Android; iOS solo en Mac). Todo está en el repo y `npx cap sync` corre limpio:
 
 Falta, y es en tu máquina o en paneles:
 
-- [ ] **Compilar**: `npx cap open android` en Android Studio; en la Mac,
-      `cd ios/App && pod install` y `npx cap open ios`. Primer build con
-      firma de desarrollo.
+- [ ] **Compilar Android**: instalar Android Studio y `npx cap open android`.
+      Es lo único que falta para tener las dos plataformas en pie.
+- [ ] **Primer build de iOS con firma**: hasta ahora solo se compiló para
+      simulador con `CODE_SIGNING_ALLOWED=NO`. Para el teléfono hace falta la
+      cuenta de Apple (fase 0) y elegir el equipo en Xcode.
 - [ ] **Xcode → Signing & Capabilities → Associated Domains**:
       `applinks:app.millionsapp.io`. Y rellenar `TEAMID` en
       `public/.well-known/apple-app-site-association`.
@@ -216,8 +236,8 @@ Falta, y es en tu máquina o en paneles:
 - [ ] Probar en simulador de iOS, emulador de Android y en los dos teléfonos:
       login, confirmación de correo por deep link, voz (permisos, parciales,
       corte por silencio), chips, offline, legal, borrado de cuenta, botón
-      atrás. La voz nativa está escrita a ciegas: es lo primero que hay que
-      probar en un teléfono real.
+      atrás. La voz nativa está escrita a ciegas y nunca se ha ejecutado: es lo
+      primero que hay que probar en un teléfono real. Ver también D10.
 - [ ] `@capacitor/browser` no se agregó: aviso y términos ya viven dentro de
       la app y en `/privacidad` y `/terminos`.
 
