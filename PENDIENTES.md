@@ -132,8 +132,7 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       panel de Netlify. `/.well-known/apple-app-site-association` espera al
       Team ID y al bundle id (G-D3, G-D4).
 - [ ] Correo de soporte y ARCO funcionando de verdad (recibe y responde).
-      Hoy el aviso publica `hola@millionsapp.com`; si pasa a `hola@millionsapp.io`
-      cambia el texto legal y sube `LEGAL_VERSION` (todos vuelven a aceptar):
+      El aviso publica `hola@millionsapp.io` desde la versión `2026-09-01.3`:
       es el contacto de soporte de la ficha y el de derechos ARCO.
 - [ ] Mover la app de `millionsjeshua.netlify.app` a `app.millionsapp.io`.
 
@@ -164,10 +163,11 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       6.7"/6.9", 5–8; Android, 2–8): se toman desde el dispositivo cuando
       exista el contenedor.
 
-### Fase 1 — Cerrar A1–A7 de la auditoría
+### Fase 1 — Cerrar A1–A7 de la auditoría ✅ HECHA el 1 de septiembre
 
-Sin esto no conviene meter desconocidos, y los revisores de las tiendas son
-desconocidos con tiempo. Está arriba en este archivo.
+Un commit por punto (A2 y A3 comparten uno porque tocan la misma función):
+`bab905d` A1 · `a1480b5` A2+A3 · `7e51525` A4 · `d59090d` A5 · `1ca14f0` A6 ·
+`2071ed0` A7. Todos en `origin/main`, verificados contra producción.
 
 ### Fase 2 — El contenedor (1–2 semanas)
 
