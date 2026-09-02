@@ -22,14 +22,18 @@
  * misma cadena apuntando ahora a un texto con la identidad real haría que la
  * constancia dijera que aceptó algo que nunca vio, que es exactamente lo que
  * este mecanismo existe para impedir.
+ *
+ * La `.3`: el correo de contacto y ARCO pasó de millionsapp.com a
+ * millionsapp.io. Es un dato del aviso, así que la versión sube y todos
+ * vuelven a ver el portón una vez.
  */
-export const LEGAL_VERSION = "2026-09-01.2";
+export const LEGAL_VERSION = "2026-09-01.3";
 
 // ── Datos del responsable (LFPDPPP art. 16) ─────────────────────────────────
 // El aviso es inválido sin identidad, domicilio y un medio de contacto real.
 export const RESPONSABLE = "María de Jesús Acosta García";
 export const DOMICILIO = "Las Ramblas 3112, Fracc. Espacios Barcelona, Culiacán, Sinaloa, C.P. 80059, México";
-export const CORREO_ARCO = "hola@millionsapp.com";
+export const CORREO_ARCO = "hola@millionsapp.io";
 
 /** Días que la cuenta sobrevive tras pedir el borrado. Debe coincidir con la migración 0014. */
 export const GRACIA_DIAS = 30;

@@ -235,7 +235,8 @@ Hecho en código (migración `0014_legal_and_account_deletion.sql`):
 Pendiente:
 
 - [x] **`RESPONSABLE`, `DOMICILIO` y `CORREO_ARCO` llenos** (1 de septiembre):
-      María de Jesús Acosta García, Culiacán, Sinaloa, `hola@millionsapp.com`.
+      María de Jesús Acosta García, Culiacán, Sinaloa, `hola@millionsapp.io`
+      (el correo pasó de `.com` a `.io` con la versión `2026-09-01.3`).
       `LEGAL_VERSION` subió a **2026-09-01.2** porque la `2026-09-01` ya se
       había aceptado con los datos en PENDIENTE: dejar la misma cadena
       apuntando a un texto distinto haría que la constancia dijera que alguien

@@ -59,7 +59,7 @@ Respuesta honesta según lo que la app recoge hoy. **No hay rastreo publicitario
 | Identificadores de dispositivo, ubicación, contactos, fotos, historial de navegación | **No** | — | — | — |
 
 Encriptación en tránsito: sí (HTTPS). El usuario puede pedir el borrado: sí, desde la
-app (Perfil → Borrar mi cuenta, 30 días de gracia) y por correo a hola@millionsapp.com.
+app (Perfil → Borrar mi cuenta, 30 días de gracia) y por correo a hola@millionsapp.io.
 
 ## Cuenta de revisión
 
