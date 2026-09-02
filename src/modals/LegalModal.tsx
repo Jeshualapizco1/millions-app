@@ -1,7 +1,8 @@
 import { useState } from "react";
 import Modal from "../components/Modal";
 import { C, R, T } from "../lib/constants";
-import { LEGAL_DOCS, LEGAL_VERSION, type LegalDoc } from "../lib/legal";
+import LegalDocBody from "../components/LegalDocBody";
+import { LEGAL_DOCS, type LegalDoc } from "../lib/legal";
 
 /**
  * Muestra el aviso de privacidad y los términos.
@@ -48,19 +49,7 @@ export default function LegalModal({
           ))}
         </div>
 
-        <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 4 }}>{actual.title}</div>
-        <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 14 }}>Versión {LEGAL_VERSION}</div>
-
-        <p style={{ fontSize: 13.5, lineHeight: 1.6, color: C.text, margin: "0 0 20px" }}>{actual.intro}</p>
-
-        {actual.sections.map((s) => (
-          <div key={s.title} style={{ marginBottom: 18 }}>
-            <div style={{ fontWeight: 700, fontSize: T.base, color: C.aLight, marginBottom: 7 }}>{s.title}</div>
-            {s.body.map((p, i) => (
-              <p key={i} style={{ fontSize: 13.5, lineHeight: 1.6, color: C.muted, margin: "0 0 8px" }}>{p}</p>
-            ))}
-          </div>
-        ))}
+        <LegalDocBody doc={actual} />
 
         <button
           onClick={onClose}

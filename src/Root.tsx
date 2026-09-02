@@ -3,8 +3,15 @@ import type { Session } from "@supabase/supabase-js";
 import App from "./App";
 import { sbClient } from "./lib/supabase";
 import AuthScreen from "./views/AuthScreen";
+import Publica, { esRutaPublica } from "./views/Publica";
 
 export default function Root() {
+  // Las páginas legales y de soporte se sirven sin sesión: las tiendas piden
+  // una URL pública de privacidad y de soporte, y la ley pide que el aviso
+  // esté disponible en todo momento, no solo detrás del login.
+  const ruta = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (esRutaPublica(ruta)) return <Publica ruta={ruta} />;
+
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
   useEffect(() => {

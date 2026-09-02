@@ -123,10 +123,14 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
 
 **Dominio y web (las tiendas lo exigen)**
 
-- [ ] `millionsapp.com` tiene DNS pero no responde. Publicar una página mínima
-      (puede ser Netlify, el mismo sitio) con: `/privacidad` y `/terminos`
-      (los textos de `src/lib/legal.ts`), `/soporte` con `hola@millionsapp.com`,
-      y `/.well-known/apple-app-site-association` para universal links.
+- [ ] `millionsapp.com` tiene DNS pero no responde (verificado el 1 de
+      septiembre: `millionsapp.com`, `www.` y `app.` no contestan). **Las
+      páginas ya existen en el sitio de Netlify**: `/privacidad`, `/terminos`
+      y `/soporte` se sirven sin sesión desde `src/views/Publica.tsx`, con el
+      mismo texto de `src/lib/legal.ts` (antes daban 404: faltaba el fallback
+      de SPA en `public/_redirects`). Falta apuntar el dominio al sitio en el
+      panel de Netlify. `/.well-known/apple-app-site-association` espera al
+      Team ID y al bundle id (G-D3, G-D4).
 - [ ] Correo `hola@millionsapp.com` funcionando de verdad (recibe y responde):
       es el contacto de soporte de la ficha y el de derechos ARCO.
 - [ ] Mover la app de `millionsjeshua.netlify.app` a `app.millionsapp.com`.
@@ -145,19 +149,18 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
 
 - [ ] Revisión del aviso y términos por un abogado (ya pendiente en TODO).
       Añadir un párrafo sobre compras en tienda y renovación automática.
-- [ ] Textos de permisos (van en la ficha y los lee Apple):
-      `NSMicrophoneUsageDescription` ("Para registrar gastos con tu voz"),
-      `NSSpeechRecognitionUsageDescription`.
-- [ ] Formularios de privacidad: *App Privacy* en App Store Connect y
-      *Data Safety* en Play. Datos que se recogen: correo, nombre, datos
-      financieros que el usuario captura, texto de voz enviado a Anthropic,
-      identificador de compra. Nada de rastreo publicitario.
-- [ ] Cuenta demo con datos para el revisor de Apple (el registro está
-      cerrado; sin credenciales de prueba rechazan).
-- [ ] Assets: icono 1024×1024 sin transparencia (iOS), icono adaptativo
-      (Android: capa frontal + fondo), splash, capturas de pantalla en iPhone
-      6.7"/6.9" (5–8) y Android teléfono (2–8), descripción, subtítulo,
-      palabras clave, categoría *Finanzas*, clasificación 4+.
+- [ ] Textos de permisos, formularios de privacidad, descripción, subtítulo y
+      palabras clave: **borrador listo en `docs/tiendas/ficha.md`**. Falta
+      revisarlo y pegarlo en los paneles cuando existan las cuentas.
+- [ ] Cuenta demo para el revisor: **`supabase/scripts/seed-demo.mjs`**, probado
+      contra producción (tres meses de datos, sin portón ni arranque). Se corre
+      con `DEMO_EMAIL` y `DEMO_PASSWORD` por variables de entorno cuando se
+      tenga la fecha de revisión; la contraseña no va al repo.
+- [ ] Assets: **generados en `docs/tiendas/assets/`** el icono iOS de 1024 sin
+      transparencia, el adaptativo de Android (capa frontal + color de fondo)
+      y el splash de 2732. Faltan las **capturas de pantalla** (iPhone
+      6.7"/6.9", 5–8; Android, 2–8): se toman desde el dispositivo cuando
+      exista el contenedor.
 
 ### Fase 1 — Cerrar A1–A7 de la auditoría
 

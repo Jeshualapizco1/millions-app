@@ -1,0 +1,4 @@
+# SPA: cualquier ruta que no sea un archivo real carga la app, y la app decide
+# que pintar segun el pathname (/privacidad, /terminos, /soporte son publicas).
+# Sin esto, Netlify respondia 404 a todo lo que no fuera "/".
+/*  /index.html  200
