@@ -11,6 +11,9 @@ export default function Root() {
   // esté disponible en todo momento, no solo detrás del login.
   const ruta = window.location.pathname.replace(/\/+$/, "") || "/";
   if (esRutaPublica(ruta)) return <Publica ruta={ruta} />;
+  // /auth: aquí aterriza el enlace del correo. supabase-js ya cambió el `code`
+  // por sesión al cargar (detectSessionInUrl); solo se limpia la URL.
+  if (ruta === "/auth" && typeof history !== "undefined") history.replaceState(null, "", "/");
 
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);

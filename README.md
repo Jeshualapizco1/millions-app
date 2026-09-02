@@ -225,6 +225,28 @@ El `it.fails` de `npm test` es el recordatorio del precio y el contacto de cobro
 
 ---
 
+## App nativa (Capacitor)
+
+La misma build web corre dentro de iOS y Android (`capacitor.config.ts`,
+bundle id `io.millionsapp.app`). Los proyectos `android/` e `ios/` van al repo.
+
+```bash
+npm run build && npx cap sync      # copia dist/ a las plataformas y actualiza plugins
+npx cap open android               # Android Studio (Windows o Mac)
+npx cap open ios                   # Xcode (solo Mac; antes: cd ios/App && pod install)
+```
+
+- En nativo la función de IA se llama en absoluto (`VITE_API_BASE`, por
+  omisión `https://app.millionsapp.io`). Mientras ese dominio no apunte al
+  sitio, compilar con `VITE_API_BASE=https://millionsjeshua.netlify.app`.
+- La voz usa el reconocedor del sistema (`@capacitor-community/speech-recognition`);
+  en la PWA sigue siendo la API del navegador. Ver `src/hooks/useVoice.ts`.
+- Los enlaces de correo aterrizan en `/auth`: en la web los resuelve
+  supabase-js; en nativo, `appUrlOpen` en `src/lib/native.ts`. Registrar los
+  orígenes en Supabase → Auth → Redirect URLs.
+- Universal Links / App Links: `public/.well-known/` trae los dos archivos con
+  marcadores (`TEAMID`, huella SHA-256) que se rellenan al tener las cuentas.
+
 ## Documentos
 
 - **[PENDIENTES.md](PENDIENTES.md)** — lista viva de bugs, mejoras y plan de

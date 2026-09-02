@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { esNativo } from "../lib/native";
 
 /**
- * SpeechRecognition (es-MX) con los tres apagados del micrófono:
- * visibilitychange (aquí), cierre del FAB (el caller llama stopMic) y abort() en lugar de stop().
+ * Captura por voz con dos motores y una sola API para el resto de la app.
+ *
+ * - Navegador y PWA: SpeechRecognition (es-MX), como siempre.
+ * - iOS y Android: el WebView NO trae SpeechRecognition, así que se usa el
+ *   reconocedor del sistema por plugin (SFSpeechRecognizer / SpeechRecognizer).
+ *   El plugin no avisa "final": entrega parciales mientras escucha y devuelve
+ *   el resultado al detenerse. Para que se sienta igual que en la web, se
+ *   detiene solo tras un silencio corto.
+ *
+ * Los tres apagados del micrófono se conservan: visibilitychange (aquí),
+ * cierre del FAB (el caller llama stopMic) y abort() en lugar de stop().
  */
 export function useVoice({
   onResult,
@@ -21,13 +31,28 @@ export function useVoice({
   const cbRef = useRef({ onResult, onFinal, onStop });
   cbRef.current = { onResult, onFinal, onStop };
 
-  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-  const voiceOK = !!SR;
+  const nativo = esNativo();
+  const SR = nativo ? null : (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  // En nativo se da por disponible y se confirma al primer uso: preguntar al
+  // plugin al montar sería una llamada al puente por cada render de App.
+  const voiceOK = nativo || !!SR;
+
+  // Estado del reconocedor nativo: el silencio que detiene, y si ya terminó.
+  const silencio = useRef<number | null>(null);
+  const activoNativo = useRef(false);
 
   const stopMic = useCallback(() => {
     if (recRef.current) {
       recRef.current.abort();
       recRef.current = null;
+    }
+    if (activoNativo.current) {
+      activoNativo.current = false;
+      if (silencio.current) { clearTimeout(silencio.current); silencio.current = null; }
+      import("@capacitor-community/speech-recognition").then(({ SpeechRecognition }) => {
+        SpeechRecognition.stop().catch(() => {});
+        SpeechRecognition.removeAllListeners().catch(() => {});
+      });
     }
     setMic(false);
     cbRef.current.onStop();
@@ -39,7 +64,52 @@ export function useVoice({
     return () => document.removeEventListener("visibilitychange", f);
   }, [stopMic]);
 
+  const startNativo = useCallback(async () => {
+    if (activoNativo.current) return;
+    activoNativo.current = true;
+    try {
+      const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+      const { available } = await SpeechRecognition.available();
+      if (!available) throw new Error("Este dispositivo no tiene reconocimiento de voz");
+      const perm = await SpeechRecognition.requestPermissions();
+      if (perm.speechRecognition !== "granted") throw new Error("Sin permiso para el micrófono");
+
+      let ultimo = "";
+      // Tras 1.6 s sin palabras nuevas se detiene solo: es el equivalente del
+      // `continuous: false` de la web, que corta al primer silencio.
+      const reiniciarSilencio = () => {
+        if (silencio.current) clearTimeout(silencio.current);
+        silencio.current = window.setTimeout(() => { SpeechRecognition.stop().catch(() => {}); }, 1600);
+      };
+      await SpeechRecognition.addListener("partialResults", ({ matches }) => {
+        const t = matches?.[0] ?? "";
+        if (!t || t === ultimo) return;
+        ultimo = t;
+        cbRef.current.onResult(t);
+        reiniciarSilencio();
+      });
+      await SpeechRecognition.addListener("listeningState", ({ status }) => {
+        if (status === "started") setMic(true);
+      });
+
+      const { matches } = await SpeechRecognition.start({ language: "es-MX", maxResults: 1, partialResults: true, popup: false });
+      if (silencio.current) { clearTimeout(silencio.current); silencio.current = null; }
+      const final = (matches?.[0] ?? ultimo).trim();
+      if (activoNativo.current && final) cbRef.current.onFinal(final);
+    } catch (e) {
+      // Un permiso negado o un motor ausente no debe dejar el botón "escuchando"
+      cbRef.current.onResult("");
+      console.warn("voz nativa:", e);
+    } finally {
+      activoNativo.current = false;
+      import("@capacitor-community/speech-recognition").then(({ SpeechRecognition }) => SpeechRecognition.removeAllListeners().catch(() => {}));
+      setMic(false);
+      cbRef.current.onStop();
+    }
+  }, []);
+
   const startMic = useCallback(() => {
+    if (nativo) { void startNativo(); return; }
     // `mic` solo se enciende en `onstart`, que llega un instante después: dos
     // toques rápidos creaban dos reconocedores y el segundo dejaba el
     // micrófono abierto sin que nada lo apagara. El ref sí es inmediato.
@@ -68,7 +138,7 @@ export function useVoice({
     } catch {
       recRef.current = null; // el navegador lo rechazó (ya había uno vivo)
     }
-  }, [voiceOK, mic, SR]);
+  }, [voiceOK, mic, SR, nativo, startNativo]);
 
   return { mic, voiceOK, startMic, stopMic };
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { authOrigin } from "../lib/native";
 import { clickable } from "../lib/a11y";
 import Spinner from "../components/Spinner";
 import ErrorBox from "../components/ErrorBox";
@@ -39,7 +40,9 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
           // legal_version viaja en el metadata porque la fila de profiles todavía
           // no existe: la crea el trigger on_auth_user_created, que la aterriza
           // junto con la fecha de aceptación.
-          options: { data: { name, legal_version: LEGAL_VERSION }, ...(captchaToken ? { captchaToken } : {}) },
+          // El enlace del correo aterriza en /auth: en la web lo resuelve el
+          // cliente solo; en nativo, el sistema abre la app con esa URL.
+          options: { data: { name, legal_version: LEGAL_VERSION }, emailRedirectTo: `${authOrigin()}/auth`, ...(captchaToken ? { captchaToken } : {}) },
         });
         if (err) throw err;
         if (data.session) onAuth(data.session);

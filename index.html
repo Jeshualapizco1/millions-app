@@ -32,6 +32,11 @@
     .fadeUp{animation:fadeUp 0.22s ease}
     .msg{animation:fadeIn 0.2s ease}
     select,input,button,textarea{-webkit-appearance:none;font-family:inherit}
+    /* Dentro del contenedor nativo: sin selección de texto fuera de campos, sin
+       doble toque para zoom y sin resaltado de enlace. Son gestos de navegador. */
+    html.nativo{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+    html.nativo input,html.nativo textarea,html.nativo [contenteditable]{-webkit-user-select:text;user-select:text}
+    html.nativo body{touch-action:manipulation}
     @media (prefers-reduced-motion: reduce){
       .fadeUp,.msg{animation:none}
       *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}

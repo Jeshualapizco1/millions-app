@@ -5,6 +5,7 @@
 // ============================================================================
 import type { Tables } from "./database.types";
 import type { AiUso } from "./aiUso";
+import { apiBase } from "./native";
 import { sbClient } from "./supabase";
 import type { FxRates } from "./currency";
 import type { Account, Budget, Category, CategoryKind, ChatMsg, Profile, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
@@ -109,7 +110,7 @@ const aiToken = async (): Promise<string> => {
 };
 
 const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promise<AiReply> => {
-  const res = await fetch("/.netlify/functions/chat", {
+  const res = await fetch(`${apiBase()}/.netlify/functions/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await aiToken()}` },
     body: JSON.stringify({ intent, messages }),
@@ -121,7 +122,7 @@ const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promis
 
 /** Consumo del día sin gastar una llamada: el mismo endpoint, por GET. */
 const aiUsage = async (): Promise<AiUso> => {
-  const res = await fetch("/.netlify/functions/chat", { headers: { Authorization: `Bearer ${await aiToken()}` } });
+  const res = await fetch(`${apiBase()}/.netlify/functions/chat`, { headers: { Authorization: `Bearer ${await aiToken()}` } });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.uso) throw new Error(body.error || `Error ${res.status}`);
   return body.uso as AiUso;

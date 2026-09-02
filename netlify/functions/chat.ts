@@ -314,8 +314,34 @@ ${perfilPersonal}
  */
 const uso = (hoy: number) => ({ hoy, tope: RATE_LIMIT_PER_DAY });
 
+/**
+ * Orígenes que pueden llamar desde otro dominio. La PWA es mismo origen y no
+ * los necesita; la app nativa carga sus archivos en local y su origen es el
+ * que declara capacitor.config.ts (o el esquema propio si aquel no aplica).
+ * Cualquier otro origen no recibe cabeceras CORS y el navegador lo bloquea.
+ */
+const ORIGENES = new Set([
+  "https://app.millionsapp.io",
+  "https://millionsapp.io",
+  "capacitor://localhost",
+  "https://localhost",
+  "http://localhost",
+]);
+const cors = (origin: string | undefined): Record<string, string> =>
+  origin && ORIGENES.has(origin)
+    ? {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+        "Access-Control-Max-Age": "86400",
+        Vary: "Origin",
+      }
+    : {};
+
 export const handler: Handler = async (event) => {
-  const h = { "Content-Type": "application/json" };
+  const h = { "Content-Type": "application/json", ...cors(event.headers.origin) };
+  // Preflight del contenedor nativo: sin cuerpo, solo las cabeceras.
+  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: h, body: "" };
   // GET = consultar el consumo del día sin gastar una llamada. POST = usar la IA.
   if (event.httpMethod !== "POST" && event.httpMethod !== "GET")
     return { statusCode: 405, headers: h, body: JSON.stringify({ error: "Method Not Allowed" }) };

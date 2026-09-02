@@ -1,0 +1,102 @@
+// ============================================================================
+// Lo que cambia cuando la app corre dentro del contenedor nativo.
+//
+// La misma build sirve para la PWA y para iOS/Android: aquí se decide en
+// tiempo de ejecución. Todo lo que dependa de un plugin de Capacitor se
+// carga de forma perezosa para que la PWA no arrastre código que no usa.
+// ============================================================================
+import { Capacitor } from "@capacitor/core";
+import { sbClient } from "./supabase";
+
+/** true dentro de la app de iOS o Android; false en el navegador y la PWA. */
+export const esNativo = (): boolean => Capacitor.isNativePlatform();
+
+export const plataforma = (): "ios" | "android" | "web" => Capacitor.getPlatform() as "ios" | "android" | "web";
+
+/**
+ * Base absoluta para la función de IA. En la web es el mismo origen y basta
+ * con la ruta relativa; en nativo el origen es local y hay que ir al sitio.
+ * Se configura con VITE_API_BASE en el build para nativo.
+ */
+export const apiBase = (): string => {
+  const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
+  if (base) return base;
+  return esNativo() ? "https://app.millionsapp.io" : "";
+};
+
+/**
+ * A dónde vuelven los enlaces de correo de Supabase.
+ *
+ * En la web, al propio origen donde corre la app (el sitio de Netlify hoy,
+ * app.millionsapp.io cuando el dominio apunte): fijarlo al dominio nuevo
+ * antes de tiempo rompería el registro de la web. En nativo, siempre al
+ * dominio público, que el sistema reconoce como App Link / Universal Link y
+ * abre la app en vez del navegador. Los dos deben estar en Supabase → Auth →
+ * Redirect URLs.
+ */
+export const authOrigin = (): string => (esNativo() ? "https://app.millionsapp.io" : window.location.origin);
+
+/**
+ * Un enlace de correo abrió la app: si trae `code`, se cambia por sesión.
+ * Devuelve true si había algo que procesar.
+ */
+export async function procesarEnlace(url: string, exchange: (code: string) => Promise<unknown>): Promise<boolean> {
+  let u: URL;
+  try { u = new URL(url); } catch { return false; }
+  const code = u.searchParams.get("code");
+  if (!code) return false;
+  await exchange(code);
+  return true;
+}
+
+/**
+ * Ajustes de arranque en nativo: barra de estado oscura sobre la vista,
+ * splash fuera en cuanto React pintó, y el botón atrás de Android cierra lo
+ * que esté abierto en vez de matar la app. Se llama una vez desde main.tsx.
+ */
+export async function arrancarNativo(): Promise<void> {
+  if (!esNativo()) return;
+  document.documentElement.classList.add("nativo");
+
+  const [{ StatusBar, Style }, { SplashScreen }, { Keyboard }, { App }] = await Promise.all([
+    import("@capacitor/status-bar"),
+    import("@capacitor/splash-screen"),
+    import("@capacitor/keyboard"),
+    import("@capacitor/app"),
+  ]);
+
+  try { await StatusBar.setStyle({ style: Style.Dark }); } catch { /* iOS sin plugin en simulador viejo */ }
+  try { await StatusBar.setOverlaysWebView({ overlay: true }); } catch { /* solo Android */ }
+  try { await SplashScreen.hide(); } catch { /* ya oculto */ }
+  try { await Keyboard.setAccessoryBarVisible({ isVisible: false }); } catch { /* solo iOS */ }
+
+  // Deep links: el enlace de confirmación o recuperación abre la app con la
+  // URL completa; se le saca el `code` y se cambia por una sesión.
+  App.addListener("appUrlOpen", ({ url }) => {
+    void procesarEnlace(url, async (code) => {
+      const { error } = await sbClient.auth.exchangeCodeForSession(code);
+      if (error) console.warn("deep link:", error.message);
+    });
+  });
+
+  // Botón atrás de Android: si hay un diálogo abierto, Escape lo cierra (los
+  // modales y el sheet ya escuchan Escape); si no hay nada abierto, la app se
+  // manda al fondo en vez de cerrarse, que es lo que hace cualquier app nativa.
+  App.addListener("backButton", () => {
+    const abierto = document.querySelector('[role="dialog"]');
+    if (abierto) {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    } else {
+      App.minimizeApp();
+    }
+  });
+}
+
+/** Un toque háptico breve al confirmar algo que mueve dinero. Silencioso en web. */
+export async function vibrar(): Promise<void> {
+  if (!esNativo()) return;
+  try {
+    const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
+    await Haptics.impact({ style: ImpactStyle.Light });
+  } catch { /* sin motor háptico */ }
+}

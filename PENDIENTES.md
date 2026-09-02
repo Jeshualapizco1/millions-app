@@ -169,40 +169,53 @@ Un commit por punto (A2 y A3 comparten uno porque tocan la misma función):
 `bab905d` A1 · `a1480b5` A2+A3 · `7e51525` A4 · `d59090d` A5 · `1ca14f0` A6 ·
 `2071ed0` A7. Todos en `origin/main`, verificados contra producción.
 
-### Fase 2 — El contenedor (1–2 semanas)
+### Fase 2 — El contenedor 🔨 CÓDIGO LISTO, FALTA COMPILAR Y PROBAR
 
-- [ ] `npm i @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android`,
-      `npx cap init`, `npx cap add ios`, `npx cap add android`. `webDir: dist`.
-      Los directorios `ios/` y `android/` van al repo.
-- [ ] `VITE_API_BASE` para la función de IA: `src/lib/api.ts:99` usa
-      `/.netlify/functions/chat` relativo; en nativo debe ser absoluto.
-- [ ] **CORS en `netlify/functions/chat.ts`**: hoy no manda cabeceras porque
-      era mismo origen. Permitir el origen de la app (`capacitor://localhost`,
-      `https://localhost` o `https://app.millionsapp.io` según G-D5) y
-      responder `OPTIONS`.
-- [ ] **Voz nativa:** `@capacitor-community/speech-recognition`
-      (SFSpeechRecognizer en iOS, SpeechRecognizer en Android, `es-MX`).
-      `useVoice` elige el plugin cuando `Capacitor.isNativePlatform()` y
-      conserva la API Web en la PWA. Es el cambio de código más grande.
-- [ ] **Deep links para auth:** `emailRedirectTo` en `signUp` y en
-      recuperación de contraseña apuntando a `mx.millionsapp://auth` (esquema
-      propio) o a `https://app.millionsapp.io/auth` (universal link);
-      registrar la URL en Supabase → Auth → Redirect URLs; manejar
-      `appUrlOpen` de `@capacitor/app` y pasar los tokens a
-      `supabase.auth.setSession`. Usar `flowType: 'pkce'`.
-- [ ] Plugins de acabado: `@capacitor/status-bar` (oscura, `overlaysWebView`),
-      `@capacitor/splash-screen`, `@capacitor/keyboard` (`resize: body`),
-      `@capacitor/haptics` al confirmar movimientos, `@capacitor/app` para el
-      botón atrás de Android (cerrar modal, no la app), `@capacitor/browser`
-      para abrir aviso y términos.
-- [ ] Sensación nativa: `user-select: none` fuera de inputs, `touch-action:
-      manipulation`, sin zoom (`maximum-scale=1` solo en nativo), sin rebote.
-- [ ] El service worker no aplica en nativo (los archivos son locales); dejarlo
-      solo para la PWA. IndexedDB de la cola offline funciona igual.
-- [ ] `ITSAppUsesNonExemptEncryption = false` en `Info.plist` (solo HTTPS).
+Hecho el 1 de septiembre, sin poder compilar en esta máquina (no hay SDK de
+Android; iOS solo en Mac). Todo está en el repo y `npx cap sync` corre limpio:
+
+- [x] Capacitor 8 con `android/` e `ios/` generados, `webDir: dist`, bundle id
+      `io.millionsapp.app`, nombre "Millions - Finanzas con IA". Iconos y
+      splash nativos generados con `@capacitor/assets` desde `assets/`.
+- [x] `server.hostname = app.millionsapp.io` con esquema https (G-D5): el
+      origen dentro del WebView es el dominio público.
+- [x] `VITE_API_BASE` para la función de IA (`src/lib/native.ts`); CORS y
+      `OPTIONS` en `chat.ts` para los orígenes del contenedor.
+- [x] Voz nativa con `@capacitor-community/speech-recognition` cuando
+      `Capacitor.isNativePlatform()`; la PWA conserva la API Web. Se detiene
+      sola tras 1.6 s de silencio para imitar `continuous: false`.
+- [x] Deep links de auth: PKCE en el cliente, `emailRedirectTo` a `/auth`,
+      `appUrlOpen` cambia el `code` por sesión; intent filter de App Links en
+      Android; `public/.well-known/` con AASA y assetlinks (con marcadores).
+- [x] Status bar oscura sobre la vista, splash, teclado `resize: body`,
+      háptico al confirmar un borrador, botón atrás de Android cierra el
+      diálogo abierto o manda la app al fondo. `user-select: none` y
+      `touch-action` solo con `<html class="nativo">`. Service worker solo en
+      la PWA. `ITSAppUsesNonExemptEncryption = false`, permisos de micrófono
+      y reconocimiento en `Info.plist`, `RECORD_AUDIO` en Android, solo
+      vertical en iPhone.
+
+Falta, y es en tu máquina o en paneles:
+
+- [ ] **Compilar**: `npx cap open android` en Android Studio; en la Mac,
+      `cd ios/App && pod install` y `npx cap open ios`. Primer build con
+      firma de desarrollo.
+- [ ] **Xcode → Signing & Capabilities → Associated Domains**:
+      `applinks:app.millionsapp.io`. Y rellenar `TEAMID` en
+      `public/.well-known/apple-app-site-association`.
+- [ ] **Huella SHA-256 del keystore** en `public/.well-known/assetlinks.json`
+      (`keytool -list -v -keystore ...`). Sin ella Android abre el navegador.
+- [ ] **Supabase → Auth → Redirect URLs**: `https://app.millionsapp.io/auth` y
+      `https://millionsjeshua.netlify.app/auth`.
+- [ ] Mientras `app.millionsapp.io` no apunte al sitio, compilar nativo con
+      `VITE_API_BASE=https://millionsjeshua.netlify.app`.
 - [ ] Probar en simulador de iOS, emulador de Android y en los dos teléfonos:
-      login, confirmación de correo, voz, chips, offline, legal, borrado de
-      cuenta.
+      login, confirmación de correo por deep link, voz (permisos, parciales,
+      corte por silencio), chips, offline, legal, borrado de cuenta, botón
+      atrás. La voz nativa está escrita a ciegas: es lo primero que hay que
+      probar en un teléfono real.
+- [ ] `@capacitor/browser` no se agregó: aviso y términos ya viven dentro de
+      la app y en `/privacidad` y `/terminos`.
 
 ### Fase 3 — Cobro (1 semana)
 

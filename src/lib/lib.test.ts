@@ -17,6 +17,7 @@ import { findByName } from "./names";
 import { impactoNeto, proximos, proximosDeCreditos } from "./upcoming";
 import { esFalloDeRed, esFalloDeSesion } from "./offlineQueue";
 import { consultasRestantes, textoAiUso } from "./aiUso";
+import { procesarEnlace } from "./native";
 import { BodySchema } from "../../netlify/lib/chatSchema";
 import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../../netlify/lib/zona";
 import type { Account, Budget, Credit, Transaction } from "../types";
@@ -905,5 +906,22 @@ describe("próximos 7 días", () => {
     const fijos = [{ ruleId: "r1", name: "Nómina", kind: "ingreso" as const, amount: 20000, accountId: "a", due: "2026-09-15" }];
     // 20000 de nómina − 3000 del pago de la tarjeta; el corte no suma nada
     expect(impactoNeto(proximos(fijos, [tarjeta], 15, new Date()))).toBe(17000);
+  });
+});
+
+// ── Deep link del correo de confirmación (app nativa) ───────────────────────
+describe("enlace de correo que abre la app", () => {
+  it("con code, lo cambia por sesión", async () => {
+    const visto: string[] = [];
+    const hubo = await procesarEnlace("https://app.millionsapp.io/auth?code=abc123", async (c) => { visto.push(c); });
+    expect(hubo).toBe(true);
+    expect(visto).toEqual(["abc123"]);
+  });
+
+  it("sin code, o con una URL rota, no hace nada", async () => {
+    const visto: string[] = [];
+    expect(await procesarEnlace("https://app.millionsapp.io/auth", async (c) => { visto.push(c); })).toBe(false);
+    expect(await procesarEnlace("esto no es una url", async (c) => { visto.push(c); })).toBe(false);
+    expect(visto).toEqual([]);
   });
 });

@@ -14,6 +14,7 @@ import { useAI, type ParsedNewAcc, type ParsedTx } from "./hooks/useAI";
 import { useFinanceData } from "./hooks/useFinanceData";
 import { useRefrescoAlVolver } from "./hooks/useRefrescoAlVolver";
 import { impactoNeto, proximos } from "./lib/upcoming";
+import { vibrar } from "./lib/native";
 import { importId } from "./lib/csvImport";
 import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
@@ -1146,11 +1147,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         draft={draft}
         draftError={draftError}
         updateDraft={updateDraft}
-        onConfirmDraft={async () => { if (await confirmDraft()) setFab(false); }}
+        onConfirmDraft={async () => { if (await confirmDraft()) { void vibrar(); setFab(false); } }}
         onDiscardDraft={() => { discardDraft(); setFab(false); }}
         accDraft={accDraft}
         updateAccDraft={updateAccDraft}
-        onConfirmAccDraft={async () => { if (await confirmAccDraft()) setFab(false); }}
+        onConfirmAccDraft={async () => { if (await confirmAccDraft()) { void vibrar(); setFab(false); } }}
         onDiscardAccDraft={() => { discardAccDraft(); setFab(false); }}
         aiUso={aiUso}
       />
