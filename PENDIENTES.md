@@ -12,6 +12,10 @@ demás vienen de revisión y hay que confirmarlos al abrirlos.
 Orden de trabajo acordado: **A → B → G (fase 0 en paralelo) → C → D → E**. La
 fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
+**Estado al 2 de septiembre:** A–F cerradas. Queda D9 (carga perezosa, no
+urge), lo de fase 0 que es trámite tuyo, y **compilar y probar la fase 2** en
+la Mac y en un teléfono. Empieza por "Para retomar" en [TODO.md](TODO.md).
+
 ---
 
 ## A. Críticos — antes de abrir el registro a nadie

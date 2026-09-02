@@ -8,37 +8,50 @@ lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
 ## Para retomar desde otra máquina
 
-**Desde el 1 de septiembre por la tarde, la lista operativa vive en
-[PENDIENTES.md](PENDIENTES.md)** (auditoría completa y plan de migración a
-App Store / Play Store). Este archivo conserva el plan, el mercado y la historia.
+> Última actualización: 2 de septiembre de 2026, madrugada. Todo está en
+> `origin/main` y la CI en verde; no hay nada sin pushear.
 
-**Lo primero, y no es programación:** nada de lo pendiente avanza sin cinco
-valores que solo tú tienes. Están listados en el README bajo *Lo que falta para
-abrir el registro*, y el `it.fails` de `npm test` es el recordatorio del cobro.
+**La lista operativa vive en [PENDIENTES.md](PENDIENTES.md).** Este archivo
+conserva el plan, el mercado y la historia.
 
-**Lo primero que sí es programación:** probar en el navegador los tres flujos
-que se construyeron el 1 de septiembre y **todavía no se han ejercitado a
-mano** — arranque guiado, chips de captura y muro de fin de prueba. Se cruzan
-en la misma sesión, así que al entrar verás, en este orden:
+**Estado en una línea:** las secciones A a F de la auditoría están cerradas
+(críticos, medios, bajos, mejoras, visual y accesibilidad), la fase 0 de
+tiendas tiene hecho lo que era código, y la fase 2 —el contenedor de
+Capacitor— está escrita y sincronizada pero **sin compilar**: esta máquina no
+tiene SDK de Android ni Xcode.
 
-1. El **portón legal**, porque `LEGAL_VERSION` subió a `2026-09-01`.
-2. El **arranque guiado**, porque la cuenta tiene `onboarded_at` en null y 0
-   cuentas.
-3. Ya adentro, el FAB abre el sheet **y enciende el micrófono**; al terminar de
-   hablar salen los chips en vez de guardarse solo.
-4. Si saltas el arranque, Inicio muestra el **estado vacío con tres botones**
-   (cuenta · arranque guiado · crédito) en vez del tablero en ceros. Con
-   cuenta y sin movimientos, "Recientes" ofrece capturar el primero.
-5. En Análisis y en Perfil aparece **cuántas consultas de IA quedan hoy**. Si
-   no aparece nada, el GET a `/.netlify/functions/chat` falló (con
-   `npm run dev` no hay función; usa `netlify dev`).
+**Lo primero al abrir la Mac, en este orden:**
 
-*(El muro de fin de prueba no saldrá: la cuenta se dio de alta hace menos de 30
-días. Para verlo, correr el alta hacia atrás en `profiles.created_at`.)*
+1. `npm install` (entraron Capacitor y sus plugins) y `npm run build && npx cap sync`.
+2. `cd ios/App && pod install`, luego `npx cap open ios`. Es la primera vez que
+   el proyecto de iOS se abre: `npx cap add ios` corrió en Windows y puede
+   pedir ajustes menores de firma en Xcode.
+3. Android Studio con `npx cap open android`, en la Mac o en Windows.
+4. Compilar nativo con `VITE_API_BASE=https://millionsjeshua.netlify.app`
+   mientras `app.millionsapp.io` no apunte al sitio.
+5. En Supabase → Auth → Redirect URLs agregar
+   `https://millionsjeshua.netlify.app/auth` y `https://app.millionsapp.io/auth`.
+   **Urge aunque no compiles nada:** el registro web ya manda el correo de
+   confirmación a `/auth` desde el commit `9c158d5`.
+6. Probar en un teléfono real, empezando por la voz nativa: está escrita sin
+   haberse ejecutado. Después: confirmación de correo por deep link, chips,
+   offline, legal, borrado de cuenta y botón atrás.
 
-**Después de eso**, el paso 4 queda sin pendientes de código. Lo que sigue es
-el paso 5: el panel de uso o el `.ics` con días de corte y pago, según lo que
-más urja al abrir el registro.
+**Decisiones tomadas el 1 de septiembre por la noche:** nombre de tienda
+"Millions - Finanzas con IA", dominio `millionsapp.io`, bundle id
+`io.millionsapp.app`, correo `hola@millionsapp.io` (con eso `LEGAL_VERSION`
+subió a `2026-09-01.3`: todos los usuarios ven el portón legal una vez).
+
+**Sigue siendo tuyo y no es código:** apuntar el dominio y que el buzón
+reciba, abrir las cuentas de Apple y Google (o decidir organización con
+D-U-N-S, que se salta la prueba cerrada de 14 días), el precio y contacto de
+cobro, Turnstile, activar el registro y la revisión legal. Ver fase 0 en
+PENDIENTES.
+
+**Los flujos del 1 de septiembre por la mañana siguen sin probarse a mano en
+el navegador**: arranque guiado en dos mitades, chips de captura, muro de fin
+de prueba, estado vacío y contador de consultas. Al entrar verás primero el
+portón legal (versión `.3`) y luego el arranque si la cuenta no tiene cuentas.
 
 ### Lo que se hizo el 1 de septiembre
 
@@ -48,6 +61,7 @@ más urja al abrir el registro.
 | `73c3983` | Fix de CI: la lógica pura arrastraba el cliente de Supabase |
 | `5885ca7` | Arranque guiado + migración `0015` (aplicada) |
 | `eb92a49` | Prueba de 30 días, muro de pago y corrección de los términos |
+| tarde y noche | A1–A7, B1–B14, C1–C13, D, E y F de la auditoría; fase 0 y fase 2 de tiendas. Un commit por punto: `git log --oneline 1cacb8c..` |
 
 ---
 
