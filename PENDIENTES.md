@@ -86,11 +86,11 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       vía *promotional entitlements* de RevenueCat (1 amigo = 1 mes, 2 = 3
       meses, 3 = 12 meses, por ejemplo). Se concede desde el servidor sin pasar
       por la tienda. Decidir la tabla y reescribir esa sección de `TODO.md`.
-- [ ] **G-D3 Nombre en la tienda.** "Millions" a secas casi seguro está tomado
-      en App Store (el nombre debe ser único). Decidir el nombre comercial, por
-      ejemplo "Millions: Finanzas con IA", y el *bundle id* (propuesta:
-      `mx.millionsapp.app`). Revisar que no choque con marcas registradas en
-      el IMPI.
+- [x] **G-D3 Nombre en la tienda — decidido el 1 de septiembre.** Nombre
+      comercial **"Millions - Finanzas con IA"** y dominio **`millionsapp.io`**
+      (el `.com` se abandona). Bundle id propuesto por el dominio en orden
+      inverso: **`io.millionsapp.app`**. Queda por revisar que el nombre no
+      choque con marcas registradas en el IMPI.
 - [ ] **G-D4 Titular de las cuentas de desarrollador.** Persona física (a nombre
       de la responsable legal, María de Jesús Acosta García) u organización. La
       organización exige número D-U-N-S (gratis, 1–2 semanas) en Apple y Google.
@@ -98,7 +98,7 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       cobros, la dirección postal **se muestran en la ficha pública**.
 - [ ] **G-D5 Captcha en la app nativa.** Turnstile valida por dominio; dentro
       del WebView el origen es `capacitor://localhost`. *Propuesta:* configurar
-      `server.hostname = "app.millionsapp.com"` con esquema `https` en
+      `server.hostname = "app.millionsapp.io"` con esquema `https` en
       Capacitor y registrar ese dominio en Turnstile. Si no funciona, desactivar
       el captcha solo en nativo (las tiendas ya filtran bots).
 
@@ -123,17 +123,19 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
 
 **Dominio y web (las tiendas lo exigen)**
 
-- [ ] `millionsapp.com` tiene DNS pero no responde (verificado el 1 de
-      septiembre: `millionsapp.com`, `www.` y `app.` no contestan). **Las
+- [ ] El dominio es **`millionsapp.io`** (decidido el 1 de septiembre; el
+      `.com` tenía DNS y no respondía). **Las
       páginas ya existen en el sitio de Netlify**: `/privacidad`, `/terminos`
       y `/soporte` se sirven sin sesión desde `src/views/Publica.tsx`, con el
       mismo texto de `src/lib/legal.ts` (antes daban 404: faltaba el fallback
       de SPA en `public/_redirects`). Falta apuntar el dominio al sitio en el
       panel de Netlify. `/.well-known/apple-app-site-association` espera al
       Team ID y al bundle id (G-D3, G-D4).
-- [ ] Correo `hola@millionsapp.com` funcionando de verdad (recibe y responde):
+- [ ] Correo de soporte y ARCO funcionando de verdad (recibe y responde).
+      Hoy el aviso publica `hola@millionsapp.com`; si pasa a `hola@millionsapp.io`
+      cambia el texto legal y sube `LEGAL_VERSION` (todos vuelven a aceptar):
       es el contacto de soporte de la ficha y el de derechos ARCO.
-- [ ] Mover la app de `millionsjeshua.netlify.app` a `app.millionsapp.com`.
+- [ ] Mover la app de `millionsjeshua.netlify.app` a `app.millionsapp.io`.
 
 **Herramientas en esta Mac (hoy solo hay Command Line Tools)**
 
@@ -176,7 +178,7 @@ desconocidos con tiempo. Está arriba en este archivo.
       `/.netlify/functions/chat` relativo; en nativo debe ser absoluto.
 - [ ] **CORS en `netlify/functions/chat.ts`**: hoy no manda cabeceras porque
       era mismo origen. Permitir el origen de la app (`capacitor://localhost`,
-      `https://localhost` o `https://app.millionsapp.com` según G-D5) y
+      `https://localhost` o `https://app.millionsapp.io` según G-D5) y
       responder `OPTIONS`.
 - [ ] **Voz nativa:** `@capacitor-community/speech-recognition`
       (SFSpeechRecognizer en iOS, SpeechRecognizer en Android, `es-MX`).
@@ -184,7 +186,7 @@ desconocidos con tiempo. Está arriba en este archivo.
       conserva la API Web en la PWA. Es el cambio de código más grande.
 - [ ] **Deep links para auth:** `emailRedirectTo` en `signUp` y en
       recuperación de contraseña apuntando a `mx.millionsapp://auth` (esquema
-      propio) o a `https://app.millionsapp.com/auth` (universal link);
+      propio) o a `https://app.millionsapp.io/auth` (universal link);
       registrar la URL en Supabase → Auth → Redirect URLs; manejar
       `appUrlOpen` de `@capacitor/app` y pasar los tokens a
       `supabase.auth.setSession`. Usar `flowType: 'pkce'`.

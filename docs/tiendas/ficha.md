@@ -7,10 +7,11 @@ entre corchetes lo decides tú (ver G-D1 a G-D5 en PENDIENTES.md).
 
 | Campo | Texto |
 |---|---|
-| Nombre (30) | Millions: Finanzas con IA *(pendiente G-D3; "Millions" a secas casi seguro está tomado)* |
+| Nombre (30) | Millions - Finanzas con IA *(decidido; 26 caracteres)* |
 | Subtítulo iOS (30) | Gastos por voz y tarjetas al día |
 | Descripción corta Play (80) | Registra gastos hablando y entérate antes del corte de tu tarjeta. |
 | Palabras clave iOS (100) | finanzas,gastos,presupuesto,tarjeta,credito,ahorro,voz,dinero,deudas,meta |
+| Bundle id / applicationId | `io.millionsapp.app` (propuesto desde `millionsapp.io`) |
 | Categoría | Finanzas |
 | Clasificación | 4+ / Para todos |
 
