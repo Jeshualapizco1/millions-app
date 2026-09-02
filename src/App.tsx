@@ -71,7 +71,7 @@ const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amou
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx, booting, loadError, accsRef, txsRef, creditsRef, goalsRef, recargar } = useFinanceData();
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx, booting, loadError, accsRef, txsRef, creditsRef, goalsRef, recargar, historialCompleto, totalTxs, completarHistorial } = useFinanceData();
   const [tab, setTab] = useState<Tab>("dash");
   const { toasts, push, dismiss } = useToasts();
 
@@ -132,7 +132,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setConfirm({
       title: "¿Borrar tu cuenta?",
       message:
-        `Se eliminarán de forma permanente tus ${txs.length} movimientos, tus cuentas, créditos, presupuestos y metas. ` +
+        `Se eliminarán de forma permanente tus ${totalTxs} movimientos, tus cuentas, créditos, presupuestos y metas. ` +
         `Tienes ${GRACIA_DIAS} días para arrepentirte; después no habrá manera de recuperarlos. ` +
         "Si aún no exportas tus datos, cancela y hazlo primero.",
       confirmLabel: "Sí, borrar",
@@ -988,7 +988,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // alguien que configure una app que no va a poder usar.
   if (profile && diasDePrueba === 0) return (
     <>
-      <FinDePrueba txs={txs} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} />
+      <FinDePrueba txs={txs} totalTxs={totalTxs} historialCompleto={historialCompleto} onCargarTodo={completarHistorial} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} />
       {/* Se re-montan aquí: el resto de la app no se renderiza en este camino */}
       {confirm && (
         <ConfirmModal
@@ -1116,9 +1116,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         {tab === "metas" && <Metas budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
         {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} aiUso={aiUso} />}
-        {tab === "hist" && <Historial txs={txs} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} onCapture={() => { setFab(true); startMic(); }} />}
-        {tab === "accs" && <Cuentas accs={accs} txs={txs} fx={fx} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
-        {tab === "perfil" && <Perfil profile={profile} email={session.user?.email ?? ""} txs={txs} onChangePassword={() => setMPass(true)} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} onCancelDeletion={cancelarBorrado} aiUso={aiUso} />}
+        {tab === "hist" && <Historial txs={txs} totalTxs={totalTxs} historialCompleto={historialCompleto} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} onCapture={() => { setFab(true); startMic(); }} />}
+        {tab === "accs" && <Cuentas accs={accs} txs={txs} historialCompleto={historialCompleto} fx={fx} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
+        {tab === "perfil" && <Perfil profile={profile} email={session.user?.email ?? ""} txs={txs} totalTxs={totalTxs} historialCompleto={historialCompleto} onCargarTodo={completarHistorial} onChangePassword={() => setMPass(true)} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} onCancelDeletion={cancelarBorrado} aiUso={aiUso} />}
       </div>
 
       {/* Barra de pestañas fija abajo: en un teléfono el pulgar llega ahí,
@@ -1206,7 +1206,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       {mMan && <ManualTxModal form={man} update={(p) => setMan((f) => ({ ...f, ...p }))} accs={accs} onSave={saveTxManual} onClose={() => setMMan(false)} />}
 
       {/* Modal: Importar CSV */}
-      {mImport && <ImportCsvModal accs={accs} txs={txs} onImport={runImport} onClose={() => setMImport(false)} />}
+      {mImport && <ImportCsvModal accs={accs} txs={txs} historialCompleto={historialCompleto} onImport={runImport} onClose={() => setMImport(false)} />}
 
       {/* Modal: Techo mensual */}
       {mTotalBudget && <TotalBudgetModal current={profile?.monthly_budget ?? null} spentThisMonth={projection.spentSoFar} onSave={saveTotalBudget} onClose={() => setMTotalBudget(false)} />}

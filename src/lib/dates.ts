@@ -25,6 +25,21 @@ export const toLocalDateISO = (d: Date | string = new Date()): string => {
   return `${x.getFullYear()}-${dos(x.getMonth() + 1)}-${dos(x.getDate())}`;
 };
 
+/**
+ * Medianoche local del día 1 del mes de hace `meses`, como instante ISO.
+ *
+ * Es el corte de la carga en dos tiempos (D9): el arranque pide solo desde
+ * aquí. Se corta en el día 1 y no "hace N meses exactos" porque todo lo que
+ * se calcula son meses completos: media ventana daría un mes con la mitad del
+ * gasto.
+ *
+ * Devuelve el instante entero y no un DATE porque `transactions.date` es
+ * timestamptz: comparar contra "2026-01-01" sería medianoche UTC, o sea las
+ * 18:00 del día anterior en México, y el corte se recorrería seis horas.
+ */
+export const inicioDeVentana = (meses: number, now: Date = new Date()): string =>
+  new Date(now.getFullYear(), now.getMonth() - meses, 1).toISOString();
+
 /** Hoy a medianoche local. */
 const todayStart = (): Date => {
   const n = new Date();

@@ -14,10 +14,10 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
 **Estado al 2 de septiembre, tarde:** A–F cerradas. **Las dos plataformas
 compilan en la Mac**: iOS pasó de SPM a CocoaPods (SPM dejaba fuera el plugin
-de voz) y Android da APK con JDK 21. Queda D9 (no urge), lo de fase 0 que es
-trámite tuyo, y lo único que ya no se puede hacer desde aquí: **probar en
-teléfonos reales**, empezando por la voz. Empieza por "Para retomar" en
-[TODO.md](TODO.md).
+de voz) y Android da APK con JDK 21. A–F cerradas salvo F6, que salió al
+probar en el navegador. Queda lo de fase 0, que es trámite tuyo, y lo único
+que ya no se puede hacer desde aquí: **probar en teléfonos reales**, empezando
+por la voz. Empieza por "Para retomar" en [TODO.md](TODO.md).
 
 ---
 
@@ -35,11 +35,7 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## D. Mejoras de funcionamiento
 
-- [ ] **D9 Carga perezosa del historial.** `getTxs()` ya no se trunca en
-      silencio (pagina por rangos), pero sigue trayendo todo en el arranque.
-      Cargar solo lo reciente exige mover al servidor lo que hoy se calcula
-      con el historial completo: períodos, patrimonio, gráfica de 6 meses y
-      dona. Vale la pena cuando alguien tenga miles de movimientos.
+Cerradas D1–D10 el 1 y 2 de septiembre de 2026; el detalle vive en `git log`.
 
 ## E. Mejoras visuales
 
@@ -48,6 +44,15 @@ Cerrados E1–E11 el 1 de septiembre de 2026; el detalle vive en `git log`.
 ## F. Accesibilidad (cero `aria`, `htmlFor`, `h1`, `nav`, `main`, `focus-visible`)
 
 Cerrados F1–F5 el 1 de septiembre de 2026; el detalle vive en `git log`.
+
+- [ ] **F6 Los campos del login no tienen `htmlFor`.** Chrome reporta "No
+      label associated with a form field" y "A form field element should have
+      an id or name attribute" en la pantalla de entrada
+      (`src/views/AuthScreen.tsx:79-83`). Los tres rótulos —"Nombre", "Correo"
+      y "Contraseña"— se ven, pero ni los `label` tienen `htmlFor` ni los
+      `input` tienen `id`: un lector de pantalla lee el campo sin nombre. F1 enlazó los labels de la app, y esta pantalla se quedó fuera
+      porque se ve antes de entrar. Visto el 2 de septiembre en la consola del
+      navegador.
 
 ---
 

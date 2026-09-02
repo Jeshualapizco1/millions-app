@@ -71,6 +71,9 @@ export default function Perfil({
   profile,
   email,
   txs,
+  totalTxs,
+  historialCompleto,
+  onCargarTodo,
   onChangePassword,
   onSignOut,
   onDeleteAccount,
@@ -80,6 +83,12 @@ export default function Perfil({
   profile: Profile | null;
   email: string;
   txs: Transaction[];
+  /** Cuántos movimientos hay en total, incluidos los que aún no se cargaron. */
+  totalTxs: number;
+  /** false mientras el historial viejo sigue en camino (D9). */
+  historialCompleto: boolean;
+  /** Reintenta traer el historial entero; sin él la exportación saldría coja. */
+  onCargarTodo: () => Promise<unknown>;
   onChangePassword: () => void;
   onSignOut: () => void;
   onDeleteAccount: () => void;
@@ -173,8 +182,14 @@ export default function Perfil({
         <Fila
           icon="exportar"
           label="Exportar todo a CSV"
-          hint={`${txs.length} ${txs.length === 1 ? "movimiento" : "movimientos"} · se abre en Excel`}
-          onClick={() => exportCSV(txs)}
+          hint={
+            historialCompleto
+              ? `${totalTxs} ${totalTxs === 1 ? "movimiento" : "movimientos"} · se abre en Excel`
+              : `Preparando tus ${totalTxs} movimientos…`
+          }
+          // "Exportar todo" tiene que ser todo: si el historial viejo sigue en
+          // camino, se espera a que llegue antes de escribir el archivo.
+          onClick={() => (historialCompleto ? exportCSV(txs) : void onCargarTodo())}
         />
       </Seccion>
 

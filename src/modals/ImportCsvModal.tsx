@@ -14,11 +14,19 @@ import type { Account, Transaction } from "../types";
 export default function ImportCsvModal({
   accs,
   txs,
+  historialCompleto,
   onImport,
   onClose,
 }: {
   accs: Account[];
   txs: Transaction[];
+  /**
+   * false mientras el historial viejo sigue llegando (D9). Importa porque los
+   * repetidos se marcan cotejando contra `txs`: con media historia en memoria,
+   * un movimiento de hace dos años se vería como nuevo. Guardarlo no lo
+   * duplica —el id de importación lo impide— pero la vista previa mentiría.
+   */
+  historialCompleto: boolean;
   onImport: (rows: ParsedRow[], accountId: string) => Promise<number>;
   onClose: () => void;
 }) {
@@ -91,6 +99,14 @@ export default function ImportCsvModal({
       <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>
         Sube el CSV de tu estado de cuenta o pega su contenido. Nada se guarda hasta que revises la vista previa.
       </div>
+
+      {!historialCompleto && (
+        <div style={{ fontSize: T.sm, color: C.amber, background: `${C.amber}18`, border: `1px solid ${C.amber}44`, borderRadius: 10, padding: "9px 11px", marginBottom: 14, lineHeight: 1.45 }}>
+          Todavía estoy cargando tu historial viejo. Si importas ahora, algo que
+          ya tengas de hace meses puede aparecer como nuevo. Guardarlo no lo
+          duplica, pero espera unos segundos y la vista previa será exacta.
+        </div>
+      )}
 
       <label htmlFor="importcsvmodal-2" style={S.lbl}>Archivo CSV</label>
       <input id="importcsvmodal-2"

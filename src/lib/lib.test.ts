@@ -3,7 +3,7 @@
 // para que no vuelva sin que nos enteremos.
 // ============================================================================
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate, parseDateOnly, toLocalDateISO } from "./dates";
+import { daysUntilDate, daysUntilDayOfMonth, diasRestantesDeGracia, diasRestantesDePlazo, inicioDeVentana, nextMonthlyDate, parseDateOnly, toLocalDateISO } from "./dates";
 import { COBRO_INCOMPLETO, CORREO_ARCO, DOMICILIO, GRACIA_DIAS, LEGAL_INCOMPLETO, LEGAL_VERSION, PRUEBA_DIAS, PRIVACIDAD, RESPONSABLE, TERMINOS } from "./legal";
 import { bienvenida, contextoParaAsesor, PREGUNTAS, RESPUESTAS_VACIAS, type Respuestas } from "./onboarding";
 import { filterByPeriod, inPeriod, periodRange, sumIncome, sumSpend } from "./periods";
@@ -19,6 +19,7 @@ import { esFalloDeRed, esFalloDeSesion } from "./offlineQueue";
 import { consultasRestantes, textoAiUso } from "./aiUso";
 import { procesarEnlace } from "./enlace";
 import { avisoDeFalloDeVoz, clasificarFalloDeVoz, mensajeDeFalloDeVoz } from "./voz";
+import { fusionarTxs } from "./historial";
 import { BodySchema } from "../../netlify/lib/chatSchema";
 import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../../netlify/lib/zona";
 import type { Account, Budget, Credit, Transaction } from "../types";
@@ -968,5 +969,59 @@ describe("avisos del dictado", () => {
         expect(mensajeDeFalloDeVoz(c, p)).toMatch(/escrib/i);
       }
     }
+  });
+});
+
+// D9: el historial llega en dos tiempos. La ventana del arranque tiene que
+// cubrir todo lo que el tablero calcula, y la segunda carga no puede pisar lo
+// que el servidor todavía no conoce.
+describe("carga del historial en dos tiempos", () => {
+  const tx = (id: string, date: string): Transaction =>
+    ({ id, date, amount: 1, kind: "gasto", description: id, accountId: "a1", category: "Otros" }) as unknown as Transaction;
+
+  it("la ventana corta el día 1 del mes, no a mitad de mes", () => {
+    // 15 de septiembre menos 12 meses = 1 de septiembre del año anterior.
+    const desde = inicioDeVentana(12, new Date(2026, 8, 15));
+    expect(desde).toBe(new Date(2025, 8, 1).toISOString());
+  });
+
+  it("12 meses siempre alcanzan para el año en curso", () => {
+    // El período "anio" arranca el 1 de enero: en enero la ventana llega a
+    // enero del año pasado, y en diciembre a diciembre del anterior.
+    for (const mes of [0, 5, 11]) {
+      const ahora = new Date(2026, mes, 15);
+      expect(new Date(inicioDeVentana(12, ahora)).getTime()).toBeLessThanOrEqual(new Date(2026, 0, 1).getTime());
+    }
+  });
+
+  it("el servidor manda: lo editado en otro dispositivo gana", () => {
+    const servidor = [{ ...tx("t1", "2026-09-01T10:00:00Z"), description: "corregido" } as Transaction];
+    const memoria = [tx("t1", "2026-09-01T10:00:00Z")];
+    expect(fusionarTxs(servidor, memoria)[0].description).toBe("corregido");
+  });
+
+  it("lo borrado en otro dispositivo no revive", () => {
+    const fusion = fusionarTxs([tx("t1", "2026-09-01T10:00:00Z")], [tx("t1", "2026-09-01T10:00:00Z"), tx("t2", "2026-08-01T10:00:00Z")]);
+    expect(fusion.map((t) => t.id)).toEqual(["t1"]);
+  });
+
+  it("lo que la cola offline no ha subido se conserva", () => {
+    const fusion = fusionarTxs([tx("t1", "2026-09-01T10:00:00Z")], [tx("pendiente", "2026-09-02T10:00:00Z")], new Set(["pendiente"]));
+    expect(fusion.map((t) => t.id)).toEqual(["pendiente", "t1"]);
+  });
+
+  it("lo capturado mientras viajaba la respuesta no se pierde", () => {
+    // El servidor respondió antes de que existiera: no está en su lista, y
+    // sin protegerlo desaparecería de la pantalla estando ya guardado.
+    const fusion = fusionarTxs([tx("viejo", "2020-01-01T10:00:00Z")], [tx("recien", "2026-09-02T10:00:00Z")], new Set(["recien"]));
+    expect(fusion.map((t) => t.id)).toEqual(["recien", "viejo"]);
+  });
+
+  it("queda ordenado por fecha descendente, como la consulta", () => {
+    const fusion = fusionarTxs(
+      [tx("b", "2026-05-01T10:00:00Z"), tx("a", "2026-09-01T10:00:00Z"), tx("c", "2026-01-01T10:00:00Z")],
+      []
+    );
+    expect(fusion.map((t) => t.id)).toEqual(["a", "b", "c"]);
   });
 });

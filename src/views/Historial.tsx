@@ -19,6 +19,8 @@ const KIND_FILTERS: { key: string; label: string }[] = [
 
 export default function Historial({
   txs,
+  totalTxs,
+  historialCompleto,
   accs,
   onDelete,
   onEdit,
@@ -26,6 +28,10 @@ export default function Historial({
   onCapture,
 }: {
   txs: Transaction[];
+  /** Cuántos hay en la base; mientras carga es mayor que `txs.length`. */
+  totalTxs: number;
+  /** false mientras el historial viejo sigue llegando (D9). */
+  historialCompleto: boolean;
   accs: Account[];
   onDelete: (id: string) => void;
   onEdit: (tx: Transaction) => void;
@@ -75,7 +81,7 @@ export default function Historial({
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={onImport} title="Importar del banco" style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📥 Importar</button>
             {filtered.length > 0 && (
-              <button onClick={() => exportCSV(filtered)} title="Exporta lo que estás viendo" style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>
+              <button onClick={() => exportCSV(filtered)} title={historialCompleto ? "Exporta lo que estás viendo" : "Exporta lo que estás viendo; el historial viejo todavía se está cargando"} style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>
             )}
           </div>
         </div>
@@ -117,6 +123,8 @@ export default function Historial({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <span style={{ fontSize: T.sm, color: C.muted }}>
             {filtered.length} {filtered.length === 1 ? "movimiento" : "movimientos"}
+            {/* Sin esto la lista parecería completa y faltarían meses enteros. */}
+            {!historialCompleto && totalTxs > txs.length && ` · cargando ${totalTxs - txs.length} más…`}
           </span>
           {anyFilter && <button onClick={reset} style={{ background: "none", border: "none", color: C.aLight, fontSize: T.sm, cursor: "pointer" }}>Limpiar filtros</button>}
         </div>

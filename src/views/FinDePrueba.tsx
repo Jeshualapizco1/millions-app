@@ -17,10 +17,17 @@ import type { Transaction } from "../types";
  */
 export default function FinDePrueba({
   txs,
+  totalTxs,
+  historialCompleto,
+  onCargarTodo,
   onSignOut,
   onDeleteAccount,
 }: {
   txs: Transaction[];
+  /** El total de verdad: aquí se promete que los datos siguen completos. */
+  totalTxs: number;
+  historialCompleto: boolean;
+  onCargarTodo: () => Promise<unknown>;
   onSignOut: () => void;
   onDeleteAccount: () => void;
 }) {
@@ -34,7 +41,7 @@ export default function FinDePrueba({
           Se terminaron tus {PRUEBA_DIAS} días
         </div>
         <div style={{ fontSize: T.base, color: C.muted, lineHeight: 1.55, textAlign: "center", marginBottom: 26 }}>
-          Tus {txs.length} movimientos siguen aquí, intactos. Para volver a usar la
+          Tus {totalTxs} movimientos siguen aquí, intactos. Para volver a usar la
           aplicación necesitas un plan de pago.
         </div>
 
@@ -63,8 +70,13 @@ export default function FinDePrueba({
           <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 12, lineHeight: 1.5 }}>
             Tus datos son tuyos y siguen a tu alcance:
           </div>
-          <button style={{ ...S.btnO, width: "100%", marginBottom: 8 }} onClick={() => exportCSV(txs)}>
-            ⬇ Exportar mis movimientos a CSV
+          {/* Esta pantalla promete que los datos siguen enteros: el archivo no
+              sale hasta que el historial completo está cargado. */}
+          <button
+            style={{ ...S.btnO, width: "100%", marginBottom: 8 }}
+            onClick={() => (historialCompleto ? exportCSV(txs) : void onCargarTodo())}
+          >
+            {historialCompleto ? "⬇ Exportar mis movimientos a CSV" : "Preparando tu historial…"}
           </button>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <button style={{ ...S.btnO, flex: 1, fontSize: T.md }} onClick={() => setVerDoc("privacidad")}>🔒 Aviso</button>

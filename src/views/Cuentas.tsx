@@ -7,12 +7,15 @@ import type { Account, Transaction } from "../types";
 export default function Cuentas({
   accs,
   txs,
+  historialCompleto,
   onEdit,
   onNew,
   fx,
 }: {
   accs: Account[];
   txs: Transaction[];
+  /** Mientras es false el conteo por cuenta sería parcial (D9). */
+  historialCompleto: boolean;
   onEdit: (a: Account) => void;
   onNew: () => void;
   fx: FxRates;
@@ -24,7 +27,7 @@ export default function Cuentas({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div style={{ width: 44, height: 44, borderRadius: 14, background: a.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.hero }}>{a.icon}</div>
-              <div><div style={{ fontWeight: 700, fontSize: T.lg }}>{a.name}</div><div style={{ fontSize: T.sm, color: C.muted }}>{txs.filter((t) => t.accountId === a.id).length} transacciones</div></div>
+              <div><div style={{ fontWeight: 700, fontSize: T.lg }}>{a.name}</div><div style={{ fontSize: T.sm, color: C.muted }}>{historialCompleto ? `${txs.filter((t) => t.accountId === a.id).length} transacciones` : "contando transacciones…"}</div></div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontWeight: 800, fontSize: T.xxl, color: Number(a.balance) >= 0 ? C.green : C.red }}>{fmtCurrency(a.balance, a.currency)}</div>

@@ -203,22 +203,45 @@ export const api = {
    * el historial completo. Cargar solo lo reciente exige mover esos cálculos
    * al servidor, y eso es trabajo aparte.
    */
-  async getTxs(): Promise<Transaction[]> {
+  /**
+   * El historial, entero o desde una fecha.
+   *
+   * `desde` (un DATE, "2026-01-01") es la carga en dos tiempos de D9: el
+   * arranque pide solo los meses que el tablero necesita y el resto llega
+   * después, en segundo plano. Sin argumento trae todo, que es lo que quieren
+   * exportar, el historial completo y el cotejo al importar.
+   */
+  async getTxs(desde?: string): Promise<Transaction[]> {
     const PAGINA = 1000;
     const todas: RawTx[] = [];
-    for (let desde = 0; ; desde += PAGINA) {
-      const { data, error } = await sbClient
+    for (let inicio = 0; ; inicio += PAGINA) {
+      let q = sbClient
         .from("transactions")
         .select(TX_SELECT)
         .order("date", { ascending: false })
-        .order("id", { ascending: false }) // desempate estable entre páginas
-        .range(desde, desde + PAGINA - 1);
+        .order("id", { ascending: false }); // desempate estable entre páginas
+      if (desde) q = q.gte("date", desde);
+      const { data, error } = await q.range(inicio, inicio + PAGINA - 1);
       if (error) fail(error);
       const filas = (data ?? []) as unknown as RawTx[];
       todas.push(...filas);
       if (filas.length < PAGINA) break;
     }
     return todas.map(normTx);
+  },
+  /**
+   * Cuántos movimientos hay en total, sin traer ninguno.
+   *
+   * Mientras la segunda carga viaja, la app tiene en memoria una parte del
+   * historial; los contadores que la persona lee ("N movimientos", "se
+   * eliminarán N") tienen que decir la verdad igual, y de ahí sale.
+   */
+  async contarTxs(): Promise<number> {
+    const { count, error } = await sbClient
+      .from("transactions")
+      .select("id", { count: "exact", head: true });
+    if (error) fail(error);
+    return count ?? 0;
   },
   async applyTx(p: {
     accountId: string;
