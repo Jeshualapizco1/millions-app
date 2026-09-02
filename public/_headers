@@ -1,0 +1,7 @@
+# Universal links de iOS: el archivo no tiene extensión y Apple exige que se
+# sirva como JSON. Sin esto Netlify lo manda como octet-stream y iOS lo ignora.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+
+/.well-known/assetlinks.json
+  Content-Type: application/json

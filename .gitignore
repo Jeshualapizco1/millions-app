@@ -7,3 +7,25 @@ dist
 
 # Respaldos del .env: traen llaves, nunca al repo
 .env.respaldo-*
+
+# Capacitor: builds y artefactos locales de cada plataforma. Los proyectos
+# android/ e ios/ SI van al repo (PENDIENTES.md, fase 2).
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+android/.idea
+android/*.iml
+android/app/*.iml
+android/captures
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+ios/App/Pods
+ios/App/App/public
+ios/App/App/capacitor.config.json
+ios/App/build
+ios/App/DerivedData
+ios/App/App.xcworkspace/xcuserdata
+ios/App/App.xcodeproj/xcuserdata
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata

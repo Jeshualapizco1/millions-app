@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.io.millionsapp.app",
+        "paths": ["/auth", "/auth/*"]
+      }
+    ]
+  }
+}
