@@ -17,7 +17,7 @@ import { findByName } from "./names";
 import { impactoNeto, proximos, proximosDeCreditos } from "./upcoming";
 import { esFalloDeRed, esFalloDeSesion } from "./offlineQueue";
 import { consultasRestantes, textoAiUso } from "./aiUso";
-import { procesarEnlace } from "./native";
+import { procesarEnlace } from "./enlace";
 import { BodySchema } from "../../netlify/lib/chatSchema";
 import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../../netlify/lib/zona";
 import type { Account, Budget, Credit, Transaction } from "../types";

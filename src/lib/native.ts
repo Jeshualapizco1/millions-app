@@ -6,7 +6,7 @@
 // carga de forma perezosa para que la PWA no arrastre código que no usa.
 // ============================================================================
 import { Capacitor } from "@capacitor/core";
-import { sbClient } from "./supabase";
+import { procesarEnlace } from "./enlace";
 
 /** true dentro de la app de iOS o Android; false en el navegador y la PWA. */
 export const esNativo = (): boolean => Capacitor.isNativePlatform();
@@ -37,19 +37,6 @@ export const apiBase = (): string => {
 export const authOrigin = (): string => (esNativo() ? "https://app.millionsapp.io" : window.location.origin);
 
 /**
- * Un enlace de correo abrió la app: si trae `code`, se cambia por sesión.
- * Devuelve true si había algo que procesar.
- */
-export async function procesarEnlace(url: string, exchange: (code: string) => Promise<unknown>): Promise<boolean> {
-  let u: URL;
-  try { u = new URL(url); } catch { return false; }
-  const code = u.searchParams.get("code");
-  if (!code) return false;
-  await exchange(code);
-  return true;
-}
-
-/**
  * Ajustes de arranque en nativo: barra de estado oscura sobre la vista,
  * splash fuera en cuanto React pintó, y el botón atrás de Android cierra lo
  * que esté abierto en vez de matar la app. Se llama una vez desde main.tsx.
@@ -74,6 +61,9 @@ export async function arrancarNativo(): Promise<void> {
   // URL completa; se le saca el `code` y se cambia por una sesión.
   App.addListener("appUrlOpen", ({ url }) => {
     void procesarEnlace(url, async (code) => {
+      // Dinámico a propósito: native.ts lo importa api.ts, y el cliente de
+      // Supabase solo debe construirse cuando de verdad hace falta.
+      const { sbClient } = await import("./supabase");
       const { error } = await sbClient.auth.exchangeCodeForSession(code);
       if (error) console.warn("deep link:", error.message);
     });
