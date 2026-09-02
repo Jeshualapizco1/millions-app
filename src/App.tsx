@@ -825,6 +825,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     // borrador con los chips, y cerrarlo lo dejaría sin dónde aparecer.
     onFinal: (final) => { sendTx(final.trim()); },
     onStop: () => setLive(""),
+    onError: (mensaje) => push({ kind: "error", text: mensaje }),
   });
   useEffect(() => { if (!fab) stopMic(); }, [fab, stopMic]);
 

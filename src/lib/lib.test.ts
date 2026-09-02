@@ -18,6 +18,7 @@ import { impactoNeto, proximos, proximosDeCreditos } from "./upcoming";
 import { esFalloDeRed, esFalloDeSesion } from "./offlineQueue";
 import { consultasRestantes, textoAiUso } from "./aiUso";
 import { procesarEnlace } from "./enlace";
+import { avisoDeFalloDeVoz, clasificarFalloDeVoz, mensajeDeFalloDeVoz } from "./voz";
 import { BodySchema } from "../../netlify/lib/chatSchema";
 import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../../netlify/lib/zona";
 import type { Account, Budget, Credit, Transaction } from "../types";
@@ -923,5 +924,49 @@ describe("enlace de correo que abre la app", () => {
     expect(await procesarEnlace("https://app.millionsapp.io/auth", async (c) => { visto.push(c); })).toBe(false);
     expect(await procesarEnlace("esto no es una url", async (c) => { visto.push(c); })).toBe(false);
     expect(visto).toEqual([]);
+  });
+});
+
+// D10: la voz nativa moría en un console.warn. Un permiso negado se veía
+// igual que no haber tocado nada, y el plugin ni siquiera estaba enlazado en
+// iOS, así que ese silencio era el único síntoma del bug de fondo.
+describe("avisos del dictado", () => {
+  it("cerrar el micrófono a propósito no es un fallo", () => {
+    expect(clasificarFalloDeVoz("aborted")).toBeNull();
+    expect(avisoDeFalloDeVoz("aborted", "web")).toBeNull();
+  });
+
+  it("callarse tampoco es un fallo", () => {
+    expect(clasificarFalloDeVoz("no-speech")).toBeNull();
+    expect(avisoDeFalloDeVoz("no-speech", "ios")).toBeNull();
+  });
+
+  it("los dos motores nombran el permiso distinto y caen en el mismo caso", () => {
+    // "not-allowed" y "service-not-allowed" los da el navegador; "sin-permiso"
+    // lo lanza useVoice cuando el plugin nativo niega el permiso.
+    expect(clasificarFalloDeVoz("not-allowed")).toBe("sin-permiso");
+    expect(clasificarFalloDeVoz("service-not-allowed")).toBe("sin-permiso");
+    expect(clasificarFalloDeVoz("sin-permiso")).toBe("sin-permiso");
+  });
+
+  it("cada plataforma dice dónde se activa el permiso", () => {
+    expect(mensajeDeFalloDeVoz("sin-permiso", "ios")).toContain("Ajustes → Millions → Micrófono");
+    expect(mensajeDeFalloDeVoz("sin-permiso", "android")).toContain("Permisos");
+    expect(mensajeDeFalloDeVoz("sin-permiso", "web")).toContain("navegador");
+  });
+
+  it("un código desconocido avisa en vez de callarse", () => {
+    expect(clasificarFalloDeVoz("algo-que-no-existe")).toBe("otro");
+    expect(clasificarFalloDeVoz(undefined)).toBe("otro");
+    expect(avisoDeFalloDeVoz(null, "android")).toBeTruthy();
+  });
+
+  it("todas las frases ofrecen escribir el gasto: el dictado es un atajo", () => {
+    const casos = ["sin-permiso", "sin-motor", "sin-microfono", "sin-red", "otro"] as const;
+    for (const c of casos) {
+      for (const p of ["ios", "android", "web"] as const) {
+        expect(mensajeDeFalloDeVoz(c, p)).toMatch(/escrib/i);
+      }
+    }
   });
 });

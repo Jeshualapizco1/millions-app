@@ -14,7 +14,7 @@ fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
 **Estado al 2 de septiembre, tarde:** A–F cerradas. **iOS ya compila en la
 Mac** (simulador, sin firma): el proyecto pasó de SPM a CocoaPods porque SPM
-dejaba fuera el plugin de voz. Queda D9 y D10 (ninguno urge), lo de fase 0 que
+dejaba fuera el plugin de voz. Queda D9 (no urge), lo de fase 0 que
 es trámite tuyo, **compilar Android** (falta Android Studio) y **probar en
 teléfonos reales**. Empieza por "Para retomar" en [TODO.md](TODO.md).
 
@@ -39,13 +39,6 @@ Cerrados C1–C13 el 1 de septiembre de 2026; el detalle vive en `git log`.
       Cargar solo lo reciente exige mover al servidor lo que hoy se calcula
       con el historial completo: períodos, patrimonio, gráfica de 6 meses y
       dona. Vale la pena cuando alguien tenga miles de movimientos.
-
-- [ ] **D10 La voz nativa falla en silencio.** En `src/hooks/useVoice.ts:98`
-      el `catch` de `startNativo` solo hace `console.warn`: si no hay permiso
-      de micrófono, o el motor no está, la persona toca el micrófono y no pasa
-      absolutamente nada. Debe salir un toast que diga qué falló y, cuando sea
-      el permiso, cómo darlo desde Ajustes. Se descubrió al enlazar el plugin
-      de voz en iOS: mientras estuvo desenlazado, este era el único síntoma.
 
 ## E. Mejoras visuales
 
@@ -237,7 +230,9 @@ Falta, y es en tu máquina o en paneles:
       login, confirmación de correo por deep link, voz (permisos, parciales,
       corte por silencio), chips, offline, legal, borrado de cuenta, botón
       atrás. La voz nativa está escrita a ciegas y nunca se ha ejecutado: es lo
-      primero que hay que probar en un teléfono real. Ver también D10.
+      primero que hay que probar en un teléfono real. Ahora avisa cuando falla
+      (`src/lib/voz.ts`), así que un permiso negado se ve en pantalla y no hay
+      que adivinar desde el Xcode.
 - [ ] `@capacitor/browser` no se agregó: aviso y términos ya viven dentro de
       la app y en `/privacidad` y `/terminos`.
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { esNativo } from "../lib/native";
+import { esNativo, plataforma } from "../lib/native";
+import { avisoDeFalloDeVoz } from "../lib/voz";
 
 /**
  * Captura por voz con dos motores y una sola API para el resto de la app.
@@ -13,11 +14,16 @@ import { esNativo } from "../lib/native";
  *
  * Los tres apagados del micrófono se conservan: visibilitychange (aquí),
  * cierre del FAB (el caller llama stopMic) y abort() en lugar de stop().
+ *
+ * Los dos motores avisan cuando fallan (`onError`). Antes el permiso negado
+ * moría en un `console.warn` y la persona veía exactamente lo mismo que si no
+ * hubiera tocado nada: el micrófono se apagaba sin decir por qué.
  */
 export function useVoice({
   onResult,
   onFinal,
   onStop,
+  onError,
 }: {
   /** Texto interim o final — el monolito hacía setLive + setTxInput con esto. */
   onResult: (text: string) => void;
@@ -25,11 +31,19 @@ export function useVoice({
   onFinal: (text: string) => void;
   /** Al apagar el mic — el monolito hacía setLive(""). */
   onStop: () => void;
+  /** Falló el dictado y hay algo que decir; el caller lo muestra como toast. */
+  onError: (mensaje: string) => void;
 }) {
   const [mic, setMic] = useState(false);
   const recRef = useRef<any>(null);
-  const cbRef = useRef({ onResult, onFinal, onStop });
-  cbRef.current = { onResult, onFinal, onStop };
+  const cbRef = useRef({ onResult, onFinal, onStop, onError });
+  cbRef.current = { onResult, onFinal, onStop, onError };
+
+  /** Un solo lugar traduce el código del motor y decide si vale la pena hablar. */
+  const avisar = useCallback((codigo: string | null | undefined) => {
+    const msg = avisoDeFalloDeVoz(codigo, plataforma());
+    if (msg) cbRef.current.onError(msg);
+  }, []);
 
   const nativo = esNativo();
   const SR = nativo ? null : (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -70,9 +84,11 @@ export function useVoice({
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
       const { available } = await SpeechRecognition.available();
-      if (!available) throw new Error("Este dispositivo no tiene reconocimiento de voz");
+      // El mensaje de estos errores es un código de `lib/voz`, no una frase:
+      // así el catch trata igual lo que lanzamos aquí y lo que lanza el plugin.
+      if (!available) throw new Error("sin-motor");
       const perm = await SpeechRecognition.requestPermissions();
-      if (perm.speechRecognition !== "granted") throw new Error("Sin permiso para el micrófono");
+      if (perm.speechRecognition !== "granted") throw new Error("sin-permiso");
 
       let ultimo = "";
       // Tras 1.6 s sin palabras nuevas se detiene solo: es el equivalente del
@@ -100,13 +116,17 @@ export function useVoice({
       // Un permiso negado o un motor ausente no debe dejar el botón "escuchando"
       cbRef.current.onResult("");
       console.warn("voz nativa:", e);
+      // Si el micrófono se cerró desde el FAB, `stopMic` ya puso el flag en
+      // false: lo que falle después es consecuencia de cerrarlo, no un fallo
+      // que la persona deba leer.
+      if (activoNativo.current) avisar(e instanceof Error ? e.message : null);
     } finally {
       activoNativo.current = false;
       import("@capacitor-community/speech-recognition").then(({ SpeechRecognition }) => SpeechRecognition.removeAllListeners().catch(() => {}));
       setMic(false);
       cbRef.current.onStop();
     }
-  }, []);
+  }, [avisar]);
 
   const startMic = useCallback(() => {
     if (nativo) { void startNativo(); return; }
@@ -120,7 +140,9 @@ export function useVoice({
     rec.continuous = false;
     rec.onstart = () => setMic(true);
     rec.onend = () => { setMic(false); recRef.current = null; };
-    rec.onerror = () => { setMic(false); recRef.current = null; };
+    // `aborted` (lo cerramos nosotros) y `no-speech` (nadie habló) salen por
+    // aquí y `avisar` los descarta; el resto sí se cuenta.
+    rec.onerror = (e: any) => { setMic(false); recRef.current = null; avisar(e?.error); };
     rec.onresult = (e: any) => {
       let interim = "", final = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -138,7 +160,7 @@ export function useVoice({
     } catch {
       recRef.current = null; // el navegador lo rechazó (ya había uno vivo)
     }
-  }, [voiceOK, mic, SR, nativo, startNativo]);
+  }, [voiceOK, mic, SR, nativo, startNativo, avisar]);
 
   return { mic, voiceOK, startMic, stopMic };
 }
