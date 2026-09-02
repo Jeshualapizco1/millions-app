@@ -12,6 +12,10 @@ demás vienen de revisión y hay que confirmarlos al abrirlos.
 Orden de trabajo acordado: **A → B → G (fase 0 en paralelo) → C → D → E**. La
 fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
+Lo que **no** está en el plan actual vive en
+[IDEAS-FUTURAS.md](IDEAS-FUTURAS.md): ideas guardadas para después, que no se
+trabajan hasta pasar por aquí.
+
 **Estado al 2 de septiembre, tarde:** A–F cerradas. **Las dos plataformas
 compilan en la Mac**: iOS pasó de SPM a CocoaPods (SPM dejaba fuera el plugin
 de voz) y Android da APK con JDK 21. A–F cerradas salvo F6, que salió al

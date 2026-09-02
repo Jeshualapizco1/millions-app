@@ -12,7 +12,9 @@ lo justifica, y el **historial de la auditoría** de agosto de 2026.
 > está en `origin/main` y la CI en verde; no hay nada sin pushear.
 
 **La lista operativa vive en [PENDIENTES.md](PENDIENTES.md).** Este archivo
-conserva el plan, el mercado y la historia.
+conserva el plan, el mercado y la historia. Las ideas que **no** están en el
+plan actual viven en [IDEAS-FUTURAS.md](IDEAS-FUTURAS.md), y no se trabajan
+hasta pasar por `PENDIENTES.md`.
 
 **Estado en una línea:** las secciones A a F de la auditoría están cerradas
 (críticos, medios, bajos, mejoras, visual y accesibilidad), la fase 0 de
