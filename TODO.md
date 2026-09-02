@@ -17,8 +17,8 @@ conserva el plan, el mercado y la historia.
 **Estado en una línea:** las secciones A a F de la auditoría están cerradas
 (críticos, medios, bajos, mejoras, visual y accesibilidad), la fase 0 de
 tiendas tiene hecho lo que era código, y la fase 2 —el contenedor de
-Capacitor— **ya compila en iOS** desde la Mac; falta Android y falta probar
-en teléfonos de verdad.
+Capacitor— **ya compila en las dos plataformas** desde la Mac; lo que falta es
+probarlo en teléfonos de verdad.
 
 **Lo que se hizo al abrir la Mac (2 de septiembre):** `npm install` (sharp
 pedía bajar libvips a mano por lo lento de la red), `npm test` y `npm run
@@ -28,19 +28,30 @@ el micrófono no habría hecho nada. Ahora `xcodebuild` termina en
 `BUILD SUCCEEDED` y el framework de voz está en el bundle. Se abre
 `ios/App/App.xcworkspace`, no el `.xcodeproj`.
 
+Después, el toolchain de Android: JDK 21 (con 17 Gradle no compila), las
+command line tools del SDK y la platform 36. `./gradlew assembleDebug` da un
+APK de 4.7 MB con el bundle id, el nombre de tienda, `RECORD_AUDIO` y la app
+web dentro. El `gradlew` llegó de Windows sin permiso de ejecución.
+
+Y se cerró D10: el dictado avisa cuando falla en vez de apagarse sin decir
+nada, en nativo y en la web (`src/lib/voz.ts`).
+
 **Lo siguiente, en este orden:**
 
 1. En Supabase → Auth → Redirect URLs agregar
    `https://millionsjeshua.netlify.app/auth` y `https://app.millionsapp.io/auth`.
    **Urge aunque no compiles nada:** el registro web ya manda el correo de
    confirmación a `/auth` desde el commit `9c158d5`.
-2. Instalar Android Studio (con su JDK) y `npx cap open android`. Es lo único
-   que falta para tener las dos plataformas compilando.
-3. Compilar nativo con `VITE_API_BASE=https://millionsjeshua.netlify.app`
-   mientras `app.millionsapp.io` no apunte al sitio.
-4. Probar en un teléfono real, empezando por la voz nativa: compila, pero
+2. Probar en un teléfono real, empezando por la voz nativa: compila, pero
    nunca se ha ejecutado. Después: confirmación de correo por deep link,
    chips, offline, legal, borrado de cuenta y botón atrás.
+3. Compilar con `VITE_API_BASE=https://millionsjeshua.netlify.app` mientras
+   `app.millionsapp.io` no apunte al sitio. Sin eso la IA no responde en el
+   teléfono: el WebView pediría a un dominio que todavía no existe.
+4. El APK de debug se instala con
+   `adb install android/app/build/outputs/apk/debug/app-debug.apk`
+   (`adb` está en `$ANDROID_HOME/platform-tools`). Para iOS hace falta la
+   cuenta de Apple y elegir el equipo en Xcode.
 
 **Decisiones tomadas el 1 de septiembre por la noche:** nombre de tienda
 "Millions - Finanzas con IA", dominio `millionsapp.io`, bundle id

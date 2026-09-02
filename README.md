@@ -236,6 +236,25 @@ npx cap open android               # Android Studio (Windows o Mac)
 npx cap open ios                   # Xcode (solo Mac); abre App.xcworkspace, no el .xcodeproj
 ```
 
+Para compilar sin abrir ninguna IDE, que es como se probó el 2 de septiembre:
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+cd android && ./gradlew assembleDebug     # app/build/outputs/apk/debug/app-debug.apk
+
+cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+  -configuration Debug CODE_SIGNING_ALLOWED=NO build
+```
+
+- **Android necesita JDK 21**, no 17: con 17 Gradle muere en
+  `invalid source release: 21` compilando `capacitor-android`. Lo demás sale de
+  Homebrew: `brew install openjdk@21` y
+  `brew install --cask android-commandlinetools`, y de ahí
+  `sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"`.
+  `android/local.properties` (con `sdk.dir`) es de cada máquina y no va al repo.
+
 - **iOS va por CocoaPods, no por SPM**, y no es un detalle de gusto: el plugin
   de voz no trae `Package.swift`, así que con SPM se queda fuera del binario y
   el micrófono no hace nada. `npx cap sync` ya corre `pod install` solo. Si

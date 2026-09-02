@@ -12,11 +12,12 @@ demás vienen de revisión y hay que confirmarlos al abrirlos.
 Orden de trabajo acordado: **A → B → G (fase 0 en paralelo) → C → D → E**. La
 fase 0 de tiendas es trámites y esperas, así que arranca desde el primer día.
 
-**Estado al 2 de septiembre, tarde:** A–F cerradas. **iOS ya compila en la
-Mac** (simulador, sin firma): el proyecto pasó de SPM a CocoaPods porque SPM
-dejaba fuera el plugin de voz. Queda D9 (no urge), lo de fase 0 que
-es trámite tuyo, **compilar Android** (falta Android Studio) y **probar en
-teléfonos reales**. Empieza por "Para retomar" en [TODO.md](TODO.md).
+**Estado al 2 de septiembre, tarde:** A–F cerradas. **Las dos plataformas
+compilan en la Mac**: iOS pasó de SPM a CocoaPods (SPM dejaba fuera el plugin
+de voz) y Android da APK con JDK 21. Queda D9 (no urge), lo de fase 0 que es
+trámite tuyo, y lo único que ya no se puede hacer desde aquí: **probar en
+teléfonos reales**, empezando por la voz. Empieza por "Para retomar" en
+[TODO.md](TODO.md).
 
 ---
 
@@ -144,9 +145,16 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
 
 **Herramientas en esta Mac**
 
-- [ ] Android Studio + SDK + un emulador; JDK 17 (lo instala Android Studio).
-      Es lo único que falta en la Mac: Xcode 26.6 y CocoaPods 1.17 ya están y
-      con eso iOS compila.
+- [x] **Herramientas de compilación, listas en la Mac** (2 de septiembre):
+      Xcode 26.6 y CocoaPods 1.17 para iOS; para Android, JDK **21** (no 17:
+      Capacitor 8 falla con `invalid source release: 21`), las command line
+      tools del SDK por Homebrew en
+      `/opt/homebrew/share/android-commandlinetools`, y de ahí
+      `platform-tools`, `platforms;android-36` y `build-tools;36.0.0`. Las dos
+      plataformas compilan; los comandos exactos están en el README.
+- [ ] Android Studio, solo si quieres emulador y depuración visual: para
+      compilar no hace falta. Se instaló con `brew install --cask
+      android-studio`; falta abrirlo una vez y crear un AVD.
 - [ ] Un iPhone y un Android físicos para probar voz y micrófono: el emulador
       no sirve para eso.
 
@@ -173,11 +181,12 @@ Un commit por punto (A2 y A3 comparten uno porque tocan la misma función):
 `bab905d` A1 · `a1480b5` A2+A3 · `7e51525` A4 · `d59090d` A5 · `1ca14f0` A6 ·
 `2071ed0` A7. Todos en `origin/main`, verificados contra producción.
 
-### Fase 2 — El contenedor 🔨 iOS COMPILA, FALTA ANDROID Y PROBAR EN TELÉFONO
+### Fase 2 — El contenedor 🔨 COMPILAN LAS DOS, FALTA PROBAR EN TELÉFONO
 
 Escrito el 1 de septiembre en Windows, **compilado por primera vez el 2 en la
 Mac**: `xcodebuild` sobre `App.xcworkspace` termina en `BUILD SUCCEEDED` para
-simulador. Android sigue sin compilarse (falta Android Studio).
+simulador, y `./gradlew assembleDebug` produce el APK. Ninguno de los dos se ha
+ejecutado todavía en un aparato.
 
 - [x] Capacitor 8 con `android/` e `ios/` generados, `webDir: dist`, bundle id
       `io.millionsapp.app`, nombre "Millions - Finanzas con IA". Iconos y
@@ -212,8 +221,11 @@ simulador. Android sigue sin compilarse (falta Android Studio).
 
 Falta, y es en tu máquina o en paneles:
 
-- [ ] **Compilar Android**: instalar Android Studio y `npx cap open android`.
-      Es lo único que falta para tener las dos plataformas en pie.
+- [x] **Android compila** (2 de septiembre): `./gradlew assembleDebug` da un
+      APK de 4.7 MB con `io.millionsapp.app`, el nombre de tienda,
+      `RECORD_AUDIO` y `VIBRATE`, y la build web dentro. El `gradlew` venía sin
+      permiso de ejecución (salió de Windows); se corrigió también en el índice
+      de git con `git update-index --chmod=+x`.
 - [ ] **Primer build de iOS con firma**: hasta ahora solo se compiló para
       simulador con `CODE_SIGNING_ALLOWED=NO`. Para el teléfono hace falta la
       cuenta de Apple (fase 0) y elegir el equipo en Xcode.
