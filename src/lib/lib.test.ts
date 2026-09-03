@@ -962,8 +962,19 @@ describe("avisos del dictado", () => {
     expect(avisoDeFalloDeVoz(null, "android")).toBeTruthy();
   });
 
+  it("iOS negándose por una sesión viva tiene su propio aviso, no el genérico", () => {
+    // El plugin nativo no manda códigos: lanza Error("Ongoing speech
+    // recognition"). Cayó una vez en el genérico "no pude escucharte" y hubo
+    // que ir a la consola de Safari para saber qué pasaba.
+    expect(clasificarFalloDeVoz("Ongoing speech recognition")).toBe("ocupado");
+    expect(clasificarFalloDeVoz("ongoing speech recognition")).toBe("ocupado");
+    const msg = avisoDeFalloDeVoz("Ongoing speech recognition", "ios");
+    expect(msg).not.toBe(mensajeDeFalloDeVoz("otro", "ios"));
+    expect(msg).toContain("cierra la app");
+  });
+
   it("todas las frases ofrecen escribir el gasto: el dictado es un atajo", () => {
-    const casos = ["sin-permiso", "sin-motor", "sin-microfono", "sin-red", "otro"] as const;
+    const casos = ["sin-permiso", "sin-motor", "sin-microfono", "sin-red", "ocupado", "otro"] as const;
     for (const c of casos) {
       for (const p of ["ios", "android", "web"] as const) {
         expect(mensajeDeFalloDeVoz(c, p)).toMatch(/escrib/i);

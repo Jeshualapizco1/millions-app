@@ -15,6 +15,15 @@ import { avisoDeFalloDeVoz } from "../lib/voz";
  * Los tres apagados del micrófono se conservan: visibilitychange (aquí),
  * cierre del FAB (el caller llama stopMic) y abort() en lugar de stop().
  *
+ * **En iOS la limpieza tiene que terminar ANTES de volver a arrancar.** El
+ * reconocedor del sistema admite una sola sesión: si queda una viva, `start()`
+ * revienta con "Ongoing speech recognition" y el micrófono no vuelve a
+ * funcionar en toda la sesión de la app. Pasaba porque `stop()` y
+ * `removeAllListeners()` se lanzaban sin esperarlos —y encima en el `finally`,
+ * o sea después del fallo—, así que el siguiente toque encontraba la sesión
+ * anterior a medio cerrar. Ahora quien apaga deja su limpieza en
+ * `limpiezaEnCurso`, y quien enciende la espera antes de tocar el plugin.
+ *
  * Los dos motores avisan cuando fallan (`onError`). Antes el permiso negado
  * moría en un `console.warn` y la persona veía exactamente lo mismo que si no
  * hubiera tocado nada: el micrófono se apagaba sin decir por qué.
@@ -54,6 +63,40 @@ export function useVoice({
   // Estado del reconocedor nativo: el silencio que detiene, y si ya terminó.
   const silencio = useRef<number | null>(null);
   const activoNativo = useRef(false);
+  /** La última limpieza lanzada. Arrancar espera a que termine. */
+  const limpiezaEnCurso = useRef<Promise<void> | null>(null);
+
+  /**
+   * Apaga el reconocedor nativo del todo: detiene la sesión, espera a que iOS
+   * confirme que ya no escucha, y solo entonces quita los listeners.
+   *
+   * El orden importa. Quitar los listeners primero deja la sesión viva pero
+   * sorda, y es justo el estado que hacía fallar al siguiente `start()`.
+   */
+  const apagarNativo = useCallback(async (): Promise<void> => {
+    const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+    try {
+      const { listening } = await SpeechRecognition.isListening();
+      if (listening) {
+        await SpeechRecognition.stop();
+        // `stop()` vuelve antes de que el motor haya soltado el micrófono, así
+        // que se espera a que lo confirme. Medio segundo de tope: si para
+        // entonces sigue diciendo que escucha, insistir no lo va a arreglar y
+        // es mejor devolver el control que congelar el botón.
+        for (let i = 0; i < 10; i++) {
+          if (!(await SpeechRecognition.isListening()).listening) break;
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+    } catch (e) {
+      console.warn("voz nativa, al apagar:", e);
+    }
+    try {
+      await SpeechRecognition.removeAllListeners();
+    } catch (e) {
+      console.warn("voz nativa, al quitar listeners:", e);
+    }
+  }, []);
 
   const stopMic = useCallback(() => {
     if (recRef.current) {
@@ -63,14 +106,13 @@ export function useVoice({
     if (activoNativo.current) {
       activoNativo.current = false;
       if (silencio.current) { clearTimeout(silencio.current); silencio.current = null; }
-      import("@capacitor-community/speech-recognition").then(({ SpeechRecognition }) => {
-        SpeechRecognition.stop().catch(() => {});
-        SpeechRecognition.removeAllListeners().catch(() => {});
-      });
+      // Se guarda la promesa: el siguiente `startNativo` la espera en vez de
+      // encontrarse el micrófono a medio cerrar.
+      limpiezaEnCurso.current = apagarNativo();
     }
     setMic(false);
     cbRef.current.onStop();
-  }, []);
+  }, [apagarNativo]);
 
   useEffect(() => {
     const f = () => { if (document.hidden) stopMic(); };
@@ -83,12 +125,35 @@ export function useVoice({
     activoNativo.current = true;
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+
+      // Lo primero: que no quede nada de la vez anterior. Si el micrófono se
+      // cerró hace un instante, esa limpieza puede seguir corriendo, y
+      // arrancar encima es lo que produce "Ongoing speech recognition".
+      if (limpiezaEnCurso.current) {
+        await limpiezaEnCurso.current;
+        limpiezaEnCurso.current = null;
+      }
+
       const { available } = await SpeechRecognition.available();
       // El mensaje de estos errores es un código de `lib/voz`, no una frase:
       // así el catch trata igual lo que lanzamos aquí y lo que lanza el plugin.
       if (!available) throw new Error("sin-motor");
       const perm = await SpeechRecognition.requestPermissions();
       if (perm.speechRecognition !== "granted") throw new Error("sin-permiso");
+
+      // Y aun así se pregunta al plugin, porque la sesión pudo quedar viva por
+      // un camino que no pasó por `stopMic`: la app en segundo plano, una
+      // llamada entrante, o un intento anterior que murió a medias. Preguntar
+      // cuesta un salto al puente; no preguntar costaba el micrófono hasta
+      // reiniciar la app.
+      if ((await SpeechRecognition.isListening()).listening) {
+        await apagarNativo();
+        if ((await SpeechRecognition.isListening()).listening) throw new Error("Ongoing speech recognition");
+      }
+
+      // Los listeners se registran con la sesión ya limpia: si se registraran
+      // antes del apagado, `removeAllListeners()` se llevaría los nuevos.
+      await SpeechRecognition.removeAllListeners();
 
       let ultimo = "";
       // Tras 1.6 s sin palabras nuevas se detiene solo: es el equivalente del
@@ -122,11 +187,16 @@ export function useVoice({
       if (activoNativo.current) avisar(e instanceof Error ? e.message : null);
     } finally {
       activoNativo.current = false;
-      import("@capacitor-community/speech-recognition").then(({ SpeechRecognition }) => SpeechRecognition.removeAllListeners().catch(() => {}));
+      if (silencio.current) { clearTimeout(silencio.current); silencio.current = null; }
+      // La limpieza se guarda y se espera aquí mismo: así, cuando este
+      // `startNativo` termina, el micrófono ya está libre para el siguiente.
+      limpiezaEnCurso.current = apagarNativo();
+      await limpiezaEnCurso.current;
+      limpiezaEnCurso.current = null;
       setMic(false);
       cbRef.current.onStop();
     }
-  }, [avisar]);
+  }, [avisar, apagarNativo]);
 
   const startMic = useCallback(() => {
     if (nativo) { void startNativo(); return; }

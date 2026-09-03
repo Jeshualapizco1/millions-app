@@ -10,7 +10,7 @@
 // de verdad, y avisar de eso sería regañar a la persona por usar la app bien.
 // ============================================================================
 
-export type FalloDeVoz = "sin-permiso" | "sin-motor" | "sin-microfono" | "sin-red" | "otro";
+export type FalloDeVoz = "sin-permiso" | "sin-motor" | "sin-microfono" | "sin-red" | "ocupado" | "otro";
 
 /** La plataforma decide dónde se activa el permiso, y eso cambia la frase. */
 export type PlataformaDeVoz = "ios" | "android" | "web";
@@ -22,6 +22,12 @@ export type PlataformaDeVoz = "ios" | "android" | "web";
  * cerrar el micrófono o de no decir nada.
  */
 export function clasificarFalloDeVoz(codigo: string | null | undefined): FalloDeVoz | null {
+  // El plugin nativo no devuelve códigos: lanza Error con una frase en inglés.
+  // "Ongoing speech recognition" es iOS negándose a abrir el micrófono porque
+  // la escucha anterior sigue viva, y merece su propio aviso: si vuelve a
+  // aparecer queremos reconocerlo en pantalla y no tener que ir a la consola.
+  if (typeof codigo === "string" && /ongoing speech recognition/i.test(codigo)) return "ocupado";
+
   switch (codigo) {
     // Los dos silencios que no son fallo.
     case "aborted":
@@ -74,6 +80,9 @@ export function mensajeDeFalloDeVoz(fallo: FalloDeVoz, plataforma: PlataformaDeV
 
     case "sin-red":
       return "El dictado necesita internet. Escribe el gasto: se guarda y se sincroniza solo.";
+
+    case "ocupado":
+      return "El dictado anterior no había terminado de cerrarse. Toca el micrófono otra vez o escribe el gasto; si se repite, cierra la app y ábrela de nuevo.";
 
     case "otro":
       return "No pude escucharte. Inténtalo otra vez o escribe el gasto.";
