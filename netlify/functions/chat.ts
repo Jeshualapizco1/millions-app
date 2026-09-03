@@ -316,14 +316,28 @@ const uso = (hoy: number) => ({ hoy, tope: RATE_LIMIT_PER_DAY });
 
 /**
  * Orígenes que pueden llamar desde otro dominio. La PWA es mismo origen y no
- * los necesita; la app nativa carga sus archivos en local y su origen es el
- * que declara capacitor.config.ts (o el esquema propio si aquel no aplica).
+ * los necesita; la app nativa carga sus archivos en local y su origen lo
+ * arma Capacitor con el esquema y el hostname de `capacitor.config.ts`.
  * Cualquier otro origen no recibe cabeceras CORS y el navegador lo bloquea.
+ *
+ * **Las dos plataformas mandan un origen distinto, y esa diferencia costó una
+ * tarde.** Android respeta `androidScheme: "https"` y llama desde
+ * `https://app.millionsapp.io`. iOS **no**: WebKit no deja registrar un
+ * manejador para un esquema que ya conoce, así que Capacitor descarta
+ * `iosScheme: "https"` y vuelve al suyo
+ * (`CAPInstanceDescriptor.swift`, `normalize()`), quedando
+ * `capacitor://app.millionsapp.io`. Ese origen faltaba aquí, la función no
+ * devolvía cabeceras CORS y el iPhone solo veía "Load failed".
+ *
+ * Si algún día cambia `server.hostname`, hay que cambiarlo aquí también: el
+ * origen se arma con él. `api.millionsapp.io` NO va en esta lista — es el
+ * destino de la llamada, no quien la hace.
  */
 const ORIGENES = new Set([
-  "https://app.millionsapp.io",
+  "https://app.millionsapp.io",   // Android, y la PWA si se sirve de ahí
+  "capacitor://app.millionsapp.io", // iOS: el esquema https se ignora
   "https://millionsapp.io",
-  "capacitor://localhost",
+  "capacitor://localhost",        // el hostname por omisión, si se quita el propio
   "https://localhost",
   "http://localhost",
 ]);

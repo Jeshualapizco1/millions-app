@@ -12,6 +12,28 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * cookies y el almacenamiento se comportan como en la web, y Supabase ve un
  * origen que ya conoce. No carga nada de la red: los archivos siguen siendo
  * locales, solo cambia cómo se llama el origen.
+ *
+ * ── DOS TRAMPAS QUE ESTO TRAE, Y QUE COSTARON UNA TARDE ──────────────────────
+ *
+ * 1. **Nada que viva en `hostname` se puede pedir por red.** En Android,
+ *    Capacitor intercepta toda petición cuyo host sea este y la resuelve
+ *    contra los archivos de la app (`WebViewLocalServer.java`: compara el host
+ *    y devuelve el archivo local). Así que
+ *    `https://app.millionsapp.io/.netlify/functions/chat` no sale nunca a
+ *    internet: se busca dentro del bundle, no está, y falla. Por eso la API
+ *    vive en **`api.millionsapp.io`**, un host aparte —ver `apiBase()` en
+ *    `src/lib/native.ts`—. Cualquier cosa que haya que pedir por red tiene que
+ *    estar en otro host que este.
+ *
+ * 2. **En iOS este `iosScheme` no se aplica.** WebKit no permite registrar un
+ *    manejador para un esquema que ya maneja él, así que Capacitor lo descarta
+ *    y vuelve al suyo (`CAPInstanceDescriptor.swift`, en `normalize()`:
+ *    `WKWebView.handlesURLScheme("https")` es true → el esquema se reemplaza
+ *    por `capacitor`). El origen real en iPhone es
+ *    **`capacitor://app.millionsapp.io`**, no `https://…`. Consecuencias: ese
+ *    es el origen que hay que permitir en el CORS de `netlify/functions/chat.ts`,
+ *    y **Turnstile no puede validar por dominio en iOS**, que era medio motivo
+ *    de G-D5. En Android sí, porque ahí el esquema https sí se respeta.
  */
 const config: CapacitorConfig = {
   appId: "io.millionsapp.app",

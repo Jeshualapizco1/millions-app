@@ -131,11 +131,28 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       organización exige número D-U-N-S (gratis, 1–2 semanas) en Apple y Google.
       La persona física es inmediata, pero en Google el nombre legal y, si hay
       cobros, la dirección postal **se muestran en la ficha pública**.
-- [ ] **G-D5 Captcha en la app nativa.** Turnstile valida por dominio; dentro
-      del WebView el origen es `capacitor://localhost`. *Propuesta:* configurar
-      `server.hostname = "app.millionsapp.io"` con esquema `https` en
-      Capacitor y registrar ese dominio en Turnstile. Si no funciona, desactivar
-      el captcha solo en nativo (las tiendas ya filtran bots).
+- [ ] **G-D5 Captcha en la app nativa — la mitad de la propuesta no se puede.**
+      Se configuró `server.hostname = "app.millionsapp.io"` con esquema
+      `https`, y en **Android funciona**: el origen es
+      `https://app.millionsapp.io` y Turnstile podría validar por dominio. En
+      **iOS no, y no hay forma**: WebKit no deja registrar un manejador para
+      un esquema que ya conoce, así que Capacitor descarta `iosScheme: https`
+      y el origen real es `capacitor://app.millionsapp.io`
+      (`CAPInstanceDescriptor.swift`, `normalize()`). Comprobado el 3 de
+      septiembre leyendo el código, no la documentación. **Queda decidir** si
+      se desactiva el captcha solo en iOS o en todo lo nativo; las tiendas ya
+      filtran bots y el registro por invitación aún más.
+- [ ] **G-D6 ¿Un host de API aparte, o un hostname que no sea un dominio real?**
+      Hoy la API vive en `api.millionsapp.io` porque el host del WebView no
+      puede servirla (ver la cabecera de `capacitor.config.ts`). Funciona, pero
+      **en Netlify los dominios que no son el primario redirigen a él**, y un
+      301 hacia `app.millionsapp.io` volvería a caer en la interceptación de
+      Android. Así que `api.millionsapp.io` tiene que *servir*, no redirigir:
+      o es el dominio primario, o vive en un segundo sitio de Netlify que solo
+      publique las funciones. La alternativa es soltar el dominio real como
+      hostname del WebView y volver al de siempre, con lo que un único host
+      sirve web, API y AASA sin trampas — a cambio de perder Turnstile por
+      dominio también en Android.
 
 ### Fase 0 — Preparación sin código (empieza hoy; son trámites y esperas)
 
