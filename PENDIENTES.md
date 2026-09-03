@@ -1,5 +1,8 @@
 # Pendientes
 
+> **Manda esto.** Es lo único que se trabaja: si algo no está aquí, no se
+> toca. Lo que se cierra se borra en el mismo commit.
+
 Lista viva. **Cada commit que cierra un punto lo borra de aquí en el mismo
 commit.** Lo hecho vive en `git log`, no en este archivo. Ver la regla completa
 en [CLAUDE.md](CLAUDE.md).
@@ -18,8 +21,8 @@ trabajan hasta pasar por aquí.
 
 **Estado al 2 de septiembre, tarde:** A–F cerradas. **Las dos plataformas
 compilan en la Mac**: iOS pasó de SPM a CocoaPods (SPM dejaba fuera el plugin
-de voz) y Android da APK con JDK 21. A–F cerradas; quedan B15 (del advisor) y
-H1 (multi-moneda), ninguno urgente. Lo demás es lo de fase 0, que es trámite
+de voz) y Android da APK con JDK 21. A–F cerradas; solo queda H1
+(multi-moneda), que no urge hasta salir de México. Lo demás es lo de fase 0, que es trámite
 tuyo, y lo único que ya no se puede hacer desde aquí: **probar en teléfonos
 reales**, empezando por la voz. Empieza por "Para retomar" en
 [TODO.md](TODO.md).
@@ -32,18 +35,7 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## B. Bugs medios
 
-Cerrados B1–B14 el 1 de septiembre de 2026; el detalle vive en `git log`.
-
-- [ ] **B15 Tres funciones de trigger están publicadas como RPC.**
-      `validate_transaction_refs()`, `pause_rules_of_archived_account()` y
-      `reject_archived_account()` son `SECURITY DEFINER` y viven en `public`,
-      así que Supabase las expone en `/rest/v1/rpc/...` para `anon` y para
-      `authenticated`; el advisor de seguridad las marca. Llamarlas sueltas
-      revienta —fuera de un trigger no hay `new`— pero una función con los
-      privilegios de su dueño colgando de la API pública no se deja ahí. La
-      cura es la de la 0028: `security invoker` y `revoke all on function ...
-      from public, anon, authenticated`. Sale del advisor del 3 de septiembre,
-      al crear `subscriptions`.
+Cerrados B1–B14 el 1 de septiembre y B15 el 3; el detalle vive en `git log`.
 
 ## C. Bugs bajos
 
@@ -98,6 +90,13 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       Comisión: 15 % en ambas tiendas el primer millón de USD/año (Apple exige
       inscribirse al *Small Business Program*; Google lo aplica solo).
       A $149 MXN quedan ~$126 antes de impuestos.
+
+      **La prueba gratuita, decidida el 3 de septiembre:** 14 días para quien
+      llega solo y 30 para quien llega por invitación. La invitación no suma un
+      mes encima de la prueba: **la prueba es el premio**. Así el pitch
+      "estrena con un mes gratis" se conserva, el primer cargo cae al día 30 y
+      no al 60, y el enlace de invitación vale más que registrarse por tu
+      cuenta.
 - [x] **G-D2 Referidos con meses gratis — decidido el 3 de septiembre.** El
       programa A de `TODO.md` (15/40/100 % de descuento) no se podía
       implementar con cobro en tienda: el precio lo fija la tienda y los
@@ -105,16 +104,23 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       Se recompensa con **meses gratis**, que se conceden desde el servidor
       con *promotional entitlements* de RevenueCat sin pasar por la tienda:
 
-      - El invitado estrena con **1 mes gratis** al suscribirse.
+      - **El invitado estrena con 30 días de prueba** en vez de los 14 de
+        quien llega solo. Ese es su premio: no se le suma un mes encima de la
+        prueba, porque entonces el primer cargo caería al día 60.
       - Quien invita gana **1 mes gratis cuando al invitado se le hace su
-        primer cargo real**, es decir al renovar después de ese mes gratis.
-        No al suscribirse: ese primer mes no se cobra, así que premiarlo ahí
-        sería regalar meses por registros que nunca pagan.
+        primer cargo real**, en el día 30. No al registrarse: mientras el
+        invitado esté en prueba no ha pagado nada, y premiar ahí sería regalar
+        meses por registros que nunca pagan.
       - **Tope de 12 meses gratis al año** por persona.
 
-      Queda por implementar en la fase 3, y sigue abierto cómo convive el mes
-      gratis del invitado con la prueba de 30 días (ver la nota al final de la
-      fase 3).
+      **Cómo se entregan los 30 días del invitado.** El *introductory offer* de
+      la tienda es uniforme por producto: no se puede dar 14 a unos y 30 a
+      otros desde App Store Connect. Así que la tienda da **14 a todos**, y al
+      invitado se le conceden **los 16 días restantes desde el servidor** como
+      *promotional entitlement* de RevenueCat — el mismo mecanismo con el que
+      cobra su premio quien invitó. Un solo camino para las dos cosas.
+
+      Queda por implementar en la fase 3.
 - [x] **G-D3 Nombre en la tienda — decidido el 1 de septiembre.** Nombre
       comercial **"Millions - Finanzas con IA"** y dominio **`millionsapp.io`**
       (el `.com` se abandona). Bundle id propuesto por el dominio en orden
@@ -273,9 +279,11 @@ Falta, y es en tu máquina o en paneles:
 ### Fase 3 — Cobro (1 semana)
 
 - [ ] Productos en App Store Connect y Play Console: suscripción mensual y
-      anual en MXN (referencia: $149 / $1 420). Grupo de suscripción, prueba
-      gratuita de 30 días como *introductory offer* de la tienda (sustituye al
-      contador de `PRUEBA_DIAS` en nativo, o convive: el servidor manda).
+      anual en MXN ($149 / $1 420). Grupo de suscripción, e *introductory
+      offer* de **14 días para todos** — no de 30: los 16 días extra del
+      invitado los concede el servidor (G-D2), porque la oferta de la tienda
+      es igual para todo el mundo. En nativo sustituye al contador de
+      `PRUEBA_DIAS`, o convive con él: el servidor manda.
 - [ ] RevenueCat: proyecto, apps iOS/Android, *entitlement* `pro`, *offering*
       por defecto; SDK en el cliente con `Purchases.logIn(user.id)`.
 - [ ] **Webhook de RevenueCat → función de Netlify.** La tabla
@@ -297,13 +305,21 @@ Falta, y es en tu máquina o en paneles:
       se concede como *promotional entitlement* de RevenueCat cuando entra el
       primer cargo real del invitado. El tope de 12 al año se cuenta en el
       servidor, no en el cliente.
-- [ ] **Decidir cómo conviven el mes gratis del invitado y la prueba de 30
-      días.** Tal como están escritos hoy se suman: alguien invitado entraría
-      con la prueba de la tienda más el mes de G-D2, casi dos meses antes del
-      primer cargo. Las salidas son excluirlos (quien llega por invitación no
-      recibe la prueba), encadenarlos a propósito, o bajar la prueba a 14 días
-      para los invitados. Afecta al *introductory offer* de la tienda, así que
-      hay que resolverlo **antes** de crear los productos.
+- [ ] **Bajar `PRUEBA_DIAS` de 30 a 14** en `src/lib/legal.ts`. Hoy sigue en
+      30 y el texto de los términos lo dice con esas palabras, así que el
+      cambio **sube `LEGAL_VERSION`** y todos vuelven a pasar por el portón
+      legal. Se puede hacer sin lastimar a nadie mientras el registro siga
+      cerrado; una vez abierto, a quien ya entró se le respetan sus 30 días.
+
+      *El riesgo de bajar a 14, para tenerlo escrito:* casi nadie cobra
+      quincenal y mensual dentro de una misma quincena. En 14 días mucha gente
+      no vive un corte de tarjeta, ni una quincena completa, ni el cierre de
+      un mes — que es justo cuando el producto se explica solo, con la gráfica
+      mensual, el presupuesto y los próximos 7 días llenos. El muro llega
+      antes de que se forme el hábito de registrar, que es lo que retiene. Se
+      compensa con que el primer cargo cae al día 14 en vez del 30 y con que
+      la invitación pasa a valer el doble, pero si la conversión sale mala,
+      **esta es la primera palanca que hay que mover de vuelta**.
 - [ ] Probar compras en *sandbox* (Apple) y *license testers* (Google).
 
 ### Fase 4 — Pruebas en tienda (≥ 2 semanas por Google)

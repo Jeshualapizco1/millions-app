@@ -1,5 +1,10 @@
 # Millions — estado y plan
 
+> **El porqué, no el qué.** Plan, mercado, historia y decisiones con su
+> razón. No se trabaja de aquí: lo accionable vive en
+> [PENDIENTES.md](PENDIENTES.md), y si algo de aquí se contradice con eso,
+> gana `PENDIENTES.md`.
+
 Tres partes: el **plan de lanzamiento público**, el **análisis de mercado** que
 lo justifica, y el **historial de la auditoría** de agosto de 2026.
 
@@ -86,8 +91,13 @@ portón legal (versión `.3`) y luego el arranque si la cuenta no tiene cuentas.
 # 1. Plan de lanzamiento público
 
 **Objetivo:** abrir Millions a otras personas con una prueba gratuita de
-**30 días**. Al día 31 entra un muro de pago. *(Decidido el 1 de septiembre;
-antes eran 60 días con la IA apagada al vencer.)*
+**14 días para quien llega solo y 30 para quien llega invitado**; al vencer
+entra un muro de pago. *(Los 60 días con la IA apagada cayeron el 1 de
+septiembre y se quedaron en 30 parejos; el 3 se partió en 14/30 para que la
+invitación tuviera premio sin empujar el primer cargo hasta el día 60. La
+tabla vive en G-D2 de [PENDIENTES.md](PENDIENTES.md); el riesgo de bajar a 14
+está anotado en la fase 3.)* En el código `PRUEBA_DIAS` sigue en 30: bajarlo
+sube `LEGAL_VERSION`, y es un paso aparte.
 
 **Lo que ya está resuelto y no hay que construir:** la arquitectura
 multi-usuario. RLS está forzado en todas las tablas y verificado con pruebas que
@@ -200,7 +210,7 @@ Pendiente de esto:
 - [x] Verificado en producción: el presupuesto global devuelve 503 al rebasarse,
       y la llamada 16 del día devuelve 429 con el mensaje de cuándo se renueva.
 
-### Proyección de costo (la tabla es a 60 días; a 30 es la mitad)
+### Proyección de costo (la tabla es a 60 días; a 30 es la mitad, y a los 14 de la prueba estándar, la cuarta parte)
 
 | Escenario | Costo aproximado |
 |---|---|

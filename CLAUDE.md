@@ -13,6 +13,21 @@ PC y una Mac, así que **todo lo que no está pusheado no existe**.
    conocidas), [millions-context.md](millions-context.md) (modelo de datos y
    decisiones) y [TODO.md](TODO.md) (plan de lanzamiento, mercado, historia).
 
+## Quién manda entre los documentos
+
+Cuando dos se contradigan, gana el de más arriba:
+
+1. **[PENDIENTES.md](PENDIENTES.md)** — manda. Es lo único que se trabaja: si
+   algo no está ahí, no se toca. Lo que se cierra se borra en el mismo commit.
+2. **[TODO.md](TODO.md)** — el porqué, no el qué. Plan, mercado, historia y
+   decisiones con su razón. No se trabaja de ahí.
+3. **[IDEAS-FUTURAS.md](IDEAS-FUTURAS.md)** — nada de ahí se trabaja ni se
+   decide. Para que una idea exista tiene que salir de ahí y entrar a
+   `PENDIENTES.md`; lo descartado no vuelve sin argumento nuevo.
+
+Esta regla salió de que los tres documentos llegaron a afirmar cosas distintas
+sobre el precio, los referidos y los recibos sin que hubiera un desempate.
+
 ## La regla del documento vivo
 
 **Cada commit que cierra un punto de `PENDIENTES.md` borra ese punto en el

@@ -1,5 +1,9 @@
 # Ideas futuras
 
+> **Nada de aquí se trabaja ni se decide.** Para que una idea exista tiene que
+> salir de aquí y entrar a [PENDIENTES.md](PENDIENTES.md); lo descartado no
+> vuelve sin argumento nuevo.
+
 Cosas que no se van a hacer ahora, pero que no queremos perder. Nada de aquí
 entra al plan sin pasar antes por `PENDIENTES.md`. El orden dentro de cada
 sección es de mayor a menor convicción.
