@@ -257,9 +257,19 @@ Falta, y es en tu máquina o en paneles:
 - [ ] **Primer build de iOS con firma**: hasta ahora solo se compiló para
       simulador con `CODE_SIGNING_ALLOWED=NO`. Para el teléfono hace falta la
       cuenta de Apple (fase 0) y elegir el equipo en Xcode.
+- [ ] **El Team ID hay que cambiarlo en DOS sitios al comprar la cuenta.** Hoy
+      el iPhone corre firmado con el *Personal Team* de la cuenta gratuita, y
+      ese identificador **no es el definitivo**: al enrolarse en el Apple
+      Developer Program cambia. Los dos lugares son
+      `ios/App/App.xcodeproj/project.pbxproj` (`DEVELOPMENT_TEAM`, que Xcode
+      escribió solo al firmar y viajó al repo en el commit `7f21c66`) y el
+      marcador `TEAMID` de
+      `public/.well-known/apple-app-site-association`, que sigue sin rellenar
+      a propósito: **los Universal Links no funcionan con cuenta personal**, así
+      que mientras tanto el enlace de confirmación de correo abre Safari en vez
+      de la app, y eso es lo esperado, no un bug.
 - [ ] **Xcode → Signing & Capabilities → Associated Domains**:
-      `applinks:app.millionsapp.io`. Y rellenar `TEAMID` en
-      `public/.well-known/apple-app-site-association`.
+      `applinks:app.millionsapp.io`. Va junto con lo anterior.
 - [ ] **Huella SHA-256 del keystore** en `public/.well-known/assetlinks.json`
       (`keytool -list -v -keystore ...`). Sin ella Android abre el navegador.
 - [ ] **Supabase → Auth → Redirect URLs**: `https://app.millionsapp.io/auth` y
