@@ -95,9 +95,22 @@ portón legal (versión `.3`) y luego el arranque si la cuenta no tiene cuentas.
 entra un muro de pago. *(Los 60 días con la IA apagada cayeron el 1 de
 septiembre y se quedaron en 30 parejos; el 3 se partió en 14/30 para que la
 invitación tuviera premio sin empujar el primer cargo hasta el día 60. La
-tabla vive en G-D2 de [PENDIENTES.md](PENDIENTES.md); el riesgo de bajar a 14
-está anotado en la fase 3.)* En el código `PRUEBA_DIAS` sigue en 30: bajarlo
-sube `LEGAL_VERSION`, y es un paso aparte.
+tabla vive en G-D2 de [PENDIENTES.md](PENDIENTES.md).)* Aplicado en el código
+el 3 de septiembre: `PRUEBA_DIAS = 14` y `LEGAL_VERSION` en `2026-09-03.1`,
+con los términos reescritos. Se hizo con el registro cerrado y un solo
+usuario, porque en tres meses ya no sale gratis.
+
+**La palanca de vuelta a 30 existe, y conviene saber cuándo usarla.** El
+riesgo de 14 días es que casi nadie cobra quincenal y mensual dentro de la
+misma quincena: mucha gente no vive un corte de tarjeta, ni una quincena
+completa, ni el cierre de un mes —que es cuando el producto se explica solo,
+con la gráfica mensual, el presupuesto y los próximos 7 días llenos— y el muro
+llega antes de que se forme el hábito de registrar, que es lo que retiene. A
+cambio, el primer cargo cae al día 14 en vez del 30 y la invitación pasa a
+valer el doble. **Si la conversión sale mala, subir la prueba es lo primero
+que hay que mover**, antes que tocar el precio: cuesta un número y una versión
+legal. Volver a 30 no perjudica a nadie —a quien ya entró se le respetan sus
+días—, así que la única cuenta que rehacer es la de costo de IA.
 
 **Lo que ya está resuelto y no hay que construir:** la arquitectura
 multi-usuario. RLS está forzado en todas las tablas y verificado con pruebas que

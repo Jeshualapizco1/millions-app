@@ -27,7 +27,7 @@
  * millionsapp.io. Es un dato del aviso, así que la versión sube y todos
  * vuelven a ver el portón una vez.
  */
-export const LEGAL_VERSION = "2026-09-01.3";
+export const LEGAL_VERSION = "2026-09-03.1";
 
 // ── Datos del responsable (LFPDPPP art. 16) ─────────────────────────────────
 // El aviso es inválido sin identidad, domicilio y un medio de contacto real.
@@ -38,8 +38,16 @@ export const CORREO_ARCO = "hola@millionsapp.io";
 /** Días que la cuenta sobrevive tras pedir el borrado. Debe coincidir con la migración 0014. */
 export const GRACIA_DIAS = 30;
 
-/** Días de uso gratuito desde el alta. Al día siguiente entra el muro de pago. */
-export const PRUEBA_DIAS = 30;
+/**
+ * Días de uso gratuito desde el alta. Al día siguiente entra el muro de pago.
+ *
+ * 14 desde el 3 de septiembre de 2026. Quien llega por invitación tendrá 30
+ * (G-D2), pero esos días no se cuentan aquí: los concede el servidor, porque
+ * la oferta de la tienda es igual para todos. Por eso el texto legal habla de
+ * 14 "o los que diga tu invitación", y no hay que volver a subir la versión
+ * cuando eso se implemente.
+ */
+export const PRUEBA_DIAS = 14;
 
 // ── Cómo se continúa al terminar la prueba ──────────────────────────────────
 // Un muro que dice "toca pagar" sin decir cuánto ni a dónde escribir no es un
@@ -175,7 +183,8 @@ export const TERMINOS: LegalDoc = {
       title: `5. La prueba gratuita de ${PRUEBA_DIAS} días`,
       body: [
         `Al registrarte tienes ${PRUEBA_DIAS} días de uso gratuito, contados desde tu alta, con un límite diario de consultas al asistente para mantener el costo bajo control.`,
-        `Al terminar los ${PRUEBA_DIAS} días necesitarás contratar un plan de pago para seguir usando la aplicación. La aplicación te muestra cuántos días te quedan desde antes de que se acaben, para que no te tome por sorpresa.`,
+        "Si llegaste por una invitación o una promoción, tu prueba puede ser más larga. La aplicación siempre te muestra cuántos días te quedan a ti, y esos son los que valen.",
+        `Al terminar tu prueba necesitarás contratar un plan de pago para seguir usando la aplicación. Te avisamos desde antes de que se acabe, para que no te tome por sorpresa.`,
         "Aunque decidas no continuar, no pierdes tus datos: siempre podrás exportar todos tus movimientos a CSV, consultar este aviso y estos términos, y borrar tu cuenta. Lo que se limita es el uso de la aplicación, nunca el acceso a tu propia información.",
         "Podemos ajustar los límites de uso del asistente si el consumo pone en riesgo la operación del servicio. Te lo comunicaríamos dentro de la aplicación.",
       ],

@@ -159,8 +159,11 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
 
   const diasParaBorrado = diasRestantesDeGracia(profile?.deletion_requested_at, GRACIA_DIAS);
 
-  // Días que quedan de prueba. 0 = se acabó. Se avisa la última semana: un
-  // contador encendido los 30 días es ruido, y a 7 días todavía da tiempo.
+  // Días que quedan de prueba. 0 = se acabó. Se avisa en los últimos 7 días.
+  // El umbral se eligió cuando la prueba era de 30 y avisar antes era ruido;
+  // desde que son 14 (3 de septiembre) el contador se enciende a la mitad,
+  // que es mucho más presente. Se deja así a propósito —una prueba corta
+  // necesita que se note— pero si la gente se queja, esto es lo que se baja.
   const diasDePrueba = diasRestantesDePlazo(profile?.created_at, PRUEBA_DIAS);
   const avisarPrueba = diasDePrueba !== null && diasDePrueba > 0 && diasDePrueba <= 7;
 

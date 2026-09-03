@@ -305,21 +305,6 @@ Falta, y es en tu máquina o en paneles:
       se concede como *promotional entitlement* de RevenueCat cuando entra el
       primer cargo real del invitado. El tope de 12 al año se cuenta en el
       servidor, no en el cliente.
-- [ ] **Bajar `PRUEBA_DIAS` de 30 a 14** en `src/lib/legal.ts`. Hoy sigue en
-      30 y el texto de los términos lo dice con esas palabras, así que el
-      cambio **sube `LEGAL_VERSION`** y todos vuelven a pasar por el portón
-      legal. Se puede hacer sin lastimar a nadie mientras el registro siga
-      cerrado; una vez abierto, a quien ya entró se le respetan sus 30 días.
-
-      *El riesgo de bajar a 14, para tenerlo escrito:* casi nadie cobra
-      quincenal y mensual dentro de una misma quincena. En 14 días mucha gente
-      no vive un corte de tarjeta, ni una quincena completa, ni el cierre de
-      un mes — que es justo cuando el producto se explica solo, con la gráfica
-      mensual, el presupuesto y los próximos 7 días llenos. El muro llega
-      antes de que se forme el hábito de registrar, que es lo que retiene. Se
-      compensa con que el primer cargo cae al día 14 en vez del 30 y con que
-      la invitación pasa a valer el doble, pero si la conversión sale mala,
-      **esta es la primera palanca que hay que mover de vuelta**.
 - [ ] Probar compras en *sandbox* (Apple) y *license testers* (Google).
 
 ### Fase 4 — Pruebas en tienda (≥ 2 semanas por Google)
