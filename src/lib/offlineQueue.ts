@@ -99,11 +99,18 @@ export const esFalloDeSesion = (e: unknown): boolean => {
 export const esFalloDeRed = (e: unknown): boolean => {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
   const msg = String((e as Error)?.message ?? e).toLowerCase();
-  return (
+  if (
     msg.includes("failed to fetch") ||
     msg.includes("network") ||
     msg.includes("load failed") ||
     msg.includes("fetch failed") ||
     msg.includes("timeout")
-  );
+  ) return true;
+
+  // Un fallo ya traducido a español ("no pude conectar con …") no coincide con
+  // ninguna de esas frases, pero guarda el error original en `cause`. Sin
+  // seguirla, envolver un error para que se lea mejor lo sacaría de la cola
+  // offline sin que nadie se diera cuenta.
+  const causa = (e as { cause?: unknown })?.cause;
+  return causa != null && causa !== e ? esFalloDeRed(causa) : false;
 };

@@ -20,6 +20,7 @@ import { consultasRestantes, textoAiUso } from "./aiUso";
 import { procesarEnlace } from "./enlace";
 import { avisoDeFalloDeVoz, clasificarFalloDeVoz, mensajeDeFalloDeVoz } from "./voz";
 import { fusionarTxs } from "./historial";
+import { hostDe, mensajeDeEstadoHttp, mensajeDeFalloDeRed } from "./red";
 import { BodySchema } from "../../netlify/lib/chatSchema";
 import { desdeMesHolgado, hoyEnZona, mismoMesEnZona } from "../../netlify/lib/zona";
 import type { Account, Budget, Credit, Transaction } from "../types";
@@ -1045,5 +1046,49 @@ describe("carga del historial en dos tiempos", () => {
       []
     );
     expect(fusion.map((t) => t.id)).toEqual(["a", "b", "c"]);
+  });
+});
+
+// "load failed" era todo lo que veía la persona cuando la IA no respondía:
+// no distingue red de servidor, y hubo que ir al inspector de Safari para
+// saber a qué dominio no se estaba llegando.
+describe("avisos cuando el servidor no responde", () => {
+  const URL_IA = "https://millionsjeshua.netlify.app/.netlify/functions/chat";
+
+  it("el mensaje dice a qué servidor no se pudo llegar", () => {
+    // Es lo único que el navegador permite distinguir: si el host es el que
+    // no existe todavía, el build salió sin VITE_API_BASE.
+    const msg = mensajeDeFalloDeRed(new Error("Load failed"), "https://app.millionsapp.io/.netlify/functions/chat");
+    expect(msg).toContain("app.millionsapp.io");
+    expect(mensajeDeFalloDeRed(new Error("Load failed"), URL_IA)).toContain("millionsjeshua.netlify.app");
+  });
+
+  it("un rechazo del servidor no se disfraza de fallo de red", () => {
+    expect(mensajeDeFalloDeRed(new Error("La cuenta indicada no existe"), URL_IA)).toBeNull();
+  });
+
+  it("el 404 apunta al host, que es donde está el error de configuración", () => {
+    expect(mensajeDeEstadoHttp(404, URL_IA)).toContain("millionsjeshua.netlify.app");
+  });
+
+  it("lo que diga el servidor manda sobre el mensaje genérico", () => {
+    expect(mensajeDeEstadoHttp(429, URL_IA, "Te quedan 0 consultas de 20")).toBe("Te quedan 0 consultas de 20");
+  });
+
+  it("los estados sin cuerpo caen en algo que se entiende", () => {
+    expect(mensajeDeEstadoHttp(401, URL_IA)).toContain("sesión");
+    expect(mensajeDeEstadoHttp(500, URL_IA)).toContain("No es culpa tuya");
+  });
+
+  it("envolver el error no lo saca de la cola offline", () => {
+    // Si esto se rompe, un movimiento capturado sin red deja de encolarse y
+    // se pierde en silencio, que es mucho peor que un mensaje feo.
+    const traducido = new Error("No pude conectar con millionsjeshua.netlify.app.");
+    (traducido as { cause?: unknown }).cause = new Error("Load failed");
+    expect(esFalloDeRed(traducido)).toBe(true);
+  });
+
+  it("hostDe aguanta una URL rota sin reventar", () => {
+    expect(hostDe("no-es-una-url")).toBeTruthy();
   });
 });

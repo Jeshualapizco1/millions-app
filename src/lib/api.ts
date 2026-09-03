@@ -6,6 +6,7 @@
 import type { Tables } from "./database.types";
 import type { AiUso } from "./aiUso";
 import { apiBase } from "./native";
+import { mensajeDeEstadoHttp, mensajeDeFalloDeRed } from "./red";
 import { sbClient } from "./supabase";
 import type { FxRates } from "./currency";
 import type { Account, Budget, Category, CategoryKind, ChatMsg, Profile, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
@@ -109,22 +110,47 @@ const aiToken = async (): Promise<string> => {
   return token;
 };
 
-const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promise<AiReply> => {
-  const res = await fetch(`${apiBase()}/.netlify/functions/chat`, {
+/**
+ * El fetch a la función de IA, con los fallos ya traducidos.
+ *
+ * Antes, un `fetch` que no llegaba subía su propio mensaje hasta la pantalla y
+ * la persona leía "load failed", que no dice nada ni a quien programó esto.
+ * Ahora dice a qué servidor no se pudo llegar, que es lo que separa un build
+ * mal configurado de un servidor caído.
+ *
+ * El error conserva su `cause`: `esFalloDeRed` la sigue para decidir si algo
+ * se encola, y sin ella la cola offline dejaría de reconocer estos fallos.
+ */
+const pedirAlaIA = async (init?: RequestInit): Promise<any> => {
+  const url = `${apiBase()}/.netlify/functions/chat`;
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (e) {
+    const msg = mensajeDeFalloDeRed(e, url);
+    if (!msg) throw e;
+    // `new Error(msg, { cause })` pide ES2022 y el proyecto compila a menos:
+    // se asigna a mano, que es lo mismo en tiempo de ejecución.
+    const traducido = new Error(msg);
+    (traducido as { cause?: unknown }).cause = e;
+    throw traducido;
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(mensajeDeEstadoHttp(res.status, url, body?.error));
+  return body;
+};
+
+const aiCall = async (intent: "capture" | "advise", messages: ChatMsg[]): Promise<AiReply> =>
+  (await pedirAlaIA({
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await aiToken()}` },
     body: JSON.stringify({ intent, messages }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
-  return body as AiReply;
-};
+  })) as AiReply;
 
 /** Consumo del día sin gastar una llamada: el mismo endpoint, por GET. */
 const aiUsage = async (): Promise<AiUso> => {
-  const res = await fetch(`${apiBase()}/.netlify/functions/chat`, { headers: { Authorization: `Bearer ${await aiToken()}` } });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.uso) throw new Error(body.error || `Error ${res.status}`);
+  const body = await pedirAlaIA({ headers: { Authorization: `Bearer ${await aiToken()}` } });
+  if (!body?.uso) throw new Error("El servidor respondió sin el consumo del día");
   return body.uso as AiUso;
 };
 
