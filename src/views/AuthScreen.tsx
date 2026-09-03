@@ -76,11 +76,15 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
             <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }} style={{ flex: 1, padding: "9px", borderRadius: R.sm, border: "none", background: mode === m ? "#7c6af7" : "transparent", color: mode === m ? "#fff" : "#6b6a8a", fontWeight: 700, fontSize: T.base, cursor: "pointer" }}>{m === "login" ? "Iniciar sesión" : "Crear cuenta"}</button>
           ))}
         </div>
-        {mode === "signup" && <><label style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Nombre</label><input style={inp} placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} /></>}
-        <label style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Correo</label>
-        <input style={inp} type="email" inputMode="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-        <label style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Contraseña</label>
-        <input style={{ ...inp, marginBottom: 20 }} type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} />
+        {/* F6: `htmlFor` + `id` en los tres. Sin eso el lector de pantalla
+            anuncia "cuadro de edición" a secas, y el rótulo que sí se ve no le
+            sirve de nada a quien no lo ve. `autoComplete` de paso: es lo que
+            hace que el gestor de contraseñas ofrezca guardar y rellenar. */}
+        {mode === "signup" && <><label htmlFor="auth-nombre" style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Nombre</label><input id="auth-nombre" name="name" autoComplete="name" style={inp} placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} /></>}
+        <label htmlFor="auth-correo" style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Correo</label>
+        <input id="auth-correo" name="email" autoComplete="email" style={inp} type="email" inputMode="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+        <label htmlFor="auth-password" style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Contraseña</label>
+        <input id="auth-password" name="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} style={{ ...inp, marginBottom: 20 }} type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} />
         {mode === "signup" && (
           // Casilla sin marcar por defecto: un consentimiento premarcado no es
           // consentimiento. Los enlaces abren el texto sin salir del registro,

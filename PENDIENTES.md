@@ -18,10 +18,11 @@ trabajan hasta pasar por aquí.
 
 **Estado al 2 de septiembre, tarde:** A–F cerradas. **Las dos plataformas
 compilan en la Mac**: iOS pasó de SPM a CocoaPods (SPM dejaba fuera el plugin
-de voz) y Android da APK con JDK 21. A–F cerradas salvo F6, que salió al
-probar en el navegador. Queda lo de fase 0, que es trámite tuyo, y lo único
-que ya no se puede hacer desde aquí: **probar en teléfonos reales**, empezando
-por la voz. Empieza por "Para retomar" en [TODO.md](TODO.md).
+de voz) y Android da APK con JDK 21. A–F cerradas; quedan B15 (del advisor) y
+H1 (multi-moneda), ninguno urgente. Lo demás es lo de fase 0, que es trámite
+tuyo, y lo único que ya no se puede hacer desde aquí: **probar en teléfonos
+reales**, empezando por la voz. Empieza por "Para retomar" en
+[TODO.md](TODO.md).
 
 ---
 
@@ -32,6 +33,17 @@ Cerrados A1–A7 el 1 de septiembre de 2026; el detalle vive en `git log`.
 ## B. Bugs medios
 
 Cerrados B1–B14 el 1 de septiembre de 2026; el detalle vive en `git log`.
+
+- [ ] **B15 Tres funciones de trigger están publicadas como RPC.**
+      `validate_transaction_refs()`, `pause_rules_of_archived_account()` y
+      `reject_archived_account()` son `SECURITY DEFINER` y viven en `public`,
+      así que Supabase las expone en `/rest/v1/rpc/...` para `anon` y para
+      `authenticated`; el advisor de seguridad las marca. Llamarlas sueltas
+      revienta —fuera de un trigger no hay `new`— pero una función con los
+      privilegios de su dueño colgando de la API pública no se deja ahí. La
+      cura es la de la 0028: `security invoker` y `revoke all on function ...
+      from public, anon, authenticated`. Sale del advisor del 3 de septiembre,
+      al crear `subscriptions`.
 
 ## C. Bugs bajos
 
@@ -47,16 +59,7 @@ Cerrados E1–E11 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
 ## F. Accesibilidad (cero `aria`, `htmlFor`, `h1`, `nav`, `main`, `focus-visible`)
 
-Cerrados F1–F5 el 1 de septiembre de 2026; el detalle vive en `git log`.
-
-- [ ] **F6 Los campos del login no tienen `htmlFor`.** Chrome reporta "No
-      label associated with a form field" y "A form field element should have
-      an id or name attribute" en la pantalla de entrada
-      (`src/views/AuthScreen.tsx:79-83`). Los tres rótulos —"Nombre", "Correo"
-      y "Contraseña"— se ven, pero ni los `label` tienen `htmlFor` ni los
-      `input` tienen `id`: un lector de pantalla lee el campo sin nombre. F1 enlazó los labels de la app, y esta pantalla se quedó fuera
-      porque se ve antes de entrar. Visto el 2 de septiembre en la consola del
-      navegador.
+Cerrados F1–F5 el 1 de septiembre y F6 el 3; el detalle vive en `git log`.
 
 ---
 
@@ -275,8 +278,15 @@ Falta, y es en tu máquina o en paneles:
       contador de `PRUEBA_DIAS` en nativo, o convive: el servidor manda).
 - [ ] RevenueCat: proyecto, apps iOS/Android, *entitlement* `pro`, *offering*
       por defecto; SDK en el cliente con `Purchases.logIn(user.id)`.
-- [ ] Webhook de RevenueCat → función de Netlify → tabla `subscriptions` en
-      Supabase (RLS: el usuario solo lee la suya; escribe solo el service role).
+- [ ] **Webhook de RevenueCat → función de Netlify.** La tabla
+      `subscriptions` ya existe (migraciones `0027` y `0028`, aplicadas el 3
+      de septiembre): una fila por persona y permiso, con el vocabulario de
+      RevenueCat sin traducir, `expires_at` y `will_renew` separados de
+      `status` —una suscripción cancelada sigue vigente hasta que expira—, RLS
+      forzado y una sola política de lectura de lo propio. **El cliente no
+      puede escribir**: sin política de insert ni update, RLS niega, así que
+      nadie se pone `active` con la llave pública. Falta la función que reciba
+      el webhook, valide su firma y haga el upsert con el service role.
 - [ ] `FinDePrueba` en nativo muestra el *paywall* con los productos de la
       tienda, botón *Restaurar compras* (Apple lo exige) y enlace a términos.
       En web sigue el muro actual.
