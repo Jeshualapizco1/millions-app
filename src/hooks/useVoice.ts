@@ -156,26 +156,59 @@ export function useVoice({
       await SpeechRecognition.removeAllListeners();
 
       let ultimo = "";
-      // Tras 1.6 s sin palabras nuevas se detiene solo: es el equivalente del
-      // `continuous: false` de la web, que corta al primer silencio.
-      const reiniciarSilencio = () => {
-        if (silencio.current) clearTimeout(silencio.current);
-        silencio.current = window.setTimeout(() => { SpeechRecognition.stop().catch(() => {}); }, 1600);
+
+      // El plugin no promete la forma del evento: en iOS manda
+      // `{ matches: [...] }` y en otros casos puede llegar el arreglo pelado o
+      // nada. Se acepta lo que venga en vez de destructurar a ciegas.
+      const textoDelEvento = (ev: unknown): string => {
+        const m = Array.isArray(ev) ? ev : (ev as { matches?: unknown })?.matches;
+        return (Array.isArray(m) ? m[0] : undefined) ?? "";
       };
-      await SpeechRecognition.addListener("partialResults", ({ matches }) => {
-        const t = matches?.[0] ?? "";
+
+      // En iOS `start()` NO espera al final: resuelve en cuanto el motor
+      // arranca (Plugin.swift, `if partialResults { call.resolve() }`). El
+      // final llega por `listeningState: "stopped"`, así que se espera aquí.
+      let terminar: (t: string) => void = () => {};
+      const finDelDictado = new Promise<string>((res) => { terminar = res; });
+
+      // Tras 1.6 s sin palabras nuevas se detiene solo: es el equivalente del
+      // `continuous: false` de la web, que corta al primer silencio. La
+      // primera espera es más larga: entre tocar el botón y hablar pasa un
+      // momento, y cortar ahí dejaría a la persona con la palabra en la boca.
+      const armarSilencio = (ms: number) => {
+        if (silencio.current) clearTimeout(silencio.current);
+        silencio.current = window.setTimeout(() => { SpeechRecognition.stop().catch(() => {}); }, ms);
+      };
+
+      await SpeechRecognition.addListener("partialResults", (ev: unknown) => {
+        const t = textoDelEvento(ev);
         if (!t || t === ultimo) return;
         ultimo = t;
         cbRef.current.onResult(t);
-        reiniciarSilencio();
+        armarSilencio(1600);
       });
-      await SpeechRecognition.addListener("listeningState", ({ status }) => {
-        if (status === "started") setMic(true);
+      await SpeechRecognition.addListener("listeningState", (ev: unknown) => {
+        const status = (ev as { status?: string })?.status;
+        if (status === "started") {
+          setMic(true);
+          // Sin esto, quien toca el micrófono y no habla lo deja abierto para
+          // siempre: el temporizador de silencio solo vivía en los parciales.
+          armarSilencio(6000);
+        }
+        if (status === "stopped") terminar(ultimo);
       });
 
-      const { matches } = await SpeechRecognition.start({ language: "es-MX", maxResults: 1, partialResults: true, popup: false });
+      // Android sí resuelve al terminar y con los resultados; iOS resuelve
+      // vacío al arrancar. Se aceptan las dos formas.
+      const r: unknown = await SpeechRecognition.start({ language: "es-MX", maxResults: 1, partialResults: true, popup: false });
+      const deStart = textoDelEvento(r);
+
+      // Red de seguridad: si el motor nunca avisa que paró, no dejar la
+      // promesa colgada para siempre.
+      const porTiempo = new Promise<string>((res) => window.setTimeout(() => res(ultimo), 20000));
+      const final = (deStart || (await Promise.race([finDelDictado, porTiempo]))).trim();
+
       if (silencio.current) { clearTimeout(silencio.current); silencio.current = null; }
-      const final = (matches?.[0] ?? ultimo).trim();
       if (activoNativo.current && final) cbRef.current.onFinal(final);
     } catch (e) {
       // Un permiso negado o un motor ausente no debe dejar el botón "escuchando"

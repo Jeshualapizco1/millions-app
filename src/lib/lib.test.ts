@@ -973,6 +973,17 @@ describe("avisos del dictado", () => {
     expect(msg).toContain("cierra la app");
   });
 
+  it("los mensajes que iOS manda de verdad caen donde deben", () => {
+    // Copiados de `ios/Plugin/Plugin.swift` del plugin, no de la documentación.
+    expect(clasificarFalloDeVoz("No speech detected")).toBeNull();
+    expect(clasificarFalloDeVoz("User denied access to speech recognition")).toBe("sin-permiso");
+    expect(clasificarFalloDeVoz("User denied access to microphone")).toBe("sin-permiso");
+    expect(clasificarFalloDeVoz("Speech recognition restricted on this device")).toBe("sin-permiso");
+    expect(clasificarFalloDeVoz("Missing permission")).toBe("sin-permiso");
+    expect(clasificarFalloDeVoz("Microphone is already in use by another application.")).toBe("sin-microfono");
+    expect(clasificarFalloDeVoz("Unknown error occured")).toBe("otro");
+  });
+
   it("todas las frases ofrecen escribir el gasto: el dictado es un atajo", () => {
     const casos = ["sin-permiso", "sin-motor", "sin-microfono", "sin-red", "ocupado", "otro"] as const;
     for (const c of casos) {

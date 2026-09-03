@@ -23,10 +23,19 @@ export type PlataformaDeVoz = "ios" | "android" | "web";
  */
 export function clasificarFalloDeVoz(codigo: string | null | undefined): FalloDeVoz | null {
   // El plugin nativo no devuelve códigos: lanza Error con una frase en inglés.
-  // "Ongoing speech recognition" es iOS negándose a abrir el micrófono porque
-  // la escucha anterior sigue viva, y merece su propio aviso: si vuelve a
-  // aparecer queremos reconocerlo en pantalla y no tener que ir a la consola.
-  if (typeof codigo === "string" && /ongoing speech recognition/i.test(codigo)) return "ocupado";
+  // Estas son las suyas, copiadas de `ios/Plugin/Plugin.swift`, más las que
+  // reenvía tal cual desde SFSpeechRecognizer.
+  if (typeof codigo === "string") {
+    // "No speech detected" es lo que dice iOS cuando nadie habló: el mismo
+    // caso que `no-speech` en la web, y tampoco merece un aviso.
+    if (/no speech detected/i.test(codigo)) return null;
+    // La escucha anterior seguía viva. Merece aviso propio: si vuelve a
+    // aparecer queremos reconocerlo en pantalla y no ir a la consola.
+    if (/ongoing speech recognition/i.test(codigo)) return "ocupado";
+    if (/denied access|missing permission|not determined|restricted/i.test(codigo)) return "sin-permiso";
+    // El micrófono lo tiene otra app: una llamada, una nota de voz, Shazam.
+    if (/already in use/i.test(codigo)) return "sin-microfono";
+  }
 
   switch (codigo) {
     // Los dos silencios que no son fallo.
