@@ -50,11 +50,13 @@ finanzas personales y de emprendimiento, con mentores invitados.
 
 **Por qué.** No es adquisición, es retención. Las apps de finanzas se cancelan al
 tercer mes; una comunidad donde conoces gente y estás a medio curso, no. Y
-reposiciona el precio: MonAi cobra $119–149 por una app; nosotros cobramos $129
-por una app más completa y además una comunidad.
+reposiciona el precio: MonAi cobra $119–149 por una app; nosotros cobramos lo
+mismo que su tope, $149, por una app más completa y además una comunidad. El
+descuento no se hace bajando el mensual sino con el plan anual de $1,420
+(~$118 al mes).
 
-**Números.** A $129 MXN menos 15 % de comisión quedan unos $110, alrededor de 6
-dólares. Skool cuesta unos 99 dólares al mes fijos. Con ~17 suscriptores la
+**Números.** A $149 MXN menos 15 % de comisión quedan unos $126, alrededor de
+6.7 dólares. Skool cuesta unos 99 dólares al mes fijos. Con ~15 suscriptores la
 comunidad se paga sola; de ahí para arriba es margen.
 
 **Los tres problemas a resolver ANTES de anunciarla.**
@@ -86,7 +88,7 @@ mentores tienen que tenerlo claro desde el día uno; el riesgo lo carga Millions
 **Lo que deja de ser opcional.**
 - **Multi-moneda completa.** Ya está como pendiente y aquí se vuelve
   bloqueante: un colombiano no puede ver pesos mexicanos.
-- **Precio por país.** $129 MXN son ~7 USD; en Colombia, Perú o Argentina eso es
+- **Precio por país.** $149 MXN son ~8 USD; en Colombia, Perú o Argentina eso es
   caro para una app. Las tiendas permiten precio por territorio.
 - **Voz por variante regional.** Hoy está fija en `es-MX`. Hay que detectar la
   variante del usuario: "gasté dos lucas" no se entiende con el modelo mexicano.
@@ -109,8 +111,9 @@ después de validar la región.
   con un creador de contenido). El pitch no es "app de finanzas con IA", que es
   lo que dicen todos; es el dolor concreto: los meses sin intereses, el corte de
   la tarjeta, cuánto tienes de verdad.
-- **Programa de referidos con meses gratis.** No con descuento porcentual: no se
-  puede implementar con cobro en tienda.
+- **Programa de referidos con meses gratis:** ya no es una idea futura. Está
+  decidido en **G-D2** de [PENDIENTES.md](PENDIENTES.md) y se implementa en la
+  fase 3, porque el cobro no puede salir sin él.
 - **Alianza con un creador de finanzas personales en México**, con revenue share
   en vez de pago fijo.
 
@@ -118,13 +121,18 @@ después de validar la región.
 
 ## 5. Producto, ideas sueltas
 
-- **Escaneo de recibos** con la cámara. Descartado por ahora: es producto nuevo
-  cuando lo que falta es que se entienda el producto actual.
-- **Listas o cuentas compartidas** (pareja, familia, negocio). MonAi ya lo tiene.
-- **Sincronización bancaria** vía agregador (Belvo o similar en la región). Caro
-  y con fricción regulatoria; evaluar solo con volumen.
-- **Widgets** de patrimonio o presupuesto en pantalla de inicio. Requiere código
-  nativo aunque la app esté en Capacitor.
-- **Atajos de Siri** para registrar por voz sin abrir la app.
+- **Escaneo de recibos** con la cámara. Pospuesto a después del lanzamiento, no
+  descartado: es la única capacidad de captura que el mercado tiene y nosotros
+  no, pero es producto nuevo cuando lo que falta es que se entienda el producto
+  actual. Media pista está puesta: la columna `receipt_path` ya existe en
+  `transactions`.
 - **Modo negocio** separado del personal. Ya existe por otro lado para Aromante;
   evaluar si tiene sentido dentro de Millions.
+- **Widgets** de patrimonio y **atajos de Siri**: no están aquí. Viven en la
+  fase 6 de [PENDIENTES.md](PENDIENTES.md), que es lo que la PWA no puede hacer
+  y el contenedor nativo sí.
+- **Cuentas compartidas** (pareja, familia) y **sincronización bancaria** vía
+  agregador: **descartadas**, con su razón escrita en la sección 🚫 Descartado
+  de [TODO.md](TODO.md) — el multi-tenant obligaría a reescribir todas las
+  políticas RLS, y la sincronización bancaria no funciona bien en México por la
+  Ley Fintech. No volver a proponerlas sin argumento nuevo.

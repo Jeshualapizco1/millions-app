@@ -443,36 +443,34 @@ agregando funciones. La distribución fue el lever.
 > el primero no puede existir sin cobro y el tercero además necesita ingresos
 > con qué pagar las comisiones.
 
-### A. Usuarios normales — descuento en su propia membresía
+### A. Usuarios normales — meses gratis por invitar
 
-Son muchos y no van a facturarte por $30. A ellos les mueve pagar menos, y un
-descuento no genera obligación fiscal: es simplemente menos ingreso.
+**La tabla de descuentos 15/40/100 % se cayó el 3 de septiembre**, y no por
+gusto: con cobro en tienda el precio lo fija Apple o Google, y lo único que se
+puede mover son *offer codes* y *promotional offers*, que no sirven para un
+descuento que sube y baja cada renovación según cuántos invitados sigan
+pagando. Lo que sí se puede conceder desde el servidor son **meses gratis**,
+vía *promotional entitlements* de RevenueCat.
 
-| Amigos pagando | Lo que paga |
-|---|---|
-| 1 | 15% menos |
-| 2 | 40% menos |
-| 3 o más | **Gratis** |
+**La decisión vigente vive en G-D2 de [PENDIENTES.md](PENDIENTES.md)**: el
+invitado estrena con un mes gratis, quien invita gana un mes cuando al invitado
+le entra su primer cargo real, y hay tope de 12 meses gratis al año.
 
-**Una sola regla, y resuelve todos los casos:** *el día que te toca renovar,
-contamos cuántos de tus invitados están pagando en ese momento; ese número
-decide tu precio.* Sin reembolsos, sin prorrateos, sin saldos acumulados —
-solo una consulta al momento de cobrar. Funciona igual para mensual y anual y
-para cualquier mezcla entre ellos.
+Lo que sigue valiendo del análisis original, porque no dependía del mecanismo:
 
-- Un invitado que paga **anual** es el más valioso: cuenta como activo los 12
-  meses porque ya pagó por adelantado.
-- Si un invitado cancela a media suscripción **no se cobra nada extra ni se
-  quita nada**: se refleja hasta la siguiente renovación. Cobrar retroactivo es
-  la causa número uno de disputas y contracargos.
-- **Debilidad del plan anual:** el beneficio se ve hasta dentro de un año. Se
-  arregla sin tocar la lógica de cobro, mostrando el progreso en pantalla
-  ("llevas 2 invitados pagando; tu renovación de marzo cuesta 40% menos").
-- **Riesgo a cubrir:** quien paga anual con 3 invitados que cancelan al mes 2 ya
-  se llevó el año gratis. Para el plan anual, exigir que los invitados lleven al
-  menos un pago cumplido antes de contar.
-- El escalonado (15/40/100) y no el todo-o-nada: quien trae 2 amigos y no gana
-  **nada** abandona el esfuerzo y no vuelve a intentarlo.
+- Recompensar a usuarios normales **no genera obligación fiscal** — un mes
+  gratis es menos ingreso, no un pago—, y por eso van aquí y no al programa B.
+- **Nada de esto arranca sin cobro automatizado.** El orden sigue siendo cobro
+  → referidos → afiliados.
+- **Nunca cobrar retroactivo.** Si un invitado cancela, no se le quita nada a
+  quien lo invitó: los meses ya concedidos son suyos. Cobrar hacia atrás es la
+  causa número uno de disputas y contracargos.
+- **Escalonado y no todo-o-nada.** Quien trae un amigo tiene que ganar algo el
+  primer día; con la tabla nueva eso se cumple solo, porque cada invitado que
+  paga vale un mes.
+- **Mostrar el progreso en pantalla** ("llevas 2 invitados pagando; tienes 2
+  meses gratis guardados"), que era lo que arreglaba la debilidad del plan
+  anual.
 
 ### B. Creadores de contenido — 20% en dinero, con leaderboard
 
@@ -520,8 +518,6 @@ lógica del beneficio.
 ## Paso 5 — Después del lanzamiento
 
 - [ ] Panel de uso: usuarios activos, costo por usuario, retención.
-- [ ] Escaneo de recibos con foto — la única capacidad de captura que el mercado
-      tiene y nosotros no.
 - [ ] Notificaciones push reales: la ventaja de los créditos mexicanos solo sirve
       si avisa **antes** del corte, y hoy hay que abrir la app.
       **Alternativa sin app nativa: un `.ics` con los días de corte y pago.**

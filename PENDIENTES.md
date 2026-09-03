@@ -95,13 +95,23 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       Comisión: 15 % en ambas tiendas el primer millón de USD/año (Apple exige
       inscribirse al *Small Business Program*; Google lo aplica solo).
       A $149 MXN quedan ~$126 antes de impuestos.
-- [ ] **G-D2 El programa A de referidos (15/40/100 % de descuento) no se puede
-      implementar tal cual** con cobro en tienda: el precio lo fija la tienda y
-      los descuentos son *offer codes* o *promotional offers* con reglas
-      rígidas. *Alternativa que sí funciona:* recompensar con **meses gratis**
-      vía *promotional entitlements* de RevenueCat (1 amigo = 1 mes, 2 = 3
-      meses, 3 = 12 meses, por ejemplo). Se concede desde el servidor sin pasar
-      por la tienda. Decidir la tabla y reescribir esa sección de `TODO.md`.
+- [x] **G-D2 Referidos con meses gratis — decidido el 3 de septiembre.** El
+      programa A de `TODO.md` (15/40/100 % de descuento) no se podía
+      implementar con cobro en tienda: el precio lo fija la tienda y los
+      descuentos son *offer codes* o *promotional offers* con reglas rígidas.
+      Se recompensa con **meses gratis**, que se conceden desde el servidor
+      con *promotional entitlements* de RevenueCat sin pasar por la tienda:
+
+      - El invitado estrena con **1 mes gratis** al suscribirse.
+      - Quien invita gana **1 mes gratis cuando al invitado se le hace su
+        primer cargo real**, es decir al renovar después de ese mes gratis.
+        No al suscribirse: ese primer mes no se cobra, así que premiarlo ahí
+        sería regalar meses por registros que nunca pagan.
+      - **Tope de 12 meses gratis al año** por persona.
+
+      Queda por implementar en la fase 3, y sigue abierto cómo convive el mes
+      gratis del invitado con la prueba de 30 días (ver la nota al final de la
+      fase 3).
 - [x] **G-D3 Nombre en la tienda — decidido el 1 de septiembre.** Nombre
       comercial **"Millions - Finanzas con IA"** y dominio **`millionsapp.io`**
       (el `.com` se abandona). Bundle id propuesto por el dominio en orden
@@ -272,7 +282,18 @@ Falta, y es en tu máquina o en paneles:
       En web sigue el muro actual.
 - [ ] Vaciar `PRECIO_TEXTO` / `CONTACTO_PAGO` de `legal.ts` o dejarlos solo
       para la PWA.
-- [ ] Reescribir el programa A de referidos según G-D2.
+- [ ] Implementar los referidos con meses gratis según **G-D2**, que ya está
+      decidido: tabla `referrals`, código de invitación por persona, y el mes
+      se concede como *promotional entitlement* de RevenueCat cuando entra el
+      primer cargo real del invitado. El tope de 12 al año se cuenta en el
+      servidor, no en el cliente.
+- [ ] **Decidir cómo conviven el mes gratis del invitado y la prueba de 30
+      días.** Tal como están escritos hoy se suman: alguien invitado entraría
+      con la prueba de la tienda más el mes de G-D2, casi dos meses antes del
+      primer cargo. Las salidas son excluirlos (quien llega por invitación no
+      recibe la prueba), encadenarlos a propósito, o bajar la prueba a 14 días
+      para los invitados. Afecta al *introductory offer* de la tienda, así que
+      hay que resolverlo **antes** de crear los productos.
 - [ ] Probar compras en *sandbox* (Apple) y *license testers* (Google).
 
 ### Fase 4 — Pruebas en tienda (≥ 2 semanas por Google)
@@ -324,3 +345,18 @@ Seis a ocho semanas hasta estar en las dos tiendas, si la fase 0 arranca hoy.
 | Capgo (opcional, fase 6) | ~12 USD / mes |
 | Xcode, Android Studio, Capacitor | 0 |
 | Comisión de tienda | 15 % de cada cobro |
+
+---
+
+## H. Multi-moneda de fondo — bloqueante para salir de México
+
+- [ ] **H1 `Transaction` no guarda su moneda.** Sin fecha: no estorba mientras
+      el producto viva en México, y por eso el selector de moneda está apagado
+      con `SELECTOR_DE_MONEDA_ACTIVO` en `src/lib/currency.ts`. **Es
+      bloqueante para la expansión regional**: `sumSpend`/`sumIncome` suman
+      números sin preguntar de qué moneda son, así que un usuario colombiano
+      vería sus pesos sumados con los mexicanos como si fueran lo mismo. Hace
+      falta que cada movimiento guarde su moneda y su tipo de cambio del día,
+      y que los totales conviertan a la moneda base de la persona. Ver la
+      sección 3 de [IDEAS-FUTURAS.md](IDEAS-FUTURAS.md), donde la expansión
+      depende de esto.
