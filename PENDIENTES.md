@@ -131,28 +131,32 @@ Estas decisiones afectan cosas ya tomadas en `TODO.md` y hay que resolverlas
       organización exige número D-U-N-S (gratis, 1–2 semanas) en Apple y Google.
       La persona física es inmediata, pero en Google el nombre legal y, si hay
       cobros, la dirección postal **se muestran en la ficha pública**.
-- [ ] **G-D5 Captcha en la app nativa — la mitad de la propuesta no se puede.**
-      Se configuró `server.hostname = "app.millionsapp.io"` con esquema
-      `https`, y en **Android funciona**: el origen es
-      `https://app.millionsapp.io` y Turnstile podría validar por dominio. En
-      **iOS no, y no hay forma**: WebKit no deja registrar un manejador para
-      un esquema que ya conoce, así que Capacitor descarta `iosScheme: https`
-      y el origen real es `capacitor://app.millionsapp.io`
-      (`CAPInstanceDescriptor.swift`, `normalize()`). Comprobado el 3 de
-      septiembre leyendo el código, no la documentación. **Queda decidir** si
-      se desactiva el captcha solo en iOS o en todo lo nativo; las tiendas ya
-      filtran bots y el registro por invitación aún más.
-- [ ] **G-D6 ¿Un host de API aparte, o un hostname que no sea un dominio real?**
-      Hoy la API vive en `api.millionsapp.io` porque el host del WebView no
-      puede servirla (ver la cabecera de `capacitor.config.ts`). Funciona, pero
-      **en Netlify los dominios que no son el primario redirigen a él**, y un
-      301 hacia `app.millionsapp.io` volvería a caer en la interceptación de
-      Android. Así que `api.millionsapp.io` tiene que *servir*, no redirigir:
-      o es el dominio primario, o vive en un segundo sitio de Netlify que solo
-      publique las funciones. La alternativa es soltar el dominio real como
-      hostname del WebView y volver al de siempre, con lo que un único host
-      sirve web, API y AASA sin trampas — a cambio de perder Turnstile por
-      dominio también en Android.
+- [x] **G-D5 Turnstile se apaga en nativo — decidido el 3 de septiembre.**
+      Vive en la web y no en la app. Turnstile valida por dominio y dentro del
+      contenedor el origen no es un dominio: es `capacitor://localhost` en iOS
+      y `https://localhost` en Android. En iOS **no hay forma** de que lo sea,
+      porque WebKit no deja usar https como esquema local (comprobado en
+      `CAPInstanceDescriptor.swift`), así que sostener la complejidad para que
+      funcionara solo en Android no se paga. Lo que protege el registro en
+      nativo no depende del captcha: está cerrado por invitación, la función
+      de IA exige JWT, tiene tope por usuario y por día, y falla cerrado.
+      Hecho en `src/components/Captcha.tsx`.
+
+      ⚠️ **Comprobar antes de abrir el registro:** si en Supabase →
+      Authentication está activada la protección con captcha, el servidor
+      exigirá el token a *todos* los registros y el de la app nativa fallará,
+      porque ahí ya no se manda. Tiene que estar apagada ahí, o el captcha de
+      la web deja de ser opcional.
+
+- [x] **G-D6 El WebView deja de llamarse como el dominio — decidido el 3 de
+      septiembre.** Se quitó `server` de `capacitor.config.ts`: el origen
+      vuelve a ser el de Capacitor y `app.millionsapp.io` queda libre para
+      servir la PWA, la API y el AASA desde un solo sitio de Netlify. Se
+      descartó el host de API aparte (`api.millionsapp.io`) porque exigía un
+      segundo sitio —los dominios que no son el primario redirigen, y un 301
+      volvía a caer en la interceptación de Android— y porque el motivo por el
+      que existía el hostname propio, Turnstile por dominio, ya no se cumplía
+      en iOS. El porqué completo está en la cabecera de `capacitor.config.ts`.
 
 ### Fase 0 — Preparación sin código (empieza hoy; son trámites y esperas)
 

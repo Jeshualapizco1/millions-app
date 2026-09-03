@@ -320,26 +320,27 @@ const uso = (hoy: number) => ({ hoy, tope: RATE_LIMIT_PER_DAY });
  * arma Capacitor con el esquema y el hostname de `capacitor.config.ts`.
  * Cualquier otro origen no recibe cabeceras CORS y el navegador lo bloquea.
  *
- * **Las dos plataformas mandan un origen distinto, y esa diferencia costó una
- * tarde.** Android respeta `androidScheme: "https"` y llama desde
- * `https://app.millionsapp.io`. iOS **no**: WebKit no deja registrar un
- * manejador para un esquema que ya conoce, así que Capacitor descarta
- * `iosScheme: "https"` y vuelve al suyo
- * (`CAPInstanceDescriptor.swift`, `normalize()`), quedando
- * `capacitor://app.millionsapp.io`. Ese origen faltaba aquí, la función no
- * devolvía cabeceras CORS y el iPhone solo veía "Load failed".
+ * **Las dos plataformas mandan un origen distinto.** Desde que el contenedor
+ * no declara `server` (G-D6), son los de Capacitor: `capacitor://localhost` en
+ * iOS y `https://localhost` en Android, porque su esquema por omisión ahí es
+ * https. Se dejan también los del hostname propio que hubo hasta el 3 de
+ * septiembre, para que una app ya instalada con la versión anterior siga
+ * funcionando hasta que se actualice.
  *
- * Si algún día cambia `server.hostname`, hay que cambiarlo aquí también: el
- * origen se arma con él. `api.millionsapp.io` NO va en esta lista — es el
- * destino de la llamada, no quien la hace.
+ * Si algún día vuelve un `server.hostname`, hay que añadir aquí sus dos
+ * formas: la de Android sale del `androidScheme`, y la de iOS **no** sale del
+ * `iosScheme` —WebKit lo descarta— sino que es siempre `capacitor://<host>`.
  */
 const ORIGENES = new Set([
-  "https://app.millionsapp.io",   // Android, y la PWA si se sirve de ahí
-  "capacitor://app.millionsapp.io", // iOS: el esquema https se ignora
-  "https://millionsapp.io",
-  "capacitor://localhost",        // el hostname por omisión, si se quita el propio
-  "https://localhost",
+  // Los de ahora: sin hostname propio.
+  "capacitor://localhost",         // iOS
+  "https://localhost",             // Android
   "http://localhost",
+  // La web.
+  "https://app.millionsapp.io",
+  "https://millionsapp.io",
+  // Los del contenedor anterior, para no romper una app ya instalada.
+  "capacitor://app.millionsapp.io",
 ]);
 const cors = (origin: string | undefined): Record<string, string> =>
   origin && ORIGENES.has(origin)

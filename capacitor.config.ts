@@ -6,44 +6,44 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * PWA es solo lo que aquí se configura y lo que `src/lib/native.ts` decide
  * en tiempo de ejecución.
  *
- * `server.hostname` con esquema https (G-D5): dentro del WebView el origen
- * deja de ser `capacitor://localhost` y pasa a ser `https://app.millionsapp.io`,
- * el mismo dominio de la PWA. Con eso Turnstile valida por dominio, las
- * cookies y el almacenamiento se comportan como en la web, y Supabase ve un
- * origen que ya conoce. No carga nada de la red: los archivos siguen siendo
- * locales, solo cambia cómo se llama el origen.
+ * ── POR QUÉ NO HAY BLOQUE `server` (G-D6, 3 de septiembre) ───────────────────
  *
- * ── DOS TRAMPAS QUE ESTO TRAE, Y QUE COSTARON UNA TARDE ──────────────────────
+ * Lo hubo: `server.hostname = "app.millionsapp.io"` con esquema https, para
+ * que el WebView tuviera el mismo origen que la PWA y Turnstile validara por
+ * dominio (G-D5). Salió caro y se quitó, por dos razones que se descubrieron
+ * probando en el iPhone:
  *
  * 1. **Nada que viva en `hostname` se puede pedir por red.** En Android,
- *    Capacitor intercepta toda petición cuyo host sea este y la resuelve
- *    contra los archivos de la app (`WebViewLocalServer.java`: compara el host
- *    y devuelve el archivo local). Así que
- *    `https://app.millionsapp.io/.netlify/functions/chat` no sale nunca a
- *    internet: se busca dentro del bundle, no está, y falla. Por eso la API
- *    vive en **`api.millionsapp.io`**, un host aparte —ver `apiBase()` en
- *    `src/lib/native.ts`—. Cualquier cosa que haya que pedir por red tiene que
- *    estar en otro host que este.
+ *    Capacitor intercepta toda petición cuyo host sea el suyo y la resuelve
+ *    contra los archivos de la app (`WebViewLocalServer.java` compara el host
+ *    y devuelve el archivo local). Con el dominio real ahí,
+ *    `https://app.millionsapp.io/.netlify/functions/chat` no salía nunca a
+ *    internet: se buscaba dentro del bundle, no estaba, y fallaba. Obligaba a
+ *    un host aparte para la API, y con él a un segundo sitio en Netlify,
+ *    porque los dominios que no son el primario redirigen y un 301 volvía a
+ *    caer en la interceptación.
  *
- * 2. **En iOS este `iosScheme` no se aplica.** WebKit no permite registrar un
- *    manejador para un esquema que ya maneja él, así que Capacitor lo descarta
- *    y vuelve al suyo (`CAPInstanceDescriptor.swift`, en `normalize()`:
- *    `WKWebView.handlesURLScheme("https")` es true → el esquema se reemplaza
- *    por `capacitor`). El origen real en iPhone es
- *    **`capacitor://app.millionsapp.io`**, no `https://…`. Consecuencias: ese
- *    es el origen que hay que permitir en el CORS de `netlify/functions/chat.ts`,
- *    y **Turnstile no puede validar por dominio en iOS**, que era medio motivo
- *    de G-D5. En Android sí, porque ahí el esquema https sí se respeta.
+ * 2. **En iOS el `iosScheme: "https"` no se aplicaba.** WebKit no deja
+ *    registrar un manejador para un esquema que ya maneja él, así que
+ *    Capacitor lo descartaba y volvía al suyo (`CAPInstanceDescriptor.swift`,
+ *    en `normalize()`). El origen real era `capacitor://app.millionsapp.io`,
+ *    no `https://…`, y por eso medio motivo de todo esto —Turnstile por
+ *    dominio— no se cumplía de todos modos.
+ *
+ * Sin `server`, el origen vuelve a ser el de Capacitor:
+ * `capacitor://localhost` en iOS y `https://localhost` en Android. Los dos
+ * están en la lista del CORS de `netlify/functions/chat.ts`. A cambio,
+ * `app.millionsapp.io` queda libre para servir la PWA, la API y el AASA desde
+ * un solo sitio, sin trampas.
+ *
+ * **Si algún día vuelve a hacer falta un hostname propio**, hay que recordar
+ * las dos cosas de arriba: la API tiene que vivir en otro host, y el origen
+ * de iOS no será el que diga `iosScheme`.
  */
 const config: CapacitorConfig = {
   appId: "io.millionsapp.app",
   appName: "Millions - Finanzas con IA",
   webDir: "dist",
-  server: {
-    hostname: "app.millionsapp.io",
-    androidScheme: "https",
-    iosScheme: "https",
-  },
   android: {
     // La app decide su propio fondo; sin esto Android pinta blanco un instante.
     backgroundColor: "#0a0a0f",

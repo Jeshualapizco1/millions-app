@@ -17,22 +17,20 @@ export const plataforma = (): "ios" | "android" | "web" => Capacitor.getPlatform
  * Base absoluta para la función de IA. En la web es el mismo origen y basta
  * con la ruta relativa; en nativo hay que nombrar el servidor entero.
  *
- * **Tiene que ser un host distinto al del WebView, y por eso existe
- * `api.millionsapp.io`.** En Android, Capacitor sirve desde el bundle local
- * todo lo que se pida al `server.hostname` —`WebViewLocalServer.java` compara
- * el host de cada petición contra el suyo y la intercepta—, así que pedir a
- * `https://app.millionsapp.io/.netlify/functions/chat` nunca sale a la red:
- * se busca ese archivo dentro de la app, no existe, y falla. Con un host
- * aparte la petición viaja como cualquier otra.
+ * Es el mismo dominio que sirve la PWA, y puede serlo porque el WebView ya no
+ * se llama como él (G-D6, ver `capacitor.config.ts`). Mientras el contenedor
+ * usaba `app.millionsapp.io` como `server.hostname`, Android interceptaba esta
+ * misma petición y la buscaba dentro del bundle en vez de mandarla a la red;
+ * por eso hizo falta un host aparte, y por eso ya no.
  *
  * `VITE_API_BASE` sigue existiendo para apuntar a otro sitio al compilar (un
- * deploy de prueba, o mientras el dominio no responde), pero ya no hace falta
- * para que la app funcione: el valor bueno vive aquí.
+ * deploy de prueba, un preview), pero ya no hace falta para que la app
+ * funcione: el valor bueno vive aquí.
  */
 export const apiBase = (): string => {
   const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
   if (base) return base;
-  return esNativo() ? "https://api.millionsapp.io" : "";
+  return esNativo() ? "https://app.millionsapp.io" : "";
 };
 
 /**

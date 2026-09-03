@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { esNativo } from "../lib/native";
 
 /**
  * Captcha de Cloudflare Turnstile para el registro.
@@ -9,6 +10,15 @@ import { useEffect, useRef } from "react";
  * Está escrito para degradar solo: si no hay `VITE_TURNSTILE_SITE_KEY`, el
  * componente no pinta nada y avisa que no hay token. Así el código puede vivir
  * en producción antes de tener la llave, y activarse con una variable.
+ *
+ * **En la app nativa no se usa (G-D5, 3 de septiembre).** Turnstile valida por
+ * dominio y dentro del contenedor el origen no es un dominio: es
+ * `capacitor://localhost` en iOS y `https://localhost` en Android. En iOS
+ * además no hay manera de que lo sea —WebKit no deja usar https como esquema
+ * local—, así que sostener la complejidad para que funcionara solo en Android
+ * no valía la pena. Lo que protege el registro ahí es lo de siempre, que no
+ * depende del captcha: está cerrado por invitación, la función de IA exige
+ * JWT, tiene tope por usuario y por día, y falla cerrado.
  */
 declare global {
   interface Window {
@@ -20,7 +30,7 @@ declare global {
   }
 }
 
-export const CAPTCHA_ENABLED = !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
+export const CAPTCHA_ENABLED = !!import.meta.env.VITE_TURNSTILE_SITE_KEY && !esNativo();
 
 const SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
