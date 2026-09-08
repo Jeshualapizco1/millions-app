@@ -1,0 +1,79 @@
+name: Capacitor con backend real
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "netlify/**"
+      - "android/**"
+      - "ios/**"
+      - "public/**"
+      - "package*.json"
+      - "vite.config.ts"
+      - "capacitor.config.ts"
+      - ".github/workflows/native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            os: ubuntu-24.04
+          - platform: ios
+            os: macos-26
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      PLATFORM: ${{ matrix.platform }}
+      COMMIT_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+      CONFIG_URL: ${{ github.event_name == 'pull_request' && format('https://deploy-preview-{0}--millionsjeshua.netlify.app/client-config.json', github.event.pull_request.number) || 'https://app.millionsapp.io/client-config.json' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm install --no-audit --no-fund
+      - name: Android SDK
+        if: matrix.platform == 'android'
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Compilar el código con el backend del despliegue de este commit
+        shell: bash
+        run: |
+          mkdir -p .native-build
+          if [ "$PLATFORM" = "android" ]; then
+            node scripts/native.mjs android --apk --config-url "$CONFIG_URL" --expected-commit "$COMMIT_REF" --wait-seconds 300 2>&1 | tee .native-build/android-build.log
+            cp android/app/build/outputs/apk/debug/app-debug.apk .native-build/Millions-Android.apk
+          else
+            node scripts/native.mjs ios --simulator --config-url "$CONFIG_URL" --expected-commit "$COMMIT_REF" --wait-seconds 300 2>&1 | tee .native-build/ios-build.log
+            ditto -c -k --sequesterRsrc --keepParent ios/App/build/native/Build/Products/Debug-iphonesimulator/App.app .native-build/Millions-iOS-simulator.zip
+          fi
+      - name: Guardar APK o app de simulador y evidencia
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: Millions-${{ matrix.platform }}-${{ github.run_number }}
+          path: .native-build/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
