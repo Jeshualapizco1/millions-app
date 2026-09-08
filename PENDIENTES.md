@@ -49,6 +49,13 @@ Cerradas D1–D10 el 1 y 2 de septiembre de 2026; el detalle vive en `git log`.
 
 Cerrados E1–E11 el 1 de septiembre de 2026; el detalle vive en `git log`.
 
+### Integración del diseño aprobado — solicitada por Jeshua el 7 de septiembre
+
+- [ ] **E12 Revisión de la integración visual.** Los componentes React de la revisión 14 están implementados. Falta revisar en navegador/teléfonos 320/390/430 px, tema claro/oscuro, cifras largas, texto al 200%, teclado y accesibilidad. El navegador de revisión no pudo acceder al entorno local. Ver `docs/diseno/integracion-14.md` y `/qa/index.html`.
+- [ ] **E13 Compras con tarjeta.** `api.applyTx` solo afecta cuentas; no representa una compra que aumenta la deuda de una tarjeta. Definir fuente cuenta/crédito y RPC idempotente con reversión atómica, categorías/presupuestos, IA y offline; probar con una base de prueba antes de aplicar migración. La captura solo bloquea casos explícitos detectados; no prometer soporte completo. Es requisito previo a lanzar la promesa “gasté con mi tarjeta Nu”.
+- [ ] **E14 Videos y validación real.** Faltan las cuatro grabaciones propias y sus VTT, prueba con clips válidos/fallidos, permisos y voz en iOS/Android, deep links y guardado/undo/offline con una sesión de prueba. El reproductor y la guía legible ya están; `STORY_MEDIA` espera los archivos. No usar videos inventados ni datos del usuario para las pruebas.
+- [ ] **E15 Alcance de la proyección.** `analytics.ts:projectMonth` extrapola el total gastado (incluidos fijos ya ocurridos) y añade los fijos pendientes; `useFinanceData.ts` carga próximos 7 días. Antes de presentar dinero disponible o recomendar gasto, separar consumo variable de fijo y traer el horizonte completo del mes. Hoy la interfaz la identifica como estimación parcial. El patrimonio sigue siendo cuentas menos deuda, sin bienes no líquidos.
+
 ## F. Accesibilidad (cero `aria`, `htmlFor`, `h1`, `nav`, `main`, `focus-visible`)
 
 Cerrados F1–F5 el 1 de septiembre y F6 el 3; el detalle vive en `git log`.

@@ -5,7 +5,6 @@ import { Skeleton, SkeletonCard } from "./components/Skeleton";
 import type { Session } from "@supabase/supabase-js";
 import CreditForm, { type CreditFormState } from "./components/CreditForm";
 import Fab from "./components/Fab";
-import Modal from "./components/Modal";
 import ConfirmModal from "./components/ConfirmModal";
 import { CategoriesProvider } from "./lib/categories";
 import CategoriesModal from "./modals/CategoriesModal";
@@ -13,15 +12,15 @@ import { Toasts, useToasts } from "./components/Toast";
 import { useAI, type ParsedNewAcc, type ParsedTx } from "./hooks/useAI";
 import { useFinanceData } from "./hooks/useFinanceData";
 import { useRefrescoAlVolver } from "./hooks/useRefrescoAlVolver";
-import { impactoNeto, proximos } from "./lib/upcoming";
+import { proximos } from "./lib/upcoming";
 import { vibrar } from "./lib/native";
 import { importId } from "./lib/csvImport";
 import { useVoice } from "./hooks/useVoice";
 import { api } from "./lib/api";
 import { C, R, T, ACC_COLORS } from "./lib/constants";
-import { daysUntil, fmt, monthLabel, numero } from "./lib/format";
-import { daysUntilDate, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate } from "./lib/dates";
-import { filterByPeriod, PERIODS, sumIncome, sumSpend, type PeriodKey } from "./lib/periods";
+import { daysUntil, fmt, numero } from "./lib/format";
+import { captureDateISO, toLocalDateISO, daysUntilDate, diasRestantesDeGracia, diasRestantesDePlazo, nextMonthlyDate } from "./lib/dates";
+import { filterByPeriod, sumIncome, sumSpend } from "./lib/periods";
 import { netWorthHistory, projectMonth } from "./lib/analytics";
 import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets";
 import { logError } from "./lib/errorLog";
@@ -30,10 +29,11 @@ import { GRACIA_DIAS, LEGAL_VERSION, PRUEBA_DIAS } from "./lib/legal";
 import Perfil from "./views/Perfil";
 import LegalGate from "./views/LegalGate";
 import Arranque, { type ArranqueResult } from "./views/Arranque";
+import Preparacion from "./views/Preparacion";
 import Onboarding from "./views/Onboarding";
 import { RESPUESTAS_VACIAS, type Respuestas } from "./lib/onboarding";
 import FinDePrueba from "./views/FinDePrueba";
-import { hasForeign, toBase } from "./lib/currency";
+import { toBase } from "./lib/currency";
 import { budgetAlertKey, creditAlertKey, dismissAlert, isDismissed } from "./lib/alerts";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
 import { esFalloDeRed } from "./lib/offlineQueue";
@@ -50,15 +50,19 @@ import ImportCsvModal from "./modals/ImportCsvModal";
 import PasswordModal from "./modals/PasswordModal";
 import type { Account, Budget, Credit, Goal, RecurringRule, Transaction, TxType } from "./types";
 import Analisis from "./views/Analisis";
+import Asistente from "./views/Asistente";
+import Patrimonio from "./views/Patrimonio";
+import { PrivacyButton } from "./components/Money";
+import { reducedMotion } from "./lib/appearance";
 import Creditos from "./views/Creditos";
 import Cuentas from "./views/Cuentas";
-import Dashboard, { type Comparison } from "./views/Dashboard";
+import Dashboard from "./views/Dashboard";
 import Historial from "./views/Historial";
 import Metas, { type BudgetWithProgress } from "./views/Metas";
 
 // "arranque" no está en la barra: es el arranque guiado reabierto desde el
 // estado vacío, para quien lo saltó y se arrepintió.
-type Tab = "dash" | "metas" | "creditos" | "analisis" | "hist" | "accs" | "perfil" | "arranque";
+type Tab = "dash" | "metas" | "creditos" | "analisis" | "hist" | "accs" | "perfil" | "arranque" | "patrimonio" | "asistente";
 
 type CreditUpsert = Omit<Credit, "id" | "created_at">;
 type GoalUpsert = Omit<Goal, "id" | "created_at" | "account_id" | "completed_at">;
@@ -66,13 +70,27 @@ type GoalUpsert = Omit<Goal, "id" | "created_at" | "account_id" | "completed_at"
 /** Cuenta en edición: el input deja el balance como string mientras se teclea. */
 type EditAccState = Omit<Account, "balance"> & { balance: string | number };
 
-const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amount: "", target_date: "", icon: "🎯", color: "#7c6af7", notes: "" };
+const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amount: "", target_date: "", icon: "🎯", color: "#5678ff", notes: "" };
 
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
   const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx, booting, loadError, accsRef, txsRef, creditsRef, goalsRef, recargar, historialCompleto, totalTxs, completarHistorial } = useFinanceData();
+  const [planSection, setPlanSection] = useState<"presupuestos" | "metas" | "fijos">("presupuestos");
   const [tab, setTab] = useState<Tab>("dash");
+  const previousTab = useRef<Tab>("dash");
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const [captureLearned, setCaptureLearned] = useState(false);
+  const openAssistant = (question?: string) => {
+    if (tab !== "asistente") previousTab.current = tab;
+    setTab("asistente");
+    if (question) setAiInput(question);
+  };
+  useEffect(() => {
+    if (booting || !profile?.onboarded_at) return;
+    titleRef.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [tab, booting, profile?.onboarded_at]);
   const { toasts, push, dismiss } = useToasts();
 
   // FAB
@@ -84,6 +102,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [mMan, setMMan] = useState(false);
   const [man, setMan] = useState<ManualTxFormState>({ desc: "", amt: "", type: "gasto", aid: "", cat: "Otros" });
   const [editAcc, setEditAcc] = useState<EditAccState | null>(null);
+  const resumeCapture = useRef(false);
   const [mNewAcc, setMNewAcc] = useState(false);
   const [newAcc, setNewAcc] = useState<AccountFormState>({ name: "", balance: "", icon: "🏦", currency: "MXN" });
   const [mCredit, setMCredit] = useState(false);
@@ -101,7 +120,6 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   const [payCredit, setPayCredit] = useState<Credit | null>(null);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [addGoalAcc, setAddGoalAcc] = useState("");
-  const [period, setPeriod] = useState<PeriodKey>("mes");
   const [mRecurring, setMRecurring] = useState(false);
   const [editRecurring, setEditRecurring] = useState<RecurringRule | null>(null);
   const [confirm, setConfirm] = useState<{ title: string; message: string; confirmLabel?: string; action: () => void } | null>(null);
@@ -180,24 +198,31 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // Arranca en "cargando" hasta saber si ya contestó las preguntas: si cerró
   // la app en la pantalla de cierre, se retoma en configurar y no se le
   // vuelven a hacer las cinco preguntas.
-  const [faseArranque, setFaseArranque] = useState<"cargando" | "preguntas" | "configurar">("cargando");
+  const [faseArranque, setFaseArranque] = useState<"cargando" | "preguntas" | "preparando" | "configurar">("cargando");
+  const [onboardingError, setOnboardingError] = useState("");
+  const [onboardingRetry, setOnboardingRetry] = useState(0);
+  const [journeyGoal, setJourneyGoal] = useState<string | null>(null);
   useEffect(() => {
     if (!profile || profile.onboarded_at) return;
     let vivo = true;
-    api.surveyDone()
-      .then((hecha) => { if (vivo) setFaseArranque(hecha ? "configurar" : "preguntas"); })
-      .catch(() => { if (vivo) setFaseArranque("preguntas"); });
+    setOnboardingError("");
+    api.getOnboarding()
+      .then((answers) => { if (vivo) { setJourneyGoal(answers?.goal || null); setFaseArranque(answers ? "preparando" : "preguntas"); } })
+      .catch(() => { if (vivo) setOnboardingError("No se pudo recuperar tu avance. Tus respuestas anteriores siguen guardadas."); });
     return () => { vivo = false; };
-  }, [profile?.id, profile?.onboarded_at]);
+  }, [profile?.id, profile?.onboarded_at, onboardingRetry]);
 
   const guardarRespuestas = async (r: Respuestas) => {
     await api.saveOnboarding(r, true);
+    setJourneyGoal(r.goal);
+    setFaseArranque("preparando");
   };
 
   /** "Ahora no" en las preguntas: no se le insiste con la configuracion. */
   const saltarPreguntas = async () => {
     await api.saveOnboarding(RESPUESTAS_VACIAS, false);
-    await cerrarArranque();
+    setJourneyGoal(null);
+    setFaseArranque("preparando");
   };
 
   const cerrarArranque = async () => {
@@ -213,10 +238,12 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
    * volvió a entrar, reintentar no debe dejarle dos "BBVA".
    */
   const terminarArranque = async (r: ArranqueResult) => {
-    const yaExisten = new Set(accsRef.current.map((a) => a.name.trim().toLowerCase()));
+    const freshAccounts = await api.getAccounts();
+    const yaExisten = new Set(freshAccounts.map((a) => a.name.trim().toLowerCase()));
     for (const [i, c] of r.cuentas.entries()) {
-      if (yaExisten.has(c.name.toLowerCase())) continue;
-      await api.addAccount({ ...c, color: ACC_COLORS[(accsRef.current.length + i) % ACC_COLORS.length] });
+      if (yaExisten.has(c.name.trim().toLowerCase())) continue;
+      await api.addAccount({ ...c, color: ACC_COLORS[(freshAccounts.length + i) % ACC_COLORS.length] });
+      yaExisten.add(c.name.trim().toLowerCase());
     }
     const cuentas = await api.getAccounts();
     setAccs(cuentas);
@@ -225,7 +252,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       const cuenta = cuentas.find((a) => a.name.trim().toLowerCase() === r.ingreso!.cuenta.trim().toLowerCase());
       // Si ya existe una regla con ese nombre en esa cuenta, es un reintento:
       // no se crea una segunda "Nómina".
-      const yaHay = cuenta && recurring.some((x) => x.accountId === cuenta.id && x.name.trim().toLowerCase() === r.ingreso!.name.trim().toLowerCase());
+      const freshRecurring = await api.getRecurring();
+      const yaHay = cuenta && freshRecurring.some((x) => x.accountId === cuenta.id && x.name.trim().toLowerCase() === r.ingreso!.name.trim().toLowerCase());
       // Sin cuenta no hay regla, pero tampoco se aborta el arranque: perder el
       // techo y las cuentas por un ingreso mal atado sería peor.
       if (cuenta && !yaHay) {
@@ -280,7 +308,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     }
     // Id decidido aquí: si hay que encolarlo, el reintento no lo duplica.
     const clientId = crypto.randomUUID();
-    const date = new Date().toISOString();
+    let date: string;
+    try { date = tx.date ? captureDateISO(tx.date) : new Date().toISOString(); } catch (e) { return { ok: false, error: (e as Error).message }; }
     const category = tx.category || "Otros";
     const delta = tx.type === "gasto" ? -tx.amount : tx.amount;
 
@@ -289,7 +318,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         { accountId: acc.id, kind: tx.type, amount: tx.amount, description: tx.description, category, clientId, date },
         cur
       );
-      setTxs((p) => [saved, ...p]);
+      setTxs((p) => [saved, ...p].sort((a,b) => b.date.localeCompare(a.date)));
+      push({ kind: "ok", text: "Movimiento guardado", action: { label: "Deshacer", onClick: () => { void deleteTx(saved.id); } } }, 7000);
+      setCaptureLearned(true);
       setAccs((p) => p.map((a) => (a.id === acc.id ? { ...a, balance: a.balance + delta } : a)));
       return { ok: true };
     } catch (e: any) {
@@ -302,7 +333,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
             ...p,
           ]);
           setAccs((p) => p.map((a) => (a.id === acc.id ? { ...a, balance: a.balance + delta } : a)));
-          push({ kind: "ok", text: "Guardado sin conexión. Se enviará al volver la red." }, 5000);
+          push({ kind: "ok", text: "Guardado sin conexión. Se enviará al volver la red.", action: { label: "Deshacer", onClick: () => { void deleteTx(clientId); } } }, 7000);
+          setCaptureLearned(true);
           return { ok: true };
         } catch (qe) {
           logError(qe, { action: "encolar movimiento offline" });
@@ -353,7 +385,13 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     }
   };
 
+  const deletingTxs = useRef(new Set<string>());
   const deleteTx = async (id: string) => {
+    if (deletingTxs.current.has(id)) return;
+    deletingTxs.current.add(id);
+    try { await deleteTxOnce(id); } finally { deletingTxs.current.delete(id); }
+  };
+  const deleteTxOnce = async (id: string) => {
     const tx = txsRef.current.find((t) => t.id === id);
     if (!tx) return;
 
@@ -403,7 +441,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       const s = await api.addAccount({ name: d.accountName, balance: d.balance ?? 0, color, icon: d.icon ?? "🏦", currency: d.currency ?? "MXN" });
       setAccs((p) => [...p, s]);
     } catch (e) {
-      oops(e, "No se pudo crear la cuenta");
+      throw e;
     }
   };
   const saveNewAcc = async () => {
@@ -418,22 +456,15 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     push({ kind: "ok", text: `Cuenta "${nombre}" creada` });
     setNewAcc({ name: "", balance: "", icon: "🏦", currency: "MXN" });
     setMNewAcc(false);
+    if (resumeCapture.current) { resumeCapture.current = false; updateDraft({ accountName: nombre }); setFab(true); }
   };
   const saveEditAcc = async () => {
     if (!editAcc || !editAcc.name.trim()) return;
-    const prev = accs;
-    // Un campo de saldo vacío vale 0, no NaN: NaN llegaba a Postgres y volvía
-    // como un rechazo sin mensaje.
     const saldo = numero(editAcc.balance, 0);
-    setAccs((p) => p.map((a) => (a.id === editAcc.id ? { ...a, ...editAcc, balance: saldo } : a)));
+    await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: saldo, icon: editAcc.icon, color: editAcc.color, currency: editAcc.currency });
+    setAccs((p) => p.map((a) => a.id === editAcc.id ? { ...a, ...editAcc, balance: saldo } : a));
     setEditAcc(null);
-    try {
-      await api.updateAccount({ id: editAcc.id, name: editAcc.name, balance: saldo, icon: editAcc.icon, color: editAcc.color, currency: editAcc.currency });
-      push({ kind: "ok", text: "Cuenta actualizada" });
-    } catch (e) {
-      setAccs(prev);
-      oops(e, "No se pudo guardar la cuenta");
-    }
+    push({ kind: "ok", text: "Cuenta actualizada" });
   };
 
   // ── Credits ────────────────────────────────────────────────────────────────
@@ -451,28 +482,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     notes: f.notes || null,
   });
   const saveNewCredit = async (f: CreditFormState) => {
-    if (!f.name.trim()) return;
+    const saved = await api.addCredit(parseCredit(f));
+    setCredits((pr) => [...pr, saved]);
     setMCredit(false);
-    try {
-      const s = await api.addCredit(parseCredit(f));
-      setCredits((pr) => [...pr, s]);
-      push({ kind: "ok", text: `Crédito "${s.name}" registrado` });
-    } catch (e) {
-      oops(e, "No se pudo crear el crédito");
-    }
+    push({ kind: "ok", text: `Crédito "${saved.name}" registrado` });
   };
   const saveEditCredit = async (f: CreditFormState) => {
-    if (!f.name.trim()) return;
     const p = { id: f.id!, ...parseCredit(f) };
-    const prev = credits;
-    setCredits((pr) => pr.map((c) => (c.id === f.id ? { ...c, ...p } : c)));
+    await api.updateCredit(p);
+    setCredits((pr) => pr.map((c) => c.id === f.id ? { ...c, ...p } : c));
     setEditCredit(null);
-    try {
-      await api.updateCredit(p);
-    } catch (e) {
-      setCredits(prev);
-      oops(e, "No se pudo guardar el crédito");
-    }
+    push({ kind: "ok", text: "Crédito actualizado" });
   };
   const deleteCredit = async (id: string) => {
     const prev = credits;
@@ -819,10 +839,10 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     setAccs(a); setTxs(t); setCredits(cr); setBudgets(b); setGoals(g);
   };
 
-  const { txLoading, sendTx, draft, accDraft, draftError, updateDraft, confirmDraft, discardDraft, updateAccDraft, confirmAccDraft, discardAccDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso } =
+  const { cancelCapture, txLoading, sendTx, draft, accDraft, draftError, updateDraft, confirmDraft, discardDraft, updateAccDraft, confirmAccDraft, discardAccDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso } =
     useAI({ applyTx, applyNewAcc, setTxInput, setLive, categoryNames: () => categories.filter((c) => !c.hidden).map((c) => c.name), actionContext, onActionDone: reloadAfterAction, onActionDoneError: (e) => oops(e, "Se hizo, pero no pude refrescar tus datos. Recarga la app.") });
 
-  const { mic, voiceOK, startMic, stopMic } = useVoice({
+  const { mic, starting: micStarting, voiceOK, startMic, stopMic } = useVoice({
     onResult: (t) => { setLive(t); setTxInput(t); },
     // El sheet YA NO se cierra al terminar de hablar: lo que sigue es el
     // borrador con los chips, y cerrarlo lo dejaría sin dónde aparecer.
@@ -832,36 +852,33 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   });
   useEffect(() => { if (!fab) stopMic(); }, [fab, stopMic]);
 
-  const saveTxManual = async () => {
+  const saveTxManual = async (): Promise<boolean> => {
     const { desc, amt, type, aid, cat } = man;
-    if (!desc || !amt || !aid || enviando.current) return;
+    if (!desc || !amt || !aid || enviando.current) return false;
     const amount = numero(amt, 0);
-    if (!(amount > 0)) { push({ kind: "error", text: "El monto debe ser mayor a cero" }); return; }
+    if (!(amount > 0)) { push({ kind: "error", text: "El monto debe ser mayor a cero" }); return false; }
     enviando.current = true;
     let r;
     try {
-      r = await applyTx({ description: desc, amount, type, category: cat, accountName: accs.find((a) => a.id === aid)?.name ?? "" });
+      r = await applyTx({ description: desc.trim(), date: man.date || toLocalDateISO(), amount, type, category: cat, accountName: accs.find((a) => a.id === aid)?.name ?? "" });
     } finally {
       enviando.current = false;
     }
-    if (!r.ok) { push({ kind: "error", text: r.error || "No se pudo registrar" }); return; }
-    push({ kind: "ok", text: `${type === "gasto" ? "Gasto" : "Ingreso"} de ${fmt(amount)} registrado` });
+    if (!r.ok) throw new Error(r.error || "No se pudo registrar");
     // La cuenta se conserva: casi siempre se captura varias veces seguidas
     // sobre la misma, y volver a elegirla cada vez es un toque de más.
     setMan({ desc: "", amt: "", type: "gasto", aid, cat: "Otros" });
+    setCaptureLearned(true);
+    void vibrar();
     setMMan(false);
+    return true;
   };
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  // El período manda sobre todas las cifras del dashboard, y transferencias,
-  // pagos y abonos quedan fuera de gastos/ingresos: mueven dinero, no lo consumen.
-  const periodTxs = useMemo(() => filterByPeriod(txs, period), [txs, period]);
-  const periodLabel = PERIODS.find((p) => p.key === period)?.label ?? "";
-
   // Consolidado en pesos: una cuenta en dólares no puede sumarse tal cual.
   const totBal = accs.reduce((s, a) => s + toBase(Number(a.balance), a.currency, fx), 0);
-  const totG = useMemo(() => sumSpend(periodTxs), [periodTxs]);
-  const totI = useMemo(() => sumIncome(periodTxs), [periodTxs]);
+  const totG = sumSpend(filterByPeriod(txs, "mes"));
+  const totI = sumIncome(filterByPeriod(txs, "mes"));
   const totalDebt = credits.reduce((s, c) => s + Number(c.total_debt || 0), 0);
   const netWorth = useMemo(() => netWorthHistory(accs, credits, txs, 6, new Date(), fx), [accs, credits, txs, fx]);
 
@@ -878,51 +895,12 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // créditos estaban solo en el banner rojo de arriba, que se puede descartar:
   // avisar antes del corte es el diferenciador y no puede vivir únicamente ahí.
   const proximosItems = useMemo(() => proximos(upcoming, credits, 7), [upcoming, credits]);
-  const upcomingNet = useMemo(() => impactoNeto(proximosItems), [proximosItems]);
 
   const urgentCredits = useMemo(() => credits.filter((c) => {
     const d1 = daysUntil(c.payment_day);
     const d2 = daysUntilDate(c.next_payment_date);
     return (d1 !== null && d1 <= 5) || (d2 !== null && d2 <= 5);
   }), [credits]);
-
-  const catData = useMemo(() => {
-    const map: Record<string, number> = {};
-    periodTxs.filter((t) => t.kind === "gasto").forEach((t) => { const c = t.category || "Otros"; map[c] = (map[c] || 0) + Number(t.amount); });
-    return Object.entries(map).map(([label, value]) => {
-      const c = categories.find((x) => x.name === label);
-      return { label, value, color: c?.color || "#6b7280", icon: c?.icon || "📦" };
-    }).sort((a, b) => b.value - a.value);
-  }, [periodTxs, categories]);
-
-  // 6-month data
-  const monthlyData = useMemo(() => {
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(1);
-      d.setMonth(d.getMonth() - i);
-      const y = d.getFullYear();
-      const m = d.getMonth();
-      const mt = txs.filter((t) => { const td = new Date(t.date); return td.getFullYear() === y && td.getMonth() === m; });
-      months.push({ label: monthLabel(d), ingresos: sumIncome(mt), gastos: sumSpend(mt) });
-    }
-    return months;
-  }, [txs]);
-
-  // Month comparison
-  const comparison = useMemo<Comparison>(() => {
-    const now = new Date();
-    const thisM = txs.filter((t) => { const d = new Date(t.date); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); });
-    const lastD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastM = txs.filter((t) => { const d = new Date(t.date); return d.getFullYear() === lastD.getFullYear() && d.getMonth() === lastD.getMonth(); });
-    const tG = sumSpend(thisM);
-    const lG = sumSpend(lastM);
-    const tI = sumIncome(thisM);
-    const lI = sumIncome(lastM);
-    const diff = lG > 0 ? Math.round(((tG - lG) / lG) * 100) : null;
-    return { thisGastos: tG, lastGastos: lG, thisIngresos: tI, lastIngresos: lI, diffPct: diff };
-  }, [txs]);
 
   // Presupuestos con arrastre del mes anterior
   const budgetProgress = useMemo<BudgetWithProgress[]>(() => calcBudgets(budgets, txs), [budgets, txs]);
@@ -954,7 +932,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
     <div style={{ minHeight: "100dvh", background: C.bg }} aria-busy="true" aria-label="Cargando tus finanzas">
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: T.xxl, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
+          <Skeleton h={26} w={160} />
           <Skeleton h={11} w={110} style={{ marginTop: 6 }} />
         </div>
         <Skeleton h={30} w={96} style={{ borderRadius: R.md }} />
@@ -1009,6 +987,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // Va después del portón legal a propósito: primero se acepta el aviso, y
   // solo entonces tiene sentido pedirle datos a alguien. Y después del muro de
   // pago: no tiene caso configurar una app que no se va a poder usar.
+  if (profile && !profile.onboarded_at && onboardingError) return <div className="auth-shell"><p role="alert">{onboardingError}</p><button className="text-link" onClick={() => setOnboardingRetry((v) => v + 1)}>Reintentar</button></div>;
   if (profile && !profile.onboarded_at && faseArranque === "cargando") return (
     <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg }}>
       <div style={{ width: 28, height: 28, border: `3px solid ${C.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
@@ -1019,9 +998,9 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       nombre={userName}
       onFinish={guardarRespuestas}
       onSkip={saltarPreguntas}
-      onConfigurar={() => setFaseArranque("configurar")}
-      onExplorar={cerrarArranque}
     />
+  ) : faseArranque === "preparando" ? (
+    <Preparacion goal={journeyGoal} onContinue={() => setFaseArranque("configurar")} onExplore={cerrarArranque}/>
   ) : (
     <Arranque
       nombre={userName}
@@ -1045,30 +1024,17 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   return (
     <CategoriesProvider categories={categories.filter((c) => !c.hidden)}>
     <div style={{ minHeight: "100dvh", background: C.bg }}>
-      {/* Header pegado arriba: en la PWA de iOS scrollea la página entera,
-          asi que sin sticky el encabezado se iba con el scroll. */}
-      <div style={{ position: "sticky", top: 0, zIndex: 30, background: C.surface, borderBottom: `1px solid ${C.border}22`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "calc(env(safe-area-inset-top,0px) + 14px)" }}>
-        {/* El nombre es la entrada a Perfil: la barra de abajo ya tiene seis
-            pestañas y una séptima las dejaba ilegibles en un teléfono. */}
-        <div {...clickable(() => setTab("perfil"))} aria-label="Abrir perfil" style={{ cursor: "pointer" }}>
-          <div style={{ fontSize: T.xxl, fontWeight: 800, color: C.aLight, letterSpacing: -0.5 }}>Millions</div>
-          <div style={{ fontSize: T.xs, color: tab === "perfil" ? C.aLight : C.muted, marginTop: 1 }}>
-            👤 {userName}{hasForeign(accs) ? " · totales en MXN" : ""} ›
-          </div>
+      <header className="app-header"><div className="app-header-inner">
+        <div style={{ minWidth: 0 }}>
+          {tab === "asistente" && <button className="text-link" onClick={() => setTab(previousTab.current)}><Icon name="atras" size={16}/> Volver</button>}
+          <h1 ref={titleRef} tabIndex={-1} id="app-title">{tab === "dash" ? `Hola, ${String(userName).split(" ")[0]}` : tab === "hist" ? "Movimientos" : tab === "analisis" ? "Análisis" : ["accs", "creditos", "patrimonio"].includes(tab) ? "Mi dinero" : tab === "metas" ? "Planes" : tab === "asistente" ? "Tu asistente" : "Perfil"}</h1>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ background: `linear-gradient(135deg,${C.accent},#9333ea)`, color: "#fff", borderRadius: R.md, padding: "6px 14px", fontSize: T.md, fontWeight: 800, boxShadow: "0 4px 12px #7c6af733" }}>{fmt(totBal)}</div>
-          {pending > 0 && (
-            <button
-              onClick={() => flush()}
-              title="Movimientos guardados sin conexión. Toca para intentar enviarlos."
-              style={{ background: C.amber + "22", border: `1px solid ${C.amber}55`, borderRadius: R.sm, color: C.amber, fontSize: T.sm, fontWeight: 700, padding: "6px 10px", cursor: "pointer" }}
-            >
-              {syncing ? "⟳" : "☁"} {pending}
-            </button>
-          )}
+        <div className="header-tools">
+          {pending > 0 && <button onClick={() => void flush()} className="icon-button" aria-label={`${pending} movimientos sin sincronizar. Reintentar`}>{syncing ? "⟳" : "☁"} {pending}</button>}
+          <button className="icon-button" aria-label="Preguntar al asistente" onClick={() => openAssistant()}><Icon name="asesor"/></button>
+          <button className="icon-button avatar" aria-label="Abrir perfil" onClick={() => setTab("perfil")}>{String(userName).charAt(0).toUpperCase()}</button>
         </div>
-      </div>
+      </div></header>
 
       {/* Baja pendiente: este aviso NO se puede descartar. Olvidar que tu
           cuenta se borra en unos días es exactamente lo que no debe pasar. */}
@@ -1093,7 +1059,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       )}
 
       {/* Avisos: la ✕ los descarta hasta que cambie la situación */}
-      {showCreditAlert && (
+      {showCreditAlert && tab !== "dash" && (
         <div style={{ background: C.red + "18", borderBottom: `1px solid ${C.red}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: T.xl }}>🚨</span>
           <span onClick={() => setTab("creditos")} style={{ flex: 1, fontSize: T.md, color: C.red, fontWeight: 600, cursor: "pointer" }}>
@@ -1103,55 +1069,53 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
         </div>
       )}
 
-      {showBudgetAlert && (
+      {showBudgetAlert && tab !== "dash" && (
         <div style={{ background: C.amber + "18", borderBottom: `1px solid ${C.amber}33`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: T.xl }}>⚠️</span>
-          <span onClick={() => { setTab("metas"); setTimeout(() => document.getElementById("presupuestos")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} style={{ flex: 1, fontSize: T.md, color: C.amber, fontWeight: 600, cursor: "pointer" }}>
+          <span onClick={() => { setTab("metas"); setTimeout(() => document.getElementById("presupuestos")?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" }), 50); }} style={{ flex: 1, fontSize: T.md, color: C.amber, fontWeight: 600, cursor: "pointer" }}>
             Presupuesto al límite: {budgetOver.join(", ")} — Toca para ver
           </span>
           <button onClick={() => hideAlert(budgetKey)} title="No volver a mostrar este aviso" style={{ background: "none", border: "none", color: C.amber, cursor: "pointer", fontSize: 15, padding: "2px 6px", lineHeight: 1 }}>✕</button>
         </div>
       )}
 
-      {/* El padding inferior deja libre la barra de pestañas fija */}
-      <div style={{ padding: "16px 14px calc(env(safe-area-inset-bottom,0px) + 150px)", maxWidth: 600, margin: "0 auto", width: "100%" }}>
-        {tab === "dash" && <Dashboard accs={accs} txs={txs} totI={totI} totG={totG} totalDebt={totalDebt} proximos={proximosItems} upcomingNet={upcomingNet} netWorth={netWorth} projection={projection} fx={fx} period={period} onPeriod={setPeriod} periodLabel={periodLabel} comparison={comparison} monthlyData={monthlyData} catData={catData} onEditAcc={(a) => setEditAcc({ ...a })} onNewAcc={() => setMNewAcc(true)} onGoHist={() => setTab("hist")} nombre={userName} onArranque={() => setTab("arranque")} onAddCredit={() => { setTab("creditos"); setMCredit(true); }} onCapture={() => { setFab(true); startMic(); }} />}
-        {tab === "metas" && <Metas budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
+      <main className="app-main" aria-labelledby="app-title">
+        {(tab === "hist" || tab === "analisis") && <div className="segmented" aria-label="Actividad"><button aria-pressed={tab === "hist"} onClick={() => setTab("hist")}>Movimientos</button><button aria-pressed={tab === "analisis"} onClick={() => setTab("analisis")}>Análisis</button></div>}
+        {["accs", "creditos", "patrimonio"].includes(tab) && <><div className="segmented" aria-label="Mi dinero">{([["accs", "Cuentas"], ["creditos", "Créditos"], ["patrimonio", "Patrimonio"]] as [Tab, string][]).map(([key, label]) => <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}</div>{tab !== "patrimonio" && <div style={{ display: "flex", justifyContent: "flex-end" }}><PrivacyButton/></div>}</>}
+        {tab === "dash" && <Dashboard balance={totBal} hasAccounts={accs.length > 0} txs={txs} income={totI} spend={totG} upcoming={proximosItems} budget={totalBudget} onAccounts={() => setTab("accs")} onNewAccount={() => setMNewAcc(true)} onCredit={() => { setTab("creditos"); if (!credits.length) setMCredit(true); }} onPlans={(section) => { setPlanSection(section); setTab("metas"); }} onAnalysis={() => setTab("analisis")} onHistory={() => setTab("hist")} onCapture={() => setFab(true)} onEditTx={setEditTx}/>}
+        {tab === "analisis" && <Analisis txs={txs} categories={categories} complete={historialCompleto} onLoadAll={completarHistorial} onAsk={openAssistant} projection={projection}/>}
+        {tab === "asistente" && <Asistente aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} aiUso={aiUso}/>}
+        {tab === "patrimonio" && <Patrimonio balance={totBal} debt={totalDebt} history={netWorth} complete={historialCompleto}/>}
+        {tab === "metas" && <Metas section={planSection} onSection={setPlanSection} budgetProgress={budgetProgress} totalBudget={totalBudget} onSetTotalBudget={() => setMTotalBudget(true)} goals={goals} recurring={recurring} onNewRecurring={() => setMRecurring(true)} onEditRecurring={setEditRecurring} onToggleRecurring={toggleRecurring} onAddBudget={() => setMBudget(true)} onManageCategories={() => setMCats(true)} onDeleteBudget={askDeleteBudget} onNewGoal={() => { setGoalForm(emptyGoalForm); setMGoal(true); }} onEditGoal={(g) => setEditGoal({ ...g })} onAddToGoal={setMAddToGoal} />}
         {tab === "creditos" && <Creditos credits={credits} totalDebt={totalDebt} onEdit={(c) => setEditCredit({ ...c })} onAdd={() => setMCredit(true)} onPay={setPayCredit} />}
-        {tab === "analisis" && <Analisis aiMsgs={aiMsgs} aiLoading={aiLoading} aiInput={aiInput} setAiInput={setAiInput} onSend={sendAnalysis} actionContext={actionContext} onConfirmAction={confirmAction} onDismissAction={dismissAction} aiUso={aiUso} />}
-        {tab === "hist" && <Historial txs={txs} totalTxs={totalTxs} historialCompleto={historialCompleto} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} onCapture={() => { setFab(true); startMic(); }} />}
+        {tab === "hist" && <Historial txs={txs} totalTxs={totalTxs} historialCompleto={historialCompleto} accs={accs} onDelete={deleteTx} onEdit={setEditTx} onImport={() => setMImport(true)} onCapture={() => setFab(true)} />}
         {tab === "accs" && <Cuentas accs={accs} txs={txs} historialCompleto={historialCompleto} fx={fx} onEdit={(a) => setEditAcc({ ...a })} onNew={() => setMNewAcc(true)} />}
-        {tab === "perfil" && <Perfil profile={profile} email={session.user?.email ?? ""} txs={txs} totalTxs={totalTxs} historialCompleto={historialCompleto} onCargarTodo={completarHistorial} onChangePassword={() => setMPass(true)} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} onCancelDeletion={cancelarBorrado} aiUso={aiUso} />}
-      </div>
-
-      {/* Barra de pestañas fija abajo: en un teléfono el pulgar llega ahí,
-          y así no se pierde al scrollear. */}
-      <nav aria-label="Secciones" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 30, display: "flex", background: C.surface, borderTop: `1px solid ${C.border}33`, paddingBottom: "env(safe-area-inset-bottom,0px)", boxShadow: "0 -4px 16px #00000055" }}>
-        {([["dash", "inicio", "Inicio"], ["metas", "metas", "Metas"], ["creditos", "creditos", "Créditos"], ["analisis", "asesor", "Análisis"], ["hist", "historial", "Historial"], ["accs", "cuentas", "Cuentas"]] as [Tab, IconName, string][]).map(([k, icon, label]) => (
-          <button key={k} onClick={() => setTab(k)} aria-current={tab === k ? "page" : undefined} style={{ flex: 1, minWidth: 0, padding: "9px 2px 7px", background: "none", border: "none", cursor: "pointer", borderTop: tab === k ? `2px solid ${C.accent}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <span style={{ color: tab === k ? C.aLight : C.muted, display: "flex" }}><Icon name={icon} size={22} strokeWidth={tab === k ? 2.2 : 1.8} /></span>
-            <span style={{ fontSize: T.xs, color: tab === k ? C.aLight : C.muted, fontWeight: tab === k ? 700 : 400, whiteSpace: "nowrap" }}>{label}</span>
-          </button>
-        ))}
-      </nav>
+        {tab === "perfil" && <Perfil profile={profile} email={session.user?.email ?? ""} txs={txs} totalTxs={totalTxs} historialCompleto={historialCompleto} onCargarTodo={completarHistorial} onChangePassword={() => setMPass(true)} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} onCancelDeletion={cancelarBorrado} onConfigure={() => setTab("arranque")} aiUso={aiUso} />}
+      </main>
+      <nav className="bottom-nav" aria-label="Navegación principal"><div className="bottom-nav-inner">
+        {([["dash", "inicio", "Inicio"], ["hist", "grafico", "Actividad"], ["accs", "cuentas", "Mi dinero"], ["metas", "metas", "Planes"]] as [Tab, IconName, string][]).map(([key, icon, label]) => {
+          const active = tab === key || (key === "hist" && tab === "analisis") || (key === "accs" && ["creditos", "patrimonio"].includes(tab));
+          return <button key={key} aria-current={active ? "page" : undefined} onClick={() => setTab(key)}><Icon name={icon} size={22}/><span>{label}</span></button>;
+        })}
+      </div></nav>
 
       {/* FAB + sheet */}
       <Fab
         fab={fab}
-        // Un solo toque para empezar a hablar: abrir el sheet enciende el
-        // micrófono. `startMic` corre dentro del gesto del click, que es lo
-        // que el navegador exige para conceder el permiso.
-        onOpen={() => { setFab(true); startMic(); }}
-        onClose={() => setFab(false)}
-        mic={mic} live={live} txLoading={txLoading} txInput={txInput} setTxInput={setTxInput}
+        showHint={!captureLearned && txs.length === 0 && accs.length > 0}
+        // El + abre opciones; el micrófono comienza solo desde Registrar por voz.
+        onOpen={() => setFab(true)}
+        onClose={() => { cancelCapture(); setFab(false); }}
+        mic={mic} micStarting={micStarting} live={live} txLoading={txLoading} txInput={txInput} setTxInput={setTxInput}
         voiceOK={voiceOK} startMic={startMic} stopMic={stopMic} onSend={sendTx}
-        onManual={() => { setFab(false); setMMan(true); }}
-        onTransfer={() => { setFab(false); setMTransfer(true); }}
+        onAddAccount={() => { stopMic(); cancelCapture(); setFab(false); resumeCapture.current = true; setMNewAcc(true); }}
+        onManual={() => { stopMic(); cancelCapture(); setFab(false); setMMan(true); }}
+        onTransfer={() => { stopMic(); cancelCapture(); setFab(false); setMTransfer(true); }}
         accs={accs}
         draft={draft}
         draftError={draftError}
         updateDraft={updateDraft}
-        onConfirmDraft={async () => { if (await confirmDraft()) { void vibrar(); setFab(false); } }}
+        onConfirmDraft={async () => { if (await confirmDraft()) { setCaptureLearned(true); void vibrar(); setFab(false); } }}
         onDiscardDraft={() => { discardDraft(); setFab(false); }}
         accDraft={accDraft}
         updateAccDraft={updateAccDraft}
@@ -1164,14 +1128,14 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
       <Toasts toasts={toasts} onDismiss={dismiss} />
 
       {/* Modal: Nueva cuenta */}
-      {mNewAcc && <AccountModal mode="new" form={newAcc} update={(p) => setNewAcc((f) => ({ ...f, ...p }))} onSave={saveNewAcc} onClose={() => setMNewAcc(false)} />}
+      {mNewAcc && <AccountModal mode="new" form={newAcc} update={(p) => setNewAcc((f) => ({ ...f, ...p }))} onSave={saveNewAcc} onClose={() => { setMNewAcc(false); if (resumeCapture.current) { resumeCapture.current = false; setFab(true); } }} />}
 
       {/* Modal: Editar cuenta */}
       {editAcc && <AccountModal mode="edit" form={editAcc} update={(p) => setEditAcc((a) => (a ? { ...a, ...p } : a))} onSave={saveEditAcc} onRemove={() => askRemoveAccount(editAcc)} onClose={() => setEditAcc(null)} />}
 
       {/* Modal: Créditos */}
-      {mCredit && <Modal onClose={() => setMCredit(false)}><CreditForm onSave={saveNewCredit} onClose={() => setMCredit(false)} /></Modal>}
-      {editCredit && <Modal onClose={() => setEditCredit(null)}><CreditForm initial={editCredit} onSave={saveEditCredit} onDelete={(id) => askDeleteCredit(id, editCredit.name)} onClose={() => setEditCredit(null)} /></Modal>}
+      {mCredit && <CreditForm onSave={saveNewCredit} onClose={() => setMCredit(false)} />}
+      {editCredit && <CreditForm initial={editCredit} onSave={saveEditCredit} onDelete={(id) => askDeleteCredit(id, editCredit.name)} onClose={() => setEditCredit(null)} />}
 
       {/* Modal: Nuevo presupuesto */}
       {mBudget && <BudgetModal budgetCat={budgetCat} budgetAmt={budgetAmt} onCat={setBudgetCat} onAmt={setBudgetAmt} rollover={budgetRollover} onRollover={setBudgetRollover} onSave={saveBudget} onClose={() => setMBudget(false)} />}

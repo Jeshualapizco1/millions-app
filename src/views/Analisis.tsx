@@ -1,127 +1,35 @@
-import { useEffect, useRef } from "react";
-import { C, R, S, T } from "../lib/constants";
-import { describeAction } from "../lib/actions";
-import type { ActionContext } from "../lib/actions";
-import { textoAiUso, type AiUso } from "../lib/aiUso";
-import type { AiMsg, ProposedAction } from "../types";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { Skeleton } from "../components/Skeleton";
+import Icon from "../components/Icon";
+import Money, { PrivacyButton, useMoneyPrivacy } from "../components/Money";
+import { monthSummary } from "../lib/presentation";
+import { monthLabel } from "../lib/format";
+import type { Category, Transaction } from "../types";
+import type { Projection } from "../lib/analytics";
+const MonthlyChart = lazy(() => import("../components/charts/MonthlyChart"));
 
-const QUICK_QUESTIONS = ["¿Cómo voy con mis presupuestos?", "¿Cuál es mi patrimonio neto?", "¿Cómo voy a cerrar el mes?", "Dame recomendaciones", "¿En qué gasto más?"];
-
-const ACTION_LABEL: Record<string, string> = {
-  transferir: "Transferir",
-  pagar_credito: "Registrar pago",
-  registrar_movimiento: "Registrar movimiento",
-  crear_presupuesto: "Crear presupuesto",
-  abonar_meta: "Abonar a meta",
-};
-
-export default function Analisis({
-  aiMsgs,
-  aiLoading,
-  aiInput,
-  setAiInput,
-  onSend,
-  actionContext,
-  onConfirmAction,
-  onDismissAction,
-  aiUso,
-}: {
-  aiMsgs: AiMsg[];
-  aiLoading: boolean;
-  aiInput: string;
-  setAiInput: (v: string) => void;
-  onSend: (text: string) => void;
-  actionContext: () => ActionContext;
-  onConfirmAction: (a: ProposedAction) => void;
-  onDismissAction: (a: ProposedAction) => void;
-  /** Consumo del día; null mientras no se sepa. */
-  aiUso: AiUso | null;
+export default function Analisis({ txs, categories, complete, onLoadAll, onAsk, projection, now = new Date() }: {
+  txs: Transaction[]; categories: Category[]; complete: boolean; onLoadAll: () => Promise<unknown>; onAsk: (question: string) => void; projection: Projection; now?: Date;
 }) {
-  const uso = textoAiUso(aiUso);
-  const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [aiMsgs]);
-  return (
-    <div className="fadeUp">
-      <div style={S.card}>
-        <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>🤖 Asesor Financiero</div>
-        <div style={{ fontSize: T.md, color: C.muted, marginBottom: uso ? 6 : 14 }}>Analizo cuentas, gastos, créditos, presupuestos y metas en tiempo real.</div>
-        {/* Que nadie se entere del tope por un error: el número va a la vista
-            y cuenta también la captura por voz, que pasa por la misma puerta. */}
-        {uso && (
-          <div style={{ fontSize: T.sm, color: uso.agotado ? C.amber : C.muted, marginBottom: 14, fontWeight: uso.agotado ? 600 : 400 }}>
-            {uso.agotado ? "⏳ " : ""}{uso.texto}{uso.agotado ? "" : " Cuentan también las capturas por voz."}
-          </div>
-        )}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-          {QUICK_QUESTIONS.map((q) => (
-            <button key={q} onClick={() => onSend(q)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: R.lg, padding: "6px 12px", fontSize: T.sm, color: C.aLight, cursor: "pointer" }}>{q}</button>
-          ))}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 200, maxHeight: 400, overflowY: "auto", marginBottom: 14 }}>
-          {aiMsgs.map((m, i) => (
-            <div key={i} className="msg" style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", gap: 8 }}>
-              <div style={{ maxWidth: "85%", background: m.role === "user" ? C.accent : C.surface, border: m.role === "assistant" ? `1px solid ${C.border}44` : "none", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "10px 14px", fontSize: T.base, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{m.text}</div>
-              {m.action && <ActionCard action={m.action} resolved={m.resolved} busy={aiLoading} actionContext={actionContext} onConfirm={onConfirmAction} onDismiss={onDismissAction} />}
-            </div>
-          ))}
-          {aiLoading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ background: C.surface, border: `1px solid ${C.border}44`, borderRadius: "18px 18px 18px 4px", padding: "10px 14px", fontSize: T.base, color: C.muted }}>Analizando…</div></div>}
-          <div ref={endRef} />
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input style={{ ...S.inp, flex: 1 }} placeholder="Pregunta sobre tus finanzas…" value={aiInput} onChange={(e) => setAiInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onSend(aiInput.trim())} />
-          <button style={{ ...S.btn(), padding: "12px 16px" }} onClick={() => onSend(aiInput.trim())} disabled={aiLoading || !aiInput.trim()}>↑</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Tarjeta de confirmación. Nada se ejecuta hasta que la persona toca el botón:
- * la IA propone, la persona decide.
- */
-function ActionCard({
-  action,
-  resolved,
-  busy,
-  actionContext,
-  onConfirm,
-  onDismiss,
-}: {
-  action: ProposedAction;
-  resolved?: "hecho" | "descartado" | "en_curso";
-  /** Mientras algo corre, ninguna tarjeta acepta toques. */
-  busy: boolean;
-  actionContext: () => ActionContext;
-  onConfirm: (a: ProposedAction) => void;
-  onDismiss: (a: ProposedAction) => void;
-}) {
-  let detalle: string;
-  try {
-    detalle = describeAction(action, actionContext());
-  } catch (e: any) {
-    detalle = e?.message || "No se pudo preparar la acción";
-    resolved = resolved ?? "descartado";
-  }
-
-  const hecho = resolved === "hecho";
-  const enCurso = resolved === "en_curso";
-  const borde = hecho ? C.green : enCurso ? C.accent : resolved ? C.border : C.accent;
-
-  return (
-    <div style={{ maxWidth: "85%", width: "100%", background: C.card, border: `1px solid ${borde}66`, borderLeft: `3px solid ${borde}`, borderRadius: 14, padding: "12px 14px" }}>
-      <div style={{ fontSize: T.xs, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700, marginBottom: 6 }}>
-        {hecho ? "✅ Hecho" : enCurso ? "⏳ Ejecutando…" : resolved ? "Descartado" : "Confirma para continuar"}
-      </div>
-      <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.5, whiteSpace: "pre-wrap", marginBottom: resolved ? 0 : 12 }}>{detalle}</div>
-      {!resolved && (
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => onDismiss(action)} disabled={busy} style={{ ...S.btnO, flex: 1, padding: "9px 14px", fontSize: T.md, opacity: busy ? 0.5 : 1 }}>No</button>
-          <button onClick={() => onConfirm(action)} disabled={busy} style={{ ...S.btn(), flex: 2, padding: "9px 14px", fontSize: T.md, opacity: busy ? 0.5 : 1 }}>
-            {ACTION_LABEL[action.name] ?? "Confirmar"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  const [offset, setOffset] = useState(0);
+  const selected = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const year = selected.getFullYear(), month = selected.getMonth();
+  const summary = useMemo(() => monthSummary(txs, year, month, categories), [txs, year, month, categories]);
+  const history = useMemo(() => Array.from({ length: 6 }, (_, i) => { const d = new Date(year, month - 5 + i, 1); const m = monthSummary(txs, d.getFullYear(), d.getMonth(), categories); return { label: monthLabel(d), ingresos: m.income, gastos: m.spend }; }), [txs, year, month, categories]);
+  const label = selected.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+  const { hidden } = useMoneyPrivacy();
+  return <div className="fadeUp">
+    <div className="chart-month-picker"><button className="icon-button" onClick={() => setOffset((v) => v - 1)} aria-label="Mes anterior"><Icon name="atras"/></button><h2 style={{ textTransform: "capitalize" }}>{label}</h2><button className="icon-button" onClick={() => setOffset((v) => Math.min(v + 1, 0))} disabled={offset >= 0} aria-label="Mes siguiente"><Icon name="flecha"/></button><PrivacyButton/></div>
+    {!complete && <p role="status" className="hint">Los datos históricos aún están cargando. <button className="text-link" onClick={() => void onLoadAll()}>Cargar historial completo</button></p>}
+    <div className="month-stats"><div><p>Ingresos</p><Money value={summary.income} size="stat"/></div><div><p>Gastos</p><Money value={summary.spend} size="stat"/></div></div>
+    <div className="section-head" style={{ marginTop: 18 }}><span className="hint">Diferencia del mes</span><Money value={summary.income-summary.spend} signed/></div>
+    <button onClick={() => onAsk(`Ayúdame a entender mis ingresos, gastos y categorías de ${label}. Usa ese mes como período y distingue los datos registrados de las estimaciones.`)} className="text-link"><Icon name="asesor" size={19}/>Preguntar sobre este mes<Icon name="flecha" size={16}/></button>
+    <section className="section"><h2>Ingresos vs. gastos</h2><p className="hint" style={{ margin: "8px 0 18px" }}>Últimos seis meses hasta {label}. Las transferencias y pagos a créditos no son consumo.</p>
+      {hidden ? <p className="hint">Gráfico oculto</p> : <><div style={{ height: 210 }}><Suspense fallback={<Skeleton h={210}/>}><MonthlyChart data={history}/></Suspense></div><details style={{ marginTop: 14 }}><summary className="hint">Ver cifras del gráfico</summary><table className="chart-table"><thead><tr><th>Mes</th><th>Ingresos</th><th>Gastos</th></tr></thead><tbody>{history.map((h) => <tr key={h.label}><td>{h.label}</td><td><Money value={h.ingresos}/></td><td><Money value={h.gastos}/></td></tr>)}</tbody></table></details></>}
+    </section>
+    <section className="section"><h2>Gastos por categoría</h2><p className="hint" style={{ margin: "8px 0 12px" }}>Qué pesó más en {label}.</p>
+      {summary.categories.length === 0 ? <div className="empty-state"><Icon name="grafico" size={32}/><p>Sin gastos registrados en este mes. Tus categorías aparecerán al registrar un gasto.</p></div> : summary.categories.map((d) => <div key={d.label} style={{ padding: "14px 0" }}><div className="section-head" style={{ marginBottom: 0 }}><span>{d.icon} {d.label}</span><Money value={d.value}/></div>{!hidden && <><div className="category-track"><span style={{ width: `${summary.spend > 0 ? d.value/summary.spend*100 : 0}%`, background: d.color }}/></div><p className="hint" style={{ marginTop: 5 }}>{summary.spend > 0 ? Math.round(d.value/summary.spend*100) : 0}% del gasto</p></>}</div>)}
+    </section>
+    {offset === 0 && summary.rows.length > 0 && <section className="section"><h2>Proyección de cierre</h2><p className="hint" style={{ margin: "8px 0 12px" }}>Estimación según tus registros, el ritmo del mes y los fijos disponibles. Puede cambiar; no es un saldo garantizado.</p><div className="month-stats"><div><p>Gasto estimado</p><Money value={projection.projectedSpend} size="stat"/></div><div><p>Diferencia estimada</p><Money value={projection.projectedNet} size="stat"/></div></div></section>}
+  </div>;
 }

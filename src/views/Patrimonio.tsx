@@ -1,0 +1,9 @@
+import { lazy, Suspense } from "react";
+import Money, { PrivacyButton, useMoneyPrivacy } from "../components/Money";
+import { Skeleton } from "../components/Skeleton";
+import type { NetWorthPoint } from "../lib/analytics";
+const NetWorthChart = lazy(() => import("../components/NetWorthChart"));
+export default function Patrimonio({ balance, debt, history, complete }: { balance: number; debt: number; history: NetWorthPoint[]; complete: boolean }) {
+  const { hidden } = useMoneyPrivacy();
+  return <div className="fadeUp"><div className="balance-stack"><section className="balance-hero"><div className="section-head"><span>Patrimonio registrado</span><PrivacyButton/></div><Money value={balance - debt} size="hero"/><p className="hint">Tus cuentas menos tus deudas.</p></section></div><div className="month-stats"><div><p>En cuentas</p><Money value={balance} size="stat"/></div><div><p>Deuda registrada</p><Money value={debt} size="stat"/></div></div><p className="hint" style={{ margin: "20px 0" }}>Esta cifra es parcial: no incluye el valor de inmuebles, autos ni otros bienes que no estén registrados como saldo. Las metas no se suman de nuevo.</p><section className="section"><h2>Cómo ha cambiado</h2><p className="hint" style={{ margin: "8px 0 18px" }}>Reconstrucción estimada a partir del historial. Ajustar saldos o deudas manualmente puede cambiarla.</p>{!complete ? <p className="hint">Esperando el historial completo.</p> : hidden ? <p className="hint">Gráfico oculto</p> : <><div style={{ height: 210 }}><Suspense fallback={<Skeleton h={210}/>}><NetWorthChart data={history}/></Suspense></div><details><summary className="hint">Ver cifras</summary><table className="chart-table"><thead><tr><th>Mes</th><th>Patrimonio estimado</th></tr></thead><tbody>{history.map((h) => <tr key={h.label}><td>{h.label}</td><td><Money value={h.net}/></td></tr>)}</tbody></table></details></>}</section></div>;
+}

@@ -4,8 +4,12 @@ import App from "./App";
 import { sbClient } from "./lib/supabase";
 import AuthScreen from "./views/AuthScreen";
 import Publica, { esRutaPublica } from "./views/Publica";
+import { useAppearance } from "./lib/appearance";
+import { C } from "./lib/constants";
+import { MoneyPrivacy } from "./components/Money";
 
 export default function Root() {
+  useAppearance();
   // Las páginas legales y de soporte se sirven sin sesión: las tiendas piden
   // una URL pública de privacidad y de soporte, y la ley pide que el aviso
   // esté disponible en todo momento, no solo detrás del login.
@@ -27,11 +31,10 @@ export default function Root() {
     setSession(null);
   };
   if (checking) return (
-    <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0a0f", flexDirection: "column", gap: 16 }}>
-      <div style={{ fontSize: 52 }}>💰</div>
-      <div style={{ width: 28, height: 28, border: "3px solid #7c6af7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+    <div role="status" aria-label="Cargando tu sesión" style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg, flexDirection: "column", gap: 16 }}>
+      <div style={{ width: 28, height: 28, border: `3px solid ${C.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
     </div>
   );
   if (!session) return <AuthScreen onAuth={setSession} />;
-  return <App session={session} onSignOut={signOut} />;
+  return <MoneyPrivacy key={session.user.id}><App session={session} onSignOut={signOut} /></MoneyPrivacy>;
 }

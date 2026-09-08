@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import Root from "./Root";
 import { installErrorHandlers } from "./lib/errorLog";
 import { arrancarNativo, esNativo } from "./lib/native";
+import "./design.css";
 
 installErrorHandlers();
 

@@ -9,9 +9,25 @@
 export type IconName =
   | "inicio" | "metas" | "creditos" | "asesor" | "historial" | "cuentas"
   | "editar" | "borrar" | "pausar" | "reanudar"
-  | "llave" | "salir" | "exportar" | "candado" | "documento" | "mas" | "microfono";
+  | "llave" | "salir" | "exportar" | "candado" | "documento" | "mas" | "microfono"
+  | "grafico" | "perfil" | "ojo" | "ojo-cerrado" | "flecha" | "atras" | "cerrar"
+  | "check" | "repetir" | "transferir" | "sonido" | "silencio" | "sol" | "luna";
 
 const PATHS: Record<IconName, string> = {
+  grafico: "M4 20h16M6 16v-5M12 16V4M18 16V8",
+  perfil: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2",
+  ojo: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  "ojo-cerrado": "M3 3l18 18M10 5c7-1 12 7 12 7s-1 2-3 4M6 6c-3 2-4 6-4 6s4 7 10 7c2 0 4-1 5-2M10 10a3 3 0 0 0 4 4",
+  flecha: "M5 12h14M13 6l6 6-6 6",
+  atras: "M19 12H5M11 6l-6 6 6 6",
+  cerrar: "M6 6l12 12M6 18L18 6",
+  check: "M5 12l4 4L19 6",
+  repetir: "M3 11V5h6M3 5a9 9 0 0 1 17 5M21 13v6h-6M21 19a9 9 0 0 1-17-5",
+  transferir: "M3 7h18M17 3l4 4-4 4M21 17H3M7 13l-4 4 4 4",
+  sonido: "M11 4L6 8H2v8h4l5 4zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14",
+  silencio: "M11 4L6 8H2v8h4l5 4zM16 9l6 6M16 15l6-6",
+  sol: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M2 12h2M20 12h2M5 5l1 1M18 18l1 1M5 19l1-1M18 6l1-1",
+  luna: "M20 15A9 9 0 0 1 9 4a9 9 0 1 0 11 11z",
   inicio: "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
   metas: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z",
   creditos: "M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM2 10h20M6 15h4",

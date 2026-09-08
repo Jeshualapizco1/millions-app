@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import Icon from "../components/Icon";
 import TxRow from "../components/TxRow";
 import { C, R, S, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
@@ -75,13 +76,13 @@ export default function Historial({
 
   return (
     <div className="fadeUp">
-      <div style={S.card}>
+      <section>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Historial</div>
+          <span style={{ color: C.muted, fontSize: T.sm }}>Tus movimientos</span>
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={onImport} title="Importar del banco" style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📥 Importar</button>
+            <button onClick={onImport} title="Importar del banco" style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>Importar</button>
             {filtered.length > 0 && (
-              <button onClick={() => exportCSV(filtered)} title={historialCompleto ? "Exporta lo que estás viendo" : "Exporta lo que estás viendo; el historial viejo todavía se está cargando"} style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>📤 Exportar</button>
+              <button onClick={() => exportCSV(filtered)} title={historialCompleto ? "Exporta lo que estás viendo" : "Exporta lo que estás viendo; el historial viejo todavía se está cargando"} style={{ ...S.btn(), padding: "7px 14px", fontSize: T.sm, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44` }}>Exportar</button>
             )}
           </div>
         </div>
@@ -89,37 +90,39 @@ export default function Historial({
         {/* Búsqueda */}
         <input
           style={{ ...S.inp, marginBottom: 10 }}
-          placeholder="Buscar por descripción…"
+          aria-label="Buscar movimientos" placeholder="Buscar por descripción…"
           value={q}
           onChange={(e) => { setQ(e.target.value); setShown(PAGE); }}
         />
 
+        <details style={{ marginBottom: 16 }}><summary style={{ color: C.aLight, cursor: "pointer", padding: "10px 0" }}>Filtrar{anyFilter ? " · Filtros activos" : ""}</summary>
         {/* Tipo */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8, overflowX: "auto", paddingBottom: 2 }}>
           {KIND_FILTERS.map((k) => (
-            <button key={k.key} onClick={() => { setKind(k.key); setShown(PAGE); }} style={chipStyle(kind === k.key)}>{k.label}</button>
+            <button key={k.key} aria-pressed={kind === k.key} onClick={() => { setKind(k.key); setShown(PAGE); }} style={chipStyle(kind === k.key)}>{k.label}</button>
           ))}
         </div>
 
         {/* Período */}
         <div style={{ display: "flex", gap: 6, marginBottom: 10, overflowX: "auto", paddingBottom: 2 }}>
           {PERIODS.map((p) => (
-            <button key={p.key} onClick={() => { setPeriod(p.key); setShown(PAGE); }} style={chipStyle(period === p.key)}>{p.label}</button>
+            <button key={p.key} aria-pressed={period === p.key} onClick={() => { setPeriod(p.key); setShown(PAGE); }} style={chipStyle(period === p.key)}>{p.label}</button>
           ))}
         </div>
 
         {/* Categoría y cuenta */}
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <select style={{ ...S.inp, flex: 1, padding: "10px 12px" }} value={cat} onChange={(e) => { setCat(e.target.value); setShown(PAGE); }}>
+          <select style={{ ...S.inp, flex: 1, minWidth: 0, padding: "10px 12px" }} aria-label="Filtrar categoría" value={cat} onChange={(e) => { setCat(e.target.value); setShown(PAGE); }}>
             <option value="">Toda categoría</option>
             {list.map((c) => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
           </select>
-          <select style={{ ...S.inp, flex: 1, padding: "10px 12px" }} value={accId} onChange={(e) => { setAccId(e.target.value); setShown(PAGE); }}>
+          <select style={{ ...S.inp, flex: 1, minWidth: 0, padding: "10px 12px" }} aria-label="Filtrar cuenta" value={accId} onChange={(e) => { setAccId(e.target.value); setShown(PAGE); }}>
             <option value="">Toda cuenta</option>
             {accs.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
           </select>
         </div>
 
+        </details>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <span style={{ fontSize: T.sm, color: C.muted }}>
             {filtered.length} {filtered.length === 1 ? "movimiento" : "movimientos"}
@@ -137,12 +140,12 @@ export default function Historial({
           // seco, el mismo gesto que el FAB y la salida del CSV para quien
           // trae el historial de su banco.
           <div style={{ textAlign: "center", padding: "20px 8px 8px" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+            <div style={{ color: C.aLight, marginBottom: 12 }}><Icon name="historial" size={32}/></div>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>Sin movimientos aún</div>
             <div style={{ fontSize: T.md, color: C.muted, lineHeight: 1.5, marginBottom: 18 }}>
               Toca ＋ y di algo como “gasté 200 en el Ley”, o importa el CSV de tu banco con el botón de arriba.
             </div>
-            <button onClick={onCapture} style={{ ...S.btn(), padding: "11px 18px" }}>🎙️ Capturar el primero</button>
+            <button onClick={onCapture} style={{ ...S.btn(), padding: "11px 18px" }}>Registrar mi primer movimiento</button>
           </div>
         )}
         {filtered.slice(0, shown).map((t) => <TxRow key={t.id} tx={t} onDelete={onDelete} onEdit={onEdit} />)}
@@ -151,7 +154,7 @@ export default function Historial({
             Ver más ({filtered.length - shown} restantes)
           </button>
         )}
-      </div>
+      </section>
     </div>
   );
 }

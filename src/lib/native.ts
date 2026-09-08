@@ -6,6 +6,7 @@
 // carga de forma perezosa para que la PWA no arrastre código que no usa.
 // ============================================================================
 import { Capacitor } from "@capacitor/core";
+import { hapticsEnabled, currentTheme, subscribeAppearance } from "./appearance";
 import { procesarEnlace } from "./enlace";
 
 /** true dentro de la app de iOS o Android; false en el navegador y la PWA. */
@@ -61,7 +62,9 @@ export async function arrancarNativo(): Promise<void> {
     import("@capacitor/app"),
   ]);
 
-  try { await StatusBar.setStyle({ style: Style.Dark }); } catch { /* iOS sin plugin en simulador viejo */ }
+  const syncStatusBar = () => { void StatusBar.setStyle({ style: currentTheme() === "dark" ? Style.Dark : Style.Light }).catch(() => {}); };
+  syncStatusBar();
+  subscribeAppearance(syncStatusBar);
   try { await StatusBar.setOverlaysWebView({ overlay: true }); } catch { /* solo Android */ }
   try { await SplashScreen.hide(); } catch { /* ya oculto */ }
   try { await Keyboard.setAccessoryBarVisible({ isVisible: false }); } catch { /* solo iOS */ }
@@ -93,7 +96,7 @@ export async function arrancarNativo(): Promise<void> {
 
 /** Un toque háptico breve al confirmar algo que mueve dinero. Silencioso en web. */
 export async function vibrar(): Promise<void> {
-  if (!esNativo()) return;
+  if (!esNativo() || !hapticsEnabled()) return;
   try {
     const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
     await Haptics.impact({ style: ImpactStyle.Light });

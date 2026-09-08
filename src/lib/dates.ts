@@ -25,6 +25,16 @@ export const toLocalDateISO = (d: Date | string = new Date()): string => {
   return `${x.getFullYear()}-${dos(x.getMonth() + 1)}-${dos(x.getDate())}`;
 };
 
+/** Valida un día de captura y conserva la hora local al convertirlo a instante. */
+export function captureDateISO(day: string, now = new Date()): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("Elige una fecha válida");
+  const date = parseDateOnly(day);
+  if (Number.isNaN(date.getTime()) || toLocalDateISO(date) !== day) throw new Error("Elige una fecha válida");
+  if (day > toLocalDateISO(now)) throw new Error("Para un movimiento futuro, usa un movimiento fijo");
+  date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return date.toISOString();
+}
+
 /**
  * Medianoche local del día 1 del mes de hace `meses`, como instante ISO.
  *
