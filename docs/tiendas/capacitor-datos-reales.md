@@ -2,6 +2,8 @@
 
 El diseño de la rama de integración usa el mismo cliente de Supabase y las mismas RPC que la app existente. El proyecto es Millions, referencia `wliksgpzgfidvakjubdu`; la API de IA es `https://app.millionsapp.io/.netlify/functions/chat`. Iniciar sesión es lo que permite ver los datos de cada persona. No se copian movimientos a una base nueva ni se introducen datos de ejemplo en el paquete nativo.
 
+Compilación Android e iOS comprobada en GitHub el 8 de septiembre de 2026. Ver [resultados y descargas](validacion-capacitor-14.md).
+
 ## Configuración
 
 Cada build genera `dist/client-config.json` con seis campos públicos: versión del formato, identificador de app, commit, URL de Supabase, llave publishable/anon y origen de IA. Son los mismos valores públicos presentes en el JavaScript que ya descarga cualquier instalación. La generación rechaza llaves de servidor. Las claves privadas de Supabase y Anthropic permanecen en el servidor.
