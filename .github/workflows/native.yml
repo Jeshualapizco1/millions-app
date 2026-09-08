@@ -54,9 +54,12 @@ jobs:
           java-version: 21
           cache: gradle
       - run: npm install --no-audit --no-fund
-      - name: Android SDK
+      - name: Comprobar el SDK incluido en el ejecutor
         if: matrix.platform == 'android'
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+        run: |
+          test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+          test -x "$ANDROID_HOME/build-tools/36.0.0/aapt2"
+          test -x "$ANDROID_HOME/platform-tools/adb"
       - name: Compilar el código con el backend del despliegue de este commit
         shell: bash
         run: |
@@ -69,7 +72,7 @@ jobs:
             ditto -c -k --sequesterRsrc --keepParent ios/App/build/native/Build/Products/Debug-iphonesimulator/App.app .native-build/Millions-iOS-simulator.zip
           fi
       - name: Guardar APK o app de simulador y evidencia
-        if: always()
+        if: always() && hashFiles('.native-build/**') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: Millions-${{ matrix.platform }}-${{ github.run_number }}
