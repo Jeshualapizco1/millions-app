@@ -4,7 +4,8 @@ import { clickable } from "../lib/a11y";
 import { C, R, S, T } from "../lib/constants";
 import { useCategories } from "../lib/categories";
 import { daysUntilDate } from "../lib/dates";
-import { fmt } from "../lib/format";
+import Money, { useMoneyPrivacy } from "../components/Money";
+import { dueLabel } from "../lib/presentation";
 import type { Goal, RecurringRule } from "../types";
 import type { BudgetProgress } from "../lib/budgets";
 import type { TotalBudget } from "../lib/budgets";
@@ -19,6 +20,7 @@ const FREQ_LABEL: Record<string, string> = {
 };
 
 export default function Metas({
+  section, onSection,
   budgetProgress,
   totalBudget,
   onSetTotalBudget,
@@ -34,6 +36,8 @@ export default function Metas({
   onEditRecurring,
   onToggleRecurring,
 }: {
+  section: "presupuestos" | "metas" | "fijos";
+  onSection: (section: "presupuestos" | "metas" | "fijos") => void;
   budgetProgress: BudgetWithProgress[];
   totalBudget: TotalBudget | null;
   onSetTotalBudget: () => void;
@@ -50,13 +54,15 @@ export default function Metas({
   onToggleRecurring: (r: RecurringRule) => void;
 }) {
   const { look } = useCategories();
+  const { hidden } = useMoneyPrivacy();
   return (
     <div className="fadeUp">
+      <div className="segmented" aria-label="Planes">{[["presupuestos","Presupuestos"],["metas","Metas"],["fijos","Fijos"]].map(([key,label]) => <button key={key} aria-pressed={section === key} onClick={() => onSection(key as typeof section)}>{label}</button>)}</div>
       {/* Movimientos fijos */}
-      <div style={S.card}>
+      <section hidden={section !== "fijos"}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: T.lg }}>🔁 Movimientos fijos</div>
+            <div style={{ fontWeight: 800, fontSize: T.lg }}>Movimientos fijos</div>
             <div style={{ fontSize: T.sm, color: C.muted, marginTop: 2 }}>Se registran solos cada período</div>
           </div>
           <button onClick={onNewRecurring} style={{ ...S.btn(), padding: "8px 14px", fontSize: T.md }}>＋ Agregar</button>
@@ -68,7 +74,7 @@ export default function Metas({
         )}
         {recurring.map((r) => {
           const dias = daysUntilDate(r.next_run);
-          const proximo = dias === null ? "" : dias <= 0 ? "hoy" : dias === 1 ? "mañana" : `en ${dias} días`;
+          const proximo = dias === null ? "" : dueLabel(dias);
           return (
             <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: `1px solid ${C.border}22`, opacity: r.active ? 1 : 0.5 }}>
               <div {...clickable(() => onEditRecurring(r))} aria-label={`Editar ${r.name}`} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}>
@@ -84,7 +90,7 @@ export default function Metas({
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: T.base, color: r.kind === "gasto" ? C.red : C.green }}>
-                  {r.kind === "gasto" ? "-" : "+"}{fmt(r.amount)}
+                  <Money value={r.kind === "gasto" ? -r.amount : r.amount} signed/>
                 </div>
                 <button
                   onClick={() => onToggleRecurring(r)}
@@ -98,17 +104,17 @@ export default function Metas({
             </div>
           );
         })}
-      </div>
+      </section>
 
       {/* Presupuestos */}
-      <div id="presupuestos" style={{ ...S.card, scrollMarginTop: 90 }}>
+      <section hidden={section !== "presupuestos"} id="presupuestos" style={{ scrollMarginTop: 90 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: T.lg }}>📋 Presupuestos</div>
+            <div style={{ fontWeight: 800, fontSize: T.lg }}>Presupuestos</div>
             <div style={{ fontSize: T.sm, color: C.muted, marginTop: 2 }}>Límites mensuales por categoría</div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={onManageCategories} title="Gestionar categorías" style={{ ...S.btnO, padding: "8px 12px", fontSize: T.md }}>🏷️</button>
+            <button onClick={onManageCategories} title="Gestionar categorías" aria-label="Gestionar categorías" style={{ ...S.btnO, padding: "8px 12px", fontSize: T.md }}><Icon name="historial" size={18}/></button>
             <button onClick={onAddBudget} style={{ ...S.btn(), padding: "8px 14px", fontSize: T.md }}>＋ Agregar</button>
           </div>
         </div>
@@ -118,13 +124,11 @@ export default function Metas({
             <>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                 <span style={{ fontSize: T.md, fontWeight: 600 }}>Techo del mes</span>
-                <span style={{ fontSize: T.sm, color: C.muted }}>{fmt(totalBudget.spent)} / {fmt(totalBudget.limit)}</span>
+                <span style={{ fontSize: T.sm, color: C.muted }}><Money value={totalBudget.spent}/> / <Money value={totalBudget.limit}/></span>
               </div>
               <ProgressBar pct={Math.min(totalBudget.pct, 100)} color={totalBudget.pct >= 100 ? C.red : totalBudget.pct >= 80 ? C.amber : C.green} animated />
               <div style={{ fontSize: T.xs, marginTop: 4, color: totalBudget.willExceed ? C.amber : C.muted, fontWeight: totalBudget.willExceed ? 600 : 400 }}>
-                {totalBudget.willExceed
-                  ? `⚠️ Al ritmo actual cerrarías en ${fmt(totalBudget.projected)}, por encima del techo`
-                  : `Al ritmo actual cerrarías en ${fmt(totalBudget.projected)}`}
+                {hidden ? "Proyección oculta" : <>Al ritmo actual cerrarías en <Money value={totalBudget.projected}/>{totalBudget.willExceed ? ", por encima del techo" : ""}</>}
               </div>
             </>
           ) : (
@@ -144,24 +148,24 @@ export default function Metas({
                   <span style={{ fontSize: T.base, fontWeight: 600 }}>{b.category}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: T.sm, color: C.muted }}>{fmt(b.spent)} / {fmt(b.available)}</span>
-                  <button onClick={() => onDeleteBudget(b.id)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: T.md }}>✕</button>
+                  <span style={{ fontSize: T.sm, color: C.muted }}><Money value={b.spent}/> / <Money value={b.available}/></span>
+                  <button aria-label={`Eliminar presupuesto de ${b.category}`} onClick={() => onDeleteBudget(b.id)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: T.md }}>✕</button>
                 </div>
               </div>
               <ProgressBar pct={pctCapped} color={barColor} animated />
               <div style={{ fontSize: T.xs, color: barColor, marginTop: 3, fontWeight: 600 }}>
-                {b.pct >= 100 ? `⚠️ Excedido por ${fmt(b.spent - b.available)}` : `${b.pct}% usado — queda ${fmt(b.available - b.spent)}`}{b.carried > 0 ? ` · incluye ${fmt(b.carried)} del mes pasado` : ""}
+                {hidden ? "Progreso oculto" : <>{b.pct >= 100 ? <>Excedido por <Money value={b.spent - b.available}/></> : <>{b.pct}% usado · Queda <Money value={b.available - b.spent}/></>}{b.carried > 0 && <> · Incluye <Money value={b.carried}/> del mes pasado</>}</>}
               </div>
             </div>
           );
         })}
-      </div>
+      </section>
 
       {/* Metas de ahorro */}
-      <div style={S.card}>
+      <section hidden={section !== "metas"}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: T.lg }}>🎯 Metas de ahorro</div>
+            <div style={{ fontWeight: 800, fontSize: T.lg }}>Metas de ahorro</div>
             <div style={{ fontSize: T.sm, color: C.muted, marginTop: 2 }}>Objetivos financieros</div>
           </div>
           <button onClick={onNewGoal} style={{ ...S.btn(), padding: "8px 14px", fontSize: T.md }}>＋ Nueva</button>
@@ -186,23 +190,23 @@ export default function Metas({
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => onAddToGoal(g)} style={{ background: g.color + "22", border: `1px solid ${g.color}44`, color: g.color, borderRadius: 8, padding: "5px 10px", fontSize: T.sm, cursor: "pointer", fontWeight: 600 }}>＋ Abonar</button>
-                  <button onClick={() => onEditGoal(g)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 15 }}>✏️</button>
+                  <button aria-label={`Editar meta ${g.name}`} onClick={() => onEditGoal(g)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 15 }}><Icon name="editar" size={18}/></button>
                 </div>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                 <span style={{ fontSize: T.md, color: C.muted }}>Ahorrado</span>
-                <span style={{ fontSize: T.base, fontWeight: 700, color: barColor }}>{fmt(g.current_amount)} <span style={{ color: C.muted, fontWeight: 400 }}>/ {fmt(g.target_amount)}</span></span>
+                <span style={{ fontSize: T.base, fontWeight: 700, color: barColor }}><Money value={g.current_amount}/> <span style={{ color: C.muted, fontWeight: 400 }}>/ <Money value={g.target_amount}/></span></span>
               </div>
               <ProgressBar pct={pct} color={barColor} animated style={{ marginBottom: 6 }} />
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: T.xs, color: barColor, fontWeight: 600 }}>{pct >= 100 ? "✅ ¡Meta alcanzada!" : `${pct}% completado`}</span>
-                {remaining > 0 && <span style={{ fontSize: T.xs, color: C.muted }}>Faltan {fmt(remaining)}</span>}
+                <span style={{ fontSize: T.xs, color: barColor, fontWeight: 600 }}>{hidden ? "Progreso oculto" : pct >= 100 ? "Meta alcanzada" : `${pct}% completado`}</span>
+                {remaining > 0 && <span style={{ fontSize: T.xs, color: C.muted }}>Faltan <Money value={remaining}/></span>}
               </div>
               {g.notes && <div style={{ fontSize: T.sm, color: C.muted, marginTop: 8, fontStyle: "italic" }}>{g.notes}</div>}
             </div>
           );
         })}
-      </div>
+      </section>
     </div>
   );
 }

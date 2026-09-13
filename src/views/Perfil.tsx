@@ -1,4 +1,6 @@
 import { useState } from "react";
+import StoryViewer from "../components/StoryViewer";
+import { setAppearance, useAppearance } from "../lib/appearance";
 import Icon, { type IconName } from "../components/Icon";
 import { clickable } from "../lib/a11y";
 import { C, R, S, T } from "../lib/constants";
@@ -78,8 +80,9 @@ export default function Perfil({
   onSignOut,
   onDeleteAccount,
   onCancelDeletion,
-  aiUso,
+  aiUso, onConfigure,
 }: {
+  onConfigure: () => void;
   profile: Profile | null;
   email: string;
   txs: Transaction[];
@@ -96,6 +99,8 @@ export default function Perfil({
   /** Consumo de IA del día; null mientras no se sepa. */
   aiUso: AiUso | null;
 }) {
+  const [stories, setStories] = useState(false);
+  const appearance = useAppearance();
   const [verDoc, setVerDoc] = useState<LegalDoc["key"] | null>(null);
   const nombre = profile?.name || email.split("@")[0];
   const diasParaBorrado = diasRestantesDeGracia(profile?.deletion_requested_at, GRACIA_DIAS);
@@ -109,14 +114,14 @@ export default function Perfil({
     <div className="fadeUp">
       {/* Encabezado */}
       <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 16 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 18, background: `linear-gradient(135deg,${C.accent},#9333ea)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.hero, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+        <div style={{ width: 56, height: 56, borderRadius: 18, background: C.surface, display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.hero, fontWeight: 800, color: C.text, flexShrink: 0 }}>
           {nombre.charAt(0).toUpperCase()}
         </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: T.xl, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nombre}</div>
           <div style={{ fontSize: 12.5, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{email}</div>
           {profile?.created_at && (
-            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 3 }}>Miembro desde {fechaLarga(profile.created_at)}</div>
+            <div style={{ fontSize: T.xs, color: C.muted, marginTop: 3 }}>Miembro desde {fechaLarga(profile.created_at)}</div>
           )}
         </div>
       </div>
@@ -149,7 +154,7 @@ export default function Perfil({
                 ? "Tu prueba termina mañana"
                 : `Te quedan ${diasDePrueba} días de prueba`}
             </div>
-            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2, lineHeight: 1.45 }}>
+            <div style={{ fontSize: T.xs, color: C.muted, marginTop: 2, lineHeight: 1.45 }}>
               {PRUEBA_DIAS} días gratis desde tu alta. Al terminar podrás exportar tus
               datos aunque no continúes.
             </div>
@@ -157,6 +162,12 @@ export default function Perfil({
         </div>
       )}
 
+      <Seccion titulo="A tu manera">
+        <div style={{ padding: "16px 0" }}><p style={{ fontWeight: 600, marginBottom: 10 }}>Apariencia</p><div className="segmented" style={{ marginBottom: 0 }}><button aria-pressed={appearance.theme === "dark"} onClick={() => setAppearance({ theme: "dark" })}><Icon name="luna" size={17}/> Oscuro</button><button aria-pressed={appearance.theme === "light"} onClick={() => setAppearance({ theme: "light" })}><Icon name="sol" size={17}/> Claro</button></div></div>
+        <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", gap: 16 }}><span>Vibración al confirmar<span className="hint" style={{ display: "block" }}>En teléfonos compatibles</span></span><input type="checkbox" checked={appearance.haptics} onChange={(e) => setAppearance({ haptics: e.target.checked })} style={{ width: 22, height: 22 }}/></label>
+        <Fila icon="reanudar" label="Bienvenida y primeros pasos" hint="Vuelve a abrir la guía cuando quieras" onClick={() => setStories(true)}/>
+      </Seccion>
+      {stories && <StoryViewer onClose={() => setStories(false)}/>}
       <Seccion titulo="Cuenta">
         <Fila icon="llave" label="Cambiar contraseña" hint="Mínimo 8 caracteres" onClick={onChangePassword} />
         <Fila icon="salir" label="Cerrar sesión" onClick={onSignOut} />
@@ -165,7 +176,7 @@ export default function Perfil({
       {aiUso && (
         <Seccion titulo="Asistente">
           <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 4px" }}>
-            <span style={{ fontSize: 19, width: 24, textAlign: "center" }}>🤖</span>
+            <Icon name="asesor"/>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14.5, fontWeight: 600, color: C.text }}>
                 {consultasRestantes(aiUso)} de {aiUso.tope} consultas disponibles hoy
@@ -178,6 +189,7 @@ export default function Perfil({
         </Seccion>
       )}
 
+      <Seccion titulo="Primeros pasos"><Fila icon="cuentas" label="Configurar mis cuentas" hint="Retoma la configuración cuando quieras" onClick={onConfigure}/></Seccion>
       <Seccion titulo="Tus datos">
         <Fila
           icon="exportar"
@@ -199,7 +211,7 @@ export default function Perfil({
       </Seccion>
 
       {profile?.legal_accepted_at && (
-        <div style={{ fontSize: 11.5, color: C.muted, textAlign: "center", padding: "0 12px 18px", lineHeight: 1.5 }}>
+        <div style={{ fontSize: T.xs, color: C.muted, textAlign: "center", padding: "0 12px 18px", lineHeight: 1.5 }}>
           Aceptaste la versión {profile.legal_version} el {fechaLarga(profile.legal_accepted_at)}.
           {desactualizado && " Hay una versión más reciente; te la pediremos la próxima vez que entres."}
         </div>

@@ -43,8 +43,15 @@ export function useVoice({
   /** Falló el dictado y hay algo que decir; el caller lo muestra como toast. */
   onError: (mensaje: string) => void;
 }) {
+  const [starting, setStarting] = useState(false);
   const [mic, setMic] = useState(false);
   const recRef = useRef<any>(null);
+  const generation = useRef(0);
+  const nativeRun = useRef<Promise<void> | null>(null);
+  const queuedStart = useRef(false);
+  const finishNative = useRef<(() => void) | null>(null);
+  const deadline = useRef<number | null>(null);
+  const mounted = useRef(true);
   const cbRef = useRef({ onResult, onFinal, onStop, onError });
   cbRef.current = { onResult, onFinal, onStop, onError };
 
@@ -74,7 +81,9 @@ export function useVoice({
    * sorda, y es justo el estado que hacía fallar al siguiente `start()`.
    */
   const apagarNativo = useCallback(async (): Promise<void> => {
-    const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+    const engine = await import("@capacitor-community/speech-recognition").catch(() => null);
+    if (!engine) return;
+    const { SpeechRecognition } = engine;
     try {
       const { listening } = await SpeechRecognition.isListening();
       if (listening) {
@@ -99,9 +108,15 @@ export function useVoice({
   }, []);
 
   const stopMic = useCallback(() => {
+    generation.current++;
+    queuedStart.current = false;
+    finishNative.current?.();
+    if (deadline.current) { clearTimeout(deadline.current); deadline.current = null; }
     if (recRef.current) {
-      recRef.current.abort();
+      const rec = recRef.current;
       recRef.current = null;
+      rec.onstart = rec.onresult = rec.onend = rec.onerror = null;
+      try { rec.abort(); } catch { /* Puede seguir esperando el permiso. */ }
     }
     if (activoNativo.current) {
       activoNativo.current = false;
@@ -110,21 +125,23 @@ export function useVoice({
       // encontrarse el micrófono a medio cerrar.
       limpiezaEnCurso.current = apagarNativo();
     }
-    setMic(false);
-    cbRef.current.onStop();
+    if (mounted.current) { setStarting(false); setMic(false); cbRef.current.onStop(); }
   }, [apagarNativo]);
 
   useEffect(() => {
+    mounted.current = true;
     const f = () => { if (document.hidden) stopMic(); };
     document.addEventListener("visibilitychange", f);
-    return () => document.removeEventListener("visibilitychange", f);
+    return () => { mounted.current = false; document.removeEventListener("visibilitychange", f); stopMic(); };
   }, [stopMic]);
 
-  const startNativo = useCallback(async () => {
+  const startNativo = useCallback(async (session: number) => {
+    const current = () => mounted.current && session === generation.current && activoNativo.current;
     if (activoNativo.current) return;
     activoNativo.current = true;
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+      if (!current()) return;
 
       // Lo primero: que no quede nada de la vez anterior. Si el micrófono se
       // cerró hace un instante, esa limpieza puede seguir corriendo, y
@@ -134,11 +151,14 @@ export function useVoice({
         limpiezaEnCurso.current = null;
       }
 
+      if (!current()) return;
       const { available } = await SpeechRecognition.available();
+      if (!current()) return;
       // El mensaje de estos errores es un código de `lib/voz`, no una frase:
       // así el catch trata igual lo que lanzamos aquí y lo que lanza el plugin.
       if (!available) throw new Error("sin-motor");
       const perm = await SpeechRecognition.requestPermissions();
+      if (!current()) return;
       if (perm.speechRecognition !== "granted") throw new Error("sin-permiso");
 
       // Y aun así se pregunta al plugin, porque la sesión pudo quedar viva por
@@ -153,7 +173,9 @@ export function useVoice({
 
       // Los listeners se registran con la sesión ya limpia: si se registraran
       // antes del apagado, `removeAllListeners()` se llevaría los nuevos.
+      if (!current()) return;
       await SpeechRecognition.removeAllListeners();
+      if (!current()) return;
 
       let ultimo = "";
 
@@ -162,7 +184,8 @@ export function useVoice({
       // nada. Se acepta lo que venga en vez de destructurar a ciegas.
       const textoDelEvento = (ev: unknown): string => {
         const m = Array.isArray(ev) ? ev : (ev as { matches?: unknown })?.matches;
-        return (Array.isArray(m) ? m[0] : undefined) ?? "";
+        const text = Array.isArray(m) ? m[0] : undefined;
+        return typeof text === "string" ? text : "";
       };
 
       // En iOS `start()` NO espera al final: resuelve en cuanto el motor
@@ -170,6 +193,7 @@ export function useVoice({
       // final llega por `listeningState: "stopped"`, así que se espera aquí.
       let terminar: (t: string) => void = () => {};
       const finDelDictado = new Promise<string>((res) => { terminar = res; });
+      finishNative.current = () => terminar("");
 
       // Tras 1.6 s sin palabras nuevas se detiene solo: es el equivalente del
       // `continuous: false` de la web, que corta al primer silencio. La
@@ -181,6 +205,7 @@ export function useVoice({
       };
 
       await SpeechRecognition.addListener("partialResults", (ev: unknown) => {
+        if (!current()) return;
         const t = textoDelEvento(ev);
         if (!t || t === ultimo) return;
         ultimo = t;
@@ -188,9 +213,10 @@ export function useVoice({
         armarSilencio(1600);
       });
       await SpeechRecognition.addListener("listeningState", (ev: unknown) => {
+        if (!current()) return;
         const status = (ev as { status?: string })?.status;
         if (status === "started") {
-          setMic(true);
+          setStarting(false); setMic(true);
           // Sin esto, quien toca el micrófono y no habla lo deja abierto para
           // siempre: el temporizador de silencio solo vivía en los parciales.
           armarSilencio(6000);
@@ -200,53 +226,70 @@ export function useVoice({
 
       // Android sí resuelve al terminar y con los resultados; iOS resuelve
       // vacío al arrancar. Se aceptan las dos formas.
-      const r: unknown = await SpeechRecognition.start({ language: "es-MX", maxResults: 1, partialResults: true, popup: false });
-      const deStart = textoDelEvento(r);
-
-      // Red de seguridad: si el motor nunca avisa que paró, no dejar la
-      // promesa colgada para siempre.
-      const porTiempo = new Promise<string>((res) => window.setTimeout(() => res(ultimo), 20000));
-      const final = (deStart || (await Promise.race([finDelDictado, porTiempo]))).trim();
+      if (!current()) return;
+      // El plazo y la cancelación cubren también start(): Android puede no
+      // resolverlo hasta parar. Cerrar no debe dejar la siguiente sesión esperando.
+      const porTiempo = new Promise<string>((res) => { deadline.current = window.setTimeout(() => res(ultimo), 20000); });
+      const iniciado = SpeechRecognition.start({ language: "es-MX", maxResults: 1, partialResults: true, popup: false })
+        .then((result: unknown) => textoDelEvento(result) || finDelDictado);
+      const final = (await Promise.race([iniciado, finDelDictado, porTiempo])).trim();
 
       if (silencio.current) { clearTimeout(silencio.current); silencio.current = null; }
-      if (activoNativo.current && final) cbRef.current.onFinal(final);
+      if (current() && final) cbRef.current.onFinal(final);
     } catch (e) {
       // Un permiso negado o un motor ausente no debe dejar el botón "escuchando"
-      cbRef.current.onResult("");
+      if (current()) cbRef.current.onResult("");
       console.warn("voz nativa:", e);
       // Si el micrófono se cerró desde el FAB, `stopMic` ya puso el flag en
       // false: lo que falle después es consecuencia de cerrarlo, no un fallo
       // que la persona deba leer.
-      if (activoNativo.current) avisar(e instanceof Error ? e.message : null);
+      if (current()) avisar(e instanceof Error ? e.message : null);
     } finally {
+      finishNative.current = null;
+      if (deadline.current) { clearTimeout(deadline.current); deadline.current = null; }
       activoNativo.current = false;
       if (silencio.current) { clearTimeout(silencio.current); silencio.current = null; }
       // La limpieza se guarda y se espera aquí mismo: así, cuando este
       // `startNativo` termina, el micrófono ya está libre para el siguiente.
+      if (limpiezaEnCurso.current) await limpiezaEnCurso.current;
       limpiezaEnCurso.current = apagarNativo();
       await limpiezaEnCurso.current;
       limpiezaEnCurso.current = null;
-      setMic(false);
-      cbRef.current.onStop();
+      if (mounted.current && session === generation.current) { setStarting(false); setMic(false); cbRef.current.onStop(); }
     }
   }, [avisar, apagarNativo]);
 
   const startMic = useCallback(() => {
-    if (nativo) { void startNativo(); return; }
+    if (nativo) {
+      if (queuedStart.current || activoNativo.current) return;
+      queuedStart.current = true;
+      setStarting(true);
+      const session = ++generation.current;
+      const previous = nativeRun.current;
+      nativeRun.current = (async () => {
+        if (previous) await previous;
+        if (!mounted.current || session !== generation.current) return;
+        await startNativo(session);
+      })().finally(() => { if (session === generation.current) queuedStart.current = false; });
+      return;
+    }
     // `mic` solo se enciende en `onstart`, que llega un instante después: dos
     // toques rápidos creaban dos reconocedores y el segundo dejaba el
     // micrófono abierto sin que nada lo apagara. El ref sí es inmediato.
     if (!voiceOK || mic || recRef.current) return;
+    setStarting(true);
     const rec = new SR();
     rec.lang = "es-MX";
     rec.interimResults = true;
     rec.continuous = false;
-    rec.onstart = () => setMic(true);
-    rec.onend = () => { setMic(false); recRef.current = null; };
+    let delivered = false;
+    rec.onstart = () => { if (mounted.current && recRef.current === rec) { setStarting(false); setMic(true); } };
+    rec.onend = () => { if (mounted.current && recRef.current === rec) { setStarting(false); setMic(false); recRef.current = null; } };
     // `aborted` (lo cerramos nosotros) y `no-speech` (nadie habló) salen por
     // aquí y `avisar` los descarta; el resto sí se cuenta.
-    rec.onerror = (e: any) => { setMic(false); recRef.current = null; avisar(e?.error); };
+    rec.onerror = (e: any) => { if (mounted.current && recRef.current === rec) { setStarting(false); setMic(false); recRef.current = null; avisar(e?.error); } };
     rec.onresult = (e: any) => {
+      if (!mounted.current || recRef.current !== rec || delivered) return;
       let interim = "", final = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
@@ -254,16 +297,17 @@ export function useVoice({
         else interim += t;
       }
       cbRef.current.onResult(final || interim);
-      if (final) cbRef.current.onFinal(final);
+      if (final) { delivered = true; cbRef.current.onFinal(final); }
     };
     // Antes de arrancar: si `start()` tarda, un segundo toque ya lo encuentra.
     recRef.current = rec;
     try {
       rec.start();
     } catch {
+      setStarting(false);
       recRef.current = null; // el navegador lo rechazó (ya había uno vivo)
     }
   }, [voiceOK, mic, SR, nativo, startNativo, avisar]);
 
-  return { mic, voiceOK, startMic, stopMic };
+  return { mic, starting, voiceOK, startMic, stopMic };
 }

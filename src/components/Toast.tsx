@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Icon from "./Icon";
 import { C, R, T } from "../lib/constants";
 
 export interface Toast {
@@ -12,15 +13,18 @@ export interface Toast {
 export function useToasts() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(1);
+  const timers = useRef(new Map<number, number>());
+  useEffect(() => () => { timers.current.forEach(clearTimeout); timers.current.clear(); }, []);
 
   const dismiss = useCallback((id: number) => {
+    clearTimeout(timers.current.get(id)); timers.current.delete(id);
     setToasts((t) => t.filter((x) => x.id !== id));
   }, []);
 
   const push = useCallback((t: Omit<Toast, "id">, ms = t.kind === "error" ? 5000 : 3500) => {
     const id = nextId.current++;
     setToasts((prev) => [...prev.slice(-2), { ...t, id }]);
-    window.setTimeout(() => dismiss(id), ms);
+    timers.current.set(id, window.setTimeout(() => dismiss(id), ms));
     return id;
   }, [dismiss]);
 
@@ -50,7 +54,7 @@ export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
             boxShadow: "0 8px 24px #00000066",
           }}
         >
-          <span style={{ fontSize: T.lg }}>{t.kind === "error" ? "⚠️" : "✅"}</span>
+          <span style={{ color: t.kind === "error" ? C.red : C.aLight }}><Icon name={t.kind === "error" ? "documento" : "check"} size={20}/></span>
           <span style={{ flex: 1, fontSize: T.md, color: C.text, lineHeight: 1.4 }}>{t.text}</span>
           {t.action && (
             <button
@@ -60,7 +64,7 @@ export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
               {t.action.label}
             </button>
           )}
-          <button onClick={() => onDismiss(t.id)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: T.base, padding: 2 }}>✕</button>
+          <button aria-label="Cerrar aviso" onClick={() => onDismiss(t.id)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: T.base, padding: 2 }}>✕</button>
         </div>
       ))}
     </div>

@@ -1,11 +1,13 @@
 import { C, R, T, CREDIT_TYPES } from "../lib/constants";
-import { clickable } from "../lib/a11y";
+import Money, { useMoneyPrivacy } from "./Money";
+import Icon from "./Icon";
 import { daysUntilDate } from "../lib/dates";
-import { daysUntil, fmt } from "../lib/format";
+import { daysUntil } from "../lib/format";
 import type { Credit } from "../types";
 import ProgressBar from "./ProgressBar";
 
 export default function CreditCard({ credit, onEdit, onPay }: { credit: Credit; onEdit: (c: Credit) => void; onPay?: (c: Credit) => void }) {
+  const { hidden } = useMoneyPrivacy();
   const type = CREDIT_TYPES[credit.type] || CREDIT_TYPES.otro;
   const debt = Number(credit.total_debt) || 0;
   const limit = Number(credit.credit_limit) || 0;
@@ -16,39 +18,39 @@ export default function CreditCard({ credit, onEdit, onPay }: { credit: Credit; 
   const daysNext = daysUntilDate(credit.next_payment_date);
   const uc = (d: number | null) => (d === null ? C.muted : d <= 3 ? C.red : d <= 7 ? C.amber : C.green);
   return (
-    <div {...clickable(() => onEdit(credit))} aria-label={`Editar ${credit.name}`} style={{ background: C.card, border: `1px solid ${C.border}22`, borderRadius: R.lg, padding: 18, marginBottom: 12, cursor: "pointer", borderLeft: `4px solid ${type.color}` }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <section className="credit-surface" aria-label={credit.name}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "1 1 145px", minWidth: 0 }}>
           <div style={{ width: 40, height: 40, borderRadius: R.md, background: type.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{type.icon}</div>
-          <div><div style={{ fontWeight: 700, fontSize: 15 }}>{credit.name}</div><div style={{ fontSize: T.xs, color: C.muted }}>{credit.institution || type.label}</div></div>
+          <div style={{ minWidth: 0, overflowWrap: "anywhere" }}><div style={{ fontWeight: 700, fontSize: 16 }}>{credit.name}</div><div style={{ fontSize: T.xs, color: C.muted }}>{credit.institution || type.label}</div></div>
         </div>
-        <div style={{ textAlign: "right" }}><div style={{ fontSize: T.xl, fontWeight: 800, color: C.red }}>{fmt(debt)}</div><div style={{ fontSize: T.xs, color: C.muted }}>deuda</div></div>
+        <button onClick={() => onEdit(credit)} className="icon-button" aria-label={`Editar ${credit.name}`}><Icon name="editar" size={18}/></button><div style={{ width: "100%", textAlign: "left" }}><div style={{ fontSize: 28, fontWeight: 600, color: C.text }}><Money value={debt}/></div><div style={{ fontSize: T.xs, color: C.muted }}>deuda</div></div>
       </div>
       {credit.type === "tarjeta" && limit > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: T.xs, color: C.muted }}>Utilización</span><span style={{ fontSize: T.xs, fontWeight: 700, color: utilColor }}>{util}% de {fmt(limit)}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: T.xs, color: C.muted }}>Utilización</span><span style={{ fontSize: T.xs, fontWeight: 700, color: utilColor }}>{hidden ? "Utilización oculta" : <>{util}% de <Money value={limit}/></>}</span></div>
           <ProgressBar pct={Math.min(util, 100)} color={utilColor} height={6} />
         </div>
       )}
       {credit.type !== "tarjeta" && Number(credit.monthly_payment) > 0 && (
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 12px", textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Mensualidad</div><div style={{ fontSize: T.base, fontWeight: 700, color: C.aLight }}>{fmt(credit.monthly_payment)}</div></div>
+          <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 12px", textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Mensualidad</div><div style={{ fontSize: T.base, fontWeight: 700, color: C.aLight }}><Money value={credit.monthly_payment}/></div></div>
           {credit.interest_rate != null && <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 12px", textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Tasa</div><div style={{ fontSize: T.base, fontWeight: 700, color: C.amber }}>{credit.interest_rate}%</div></div>}
         </div>
       )}
       <div style={{ display: "flex", gap: 8 }}>
-        {credit.type === "tarjeta" && credit.cut_day && <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Corte día {credit.cut_day}</div><div style={{ fontSize: T.md, fontWeight: 700, color: uc(daysCorte) }}>{daysCorte === 0 ? "¡Hoy!" : daysCorte === 1 ? "Mañana" : `${daysCorte}d`}</div></div>}
-        {credit.type === "tarjeta" && credit.payment_day && <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Pago día {credit.payment_day}</div><div style={{ fontSize: T.md, fontWeight: 700, color: uc(daysPago) }}>{daysPago === 0 ? "¡Hoy!" : daysPago === 1 ? "Mañana" : `${daysPago}d`}</div></div>}
-        {credit.type !== "tarjeta" && credit.next_payment_date && <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Próximo pago</div><div style={{ fontSize: T.sm, fontWeight: 700, color: uc(daysNext) }}>{daysNext! <= 0 ? "¡Vencido!" : daysNext === 1 ? "Mañana" : `${daysNext}d`}</div></div>}
+        {credit.type === "tarjeta" && credit.cut_day && <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: T.md, color: C.muted }}>Corte día {credit.cut_day}</div><div style={{ fontSize: T.md, fontWeight: 700, color: uc(daysCorte) }}>{daysCorte === 0 ? "¡Hoy!" : daysCorte === 1 ? "Mañana" : `${daysCorte}d`}</div></div>}
+        {credit.type === "tarjeta" && credit.payment_day && <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: T.md, color: C.muted }}>Pago día {credit.payment_day}</div><div style={{ fontSize: T.md, fontWeight: 700, color: uc(daysPago) }}>{daysPago === 0 ? "¡Hoy!" : daysPago === 1 ? "Mañana" : `${daysPago}d`}</div></div>}
+        {credit.type !== "tarjeta" && credit.next_payment_date && <div style={{ flex: 1, background: C.surface, borderRadius: R.sm, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: T.md, color: C.muted }}>Próximo pago</div><div style={{ fontSize: T.sm, fontWeight: 700, color: uc(daysNext) }}>{daysNext! < 0 ? "Vencido" : daysNext === 0 ? "Hoy" : daysNext === 1 ? "Mañana" : `${daysNext}d`}</div></div>}
       </div>
       {onPay && debt > 0 && (
         <button
           onClick={(e) => { e.stopPropagation(); onPay(credit); }}
-          style={{ width: "100%", marginTop: 12, background: type.color + "22", border: `1px solid ${type.color}55`, color: type.color, borderRadius: R.md, padding: "10px", fontSize: T.md, fontWeight: 700, cursor: "pointer" }}
+          style={{ width: "100%", marginTop: 12, background: C.accent + "18", border: `1px solid ${C.border}`, color: C.aLight, borderRadius: R.md, padding: "10px", fontSize: T.md, fontWeight: 700, cursor: "pointer" }}
         >
           Registrar pago
         </button>
       )}
-    </div>
+    </section>
   );
 }

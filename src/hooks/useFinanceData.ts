@@ -163,6 +163,6 @@ export function useFinanceData() {
     accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals,
     recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx,
     booting, loadError, accsRef, txsRef, creditsRef, budgetsRef, goalsRef, recargar,
-    historialCompleto, totalTxs, completarHistorial,
+    historialCompleto, totalTxs: historialCompleto ? txs.length : Math.max(totalTxs, txs.length), completarHistorial,
   };
 }

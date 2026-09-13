@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ErrorBox from "../components/ErrorBox";
 import Modal from "../components/Modal";
 import { C, S, T } from "../lib/constants";
@@ -20,28 +20,33 @@ export default function TransferModal({
   const [amt, setAmt] = useState("");
   const [desc, setDesc] = useState("");
   const [error, setError] = useState("");
+  const lock = useRef(false);
   const [loading, setLoading] = useState(false);
 
   const from = accs.find((a) => a.id === fromId);
   const amount = parseFloat(amt);
 
   const save = async () => {
+    if (lock.current) return;
     if (!fromId || !toId) { setError("Elige cuenta de origen y destino"); return; }
     if (fromId === toId) { setError("Las cuentas deben ser distintas"); return; }
-    if (!amount || amount <= 0) { setError("El monto debe ser mayor a cero"); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { setError("El monto debe ser mayor a cero"); return; }
+    lock.current = true;
     setLoading(true);
     setError("");
     try {
       await onSave({ fromId, toId, amount, description: desc.trim() || "Transferencia" });
     } catch (e: any) {
       setError(e?.message || "No se pudo transferir");
+      lock.current = false;
       setLoading(false);
     }
   };
 
   const sel = { ...S.inp, marginBottom: 0 };
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} busy={loading} dirty={!!amt} label="Revisar movimiento">
+      <fieldset disabled={loading} style={{ border: 0, padding: 0 }}>
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 4 }}>↔️ Transferir entre cuentas</div>
       <div style={{ fontSize: T.sm, color: C.muted, marginBottom: 16 }}>No se registra como gasto ni como ingreso.</div>
 
@@ -60,7 +65,7 @@ export default function TransferModal({
       <label htmlFor="transfermodal-3" style={S.lbl}>Monto</label>
       <input id="transfermodal-3" style={{ ...S.inp, marginBottom: 4 }} type="number" inputMode="decimal" placeholder="0.00" value={amt} onChange={(e) => setAmt(e.target.value)} />
       {from && amount > 0 && (
-        <div style={{ fontSize: T.xs, color: amount > from.balance ? C.amber : C.muted, marginBottom: 12 }}>
+        <div style={{ fontSize: T.md, color: amount > from.balance ? C.amber : C.muted, marginBottom: 12 }}>
           {from.name} quedaría en {fmt(from.balance - amount)}{amount > from.balance ? " (en negativo)" : ""}
         </div>
       )}
@@ -72,8 +77,9 @@ export default function TransferModal({
       {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
-        <button style={{ ...S.btn(), flex: 1, opacity: loading ? 0.7 : 1 }} disabled={loading} onClick={save}>{loading ? "..." : "Transferir"}</button>
+        <button style={{ ...S.btn(), flex: 1, opacity: loading ? 0.7 : 1 }} disabled={loading} onClick={save}>{loading ? "Guardando…" : "Transferir"}</button>
       </div>
+      </fieldset>
     </Modal>
   );
 }

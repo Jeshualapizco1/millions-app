@@ -3,7 +3,7 @@ import { authOrigin } from "../lib/native";
 import { clickable } from "../lib/a11y";
 import Spinner from "../components/Spinner";
 import ErrorBox from "../components/ErrorBox";
-import { R, S, T } from "../lib/constants";
+import { C, R, S, T } from "../lib/constants";
 import type { Session } from "@supabase/supabase-js";
 import { sbClient } from "../lib/supabase";
 import Captcha, { CAPTCHA_ENABLED } from "../components/Captcha";
@@ -23,6 +23,7 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
   const [verDoc, setVerDoc] = useState<LegalDoc["key"] | null>(null);
   const inp = { ...S.inp, padding: "13px 16px", marginBottom: 12 } as const;
   const submit = async () => {
+    if (loading) return;
     if (!email || !password) { setError("Completa todos los campos"); return; }
     if (mode === "signup" && password.length < 8) { setError("La contraseña necesita al menos 8 caracteres"); return; }
     if (mode === "signup" && !aceptado) { setError("Necesitas aceptar el aviso de privacidad y los términos"); return; }
@@ -64,26 +65,22 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
     }
   };
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0a0a0f", padding: 24 }}>
-      <div style={{ marginBottom: 32, textAlign: "center" }}>
-        <div style={{ fontSize: 56, marginBottom: 10 }}>💰</div>
-        <div style={{ fontSize: 26, fontWeight: 900, color: "#a89ff9", letterSpacing: -0.5 }}>Millions</div>
-        <div style={{ fontSize: T.md, color: "#6b6a8a", marginTop: 4 }}>Finanzas personales</div>
-      </div>
-      <div style={{ width: "100%", maxWidth: 380, background: "#1a1a26", border: "1px solid #2a2a3e", borderRadius: 24, padding: 28 }}>
-        <div style={{ display: "flex", gap: 0, marginBottom: 24, background: "#12121a", borderRadius: R.md, padding: 4 }}>
+    <div className="auth-shell">
+      <div className="auth-intro"><div className="wordmark">Millions<span>.</span></div><h1>Tu dinero.<br/>En tus palabras.</h1><p className="muted">Registra lo que pasa y entiende lo que viene.</p></div>
+      <div className="auth-form">
+        <div style={{ display: "flex", gap: 0, marginBottom: 24, background: C.surface, borderRadius: R.md, padding: 4 }}>
           {(["login", "signup"] as const).map((m) => (
-            <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }} style={{ flex: 1, padding: "9px", borderRadius: R.sm, border: "none", background: mode === m ? "#7c6af7" : "transparent", color: mode === m ? "#fff" : "#6b6a8a", fontWeight: 700, fontSize: T.base, cursor: "pointer" }}>{m === "login" ? "Iniciar sesión" : "Crear cuenta"}</button>
+            <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }} style={{ flex: 1, padding: "9px", borderRadius: R.sm, border: "none", background: mode === m ? C.accent : "transparent", color: mode === m ? "#fff" : C.muted, fontWeight: 700, fontSize: T.base, cursor: "pointer" }}>{m === "login" ? "Iniciar sesión" : "Crear cuenta"}</button>
           ))}
         </div>
         {/* F6: `htmlFor` + `id` en los tres. Sin eso el lector de pantalla
             anuncia "cuadro de edición" a secas, y el rótulo que sí se ve no le
             sirve de nada a quien no lo ve. `autoComplete` de paso: es lo que
             hace que el gestor de contraseñas ofrezca guardar y rellenar. */}
-        {mode === "signup" && <><label htmlFor="auth-nombre" style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Nombre</label><input id="auth-nombre" name="name" autoComplete="name" style={inp} placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} /></>}
-        <label htmlFor="auth-correo" style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Correo</label>
+        {mode === "signup" && <><label htmlFor="auth-nombre" style={{ fontSize: T.sm, color: C.muted, marginBottom: 5, display: "block" }}>Nombre</label><input id="auth-nombre" name="name" autoComplete="name" style={inp} placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} /></>}
+        <label htmlFor="auth-correo" style={{ fontSize: T.sm, color: C.muted, marginBottom: 5, display: "block" }}>Correo</label>
         <input id="auth-correo" name="email" autoComplete="email" style={inp} type="email" inputMode="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-        <label htmlFor="auth-password" style={{ fontSize: T.sm, color: "#6b6a8a", marginBottom: 5, display: "block" }}>Contraseña</label>
+        <label htmlFor="auth-password" style={{ fontSize: T.sm, color: C.muted, marginBottom: 5, display: "block" }}>Contraseña</label>
         <input id="auth-password" name="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} style={{ ...inp, marginBottom: 20 }} type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} />
         {mode === "signup" && (
           // Casilla sin marcar por defecto: un consentimiento premarcado no es
@@ -94,20 +91,20 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
               type="checkbox"
               checked={aceptado}
               onChange={(e) => { setAceptado(e.target.checked); setError(""); }}
-              style={{ width: 18, height: 18, marginTop: 1, accentColor: "#7c6af7", flexShrink: 0, cursor: "pointer" }}
+              style={{ width: 18, height: 18, marginTop: 1, accentColor: C.accent, flexShrink: 0, cursor: "pointer" }}
             />
-            <span style={{ fontSize: 12.5, color: "#6b6a8a", lineHeight: 1.5 }}>
+            <span style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>
               He leído y acepto el{" "}
-              <span {...clickable(() => setVerDoc("privacidad"))} onClick={(e) => { e.preventDefault(); setVerDoc("privacidad"); }} style={{ color: "#a89ff9", fontWeight: 600, textDecoration: "underline" }}>aviso de privacidad</span>
+              <span {...clickable(() => setVerDoc("privacidad"))} onClick={(e) => { e.preventDefault(); setVerDoc("privacidad"); }} style={{ color: C.aLight, fontWeight: 600, textDecoration: "underline" }}>aviso de privacidad</span>
               {" "}y los{" "}
-              <span {...clickable(() => setVerDoc("terminos"))} onClick={(e) => { e.preventDefault(); setVerDoc("terminos"); }} style={{ color: "#a89ff9", fontWeight: 600, textDecoration: "underline" }}>términos y condiciones</span>.
+              <span {...clickable(() => setVerDoc("terminos"))} onClick={(e) => { e.preventDefault(); setVerDoc("terminos"); }} style={{ color: C.aLight, fontWeight: 600, textDecoration: "underline" }}>términos y condiciones</span>.
             </span>
           </label>
         )}
         {mode === "signup" && <Captcha onToken={setCaptchaToken} />}
         {error && <ErrorBox>{error}</ErrorBox>}
-        {success && <div style={{ background: "#4ade8018", border: "1px solid #4ade8044", borderRadius: R.sm, padding: "10px 14px", fontSize: T.md, color: "#4ade80", marginBottom: 14 }}>{success}</div>}
-        <button onClick={submit} disabled={loading} style={{ width: "100%", background: "linear-gradient(135deg,#7c6af7,#9333ea)", color: "#fff", border: "none", borderRadius: R.md, padding: "14px", fontSize: 15, fontWeight: 800, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+        {success && <div style={{ background: C.green + "18", border: `1px solid ${C.green}44`, borderRadius: R.sm, padding: "10px 14px", fontSize: T.md, color: C.green, marginBottom: 14 }}>{success}</div>}
+        <button onClick={submit} disabled={loading} style={{ width: "100%", background: C.accent, color: "#fff", border: "none", borderRadius: R.md, padding: "14px", fontSize: 15, fontWeight: 800, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
           {loading ? <Spinner /> : (mode === "login" ? "Entrar" : "Crear cuenta")}
         </button>
       </div>
@@ -115,8 +112,8 @@ export default function AuthScreen({ onAuth }: { onAuth: (session: Session) => v
       {/* También accesibles al iniciar sesión: la ley pide que el aviso esté
           disponible en todo momento, no solo en el momento de aceptarlo. */}
       <div style={{ marginTop: 20, display: "flex", gap: 16, fontSize: T.sm }}>
-        <span {...clickable(() => setVerDoc("privacidad"))} style={{ color: "#8b8aa8", cursor: "pointer", textDecoration: "underline" }}>Aviso de privacidad</span>
-        <span {...clickable(() => setVerDoc("terminos"))} style={{ color: "#8b8aa8", cursor: "pointer", textDecoration: "underline" }}>Términos</span>
+        <span {...clickable(() => setVerDoc("privacidad"))} style={{ color: C.muted, cursor: "pointer", textDecoration: "underline" }}>Aviso de privacidad</span>
+        <span {...clickable(() => setVerDoc("terminos"))} style={{ color: C.muted, cursor: "pointer", textDecoration: "underline" }}>Términos</span>
       </div>
 
       {verDoc && <LegalModal doc={verDoc} onClose={() => setVerDoc(null)} />}

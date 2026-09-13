@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { C, R, S, T, ACC_ICONS } from "../lib/constants";
 import { fmt } from "../lib/format";
 
@@ -53,6 +53,7 @@ export default function Arranque({
   const [ingCuenta, setIngCuenta] = useState("");
   const [ingDia, setIngDia] = useState("1");
   const [techo, setTecho] = useState("");
+  const submitting = useRef(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +66,8 @@ export default function Arranque({
     setFilas((f) => f.map((x, k) => (k === i ? { ...x, ...patch } : x)));
 
   const terminar = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
     setGuardando(true);
     setError(null);
     const monto = parseFloat(ingMonto);
@@ -79,27 +82,36 @@ export default function Arranque({
       });
     } catch (e: any) {
       setError(e?.message || "No se pudo guardar. Inténtalo de nuevo.");
+      submitting.current = false;
       setGuardando(false);
     }
   };
 
   const saltar = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
     setGuardando(true);
     setError(null);
     try {
-      await onSkip();
+      if (paso === 1) await onSkip();
+      else await onFinish({
+        cuentas: validas.map((f) => ({ name: f.name.trim(), balance: parseFloat(f.balance) || 0, icon: f.icon })),
+        ingreso: paso > 2 && ingActivo && parseFloat(ingMonto) > 0 && ingCuenta ? { name: ingNombre.trim() || "Nómina", amount: parseFloat(ingMonto), cuenta: ingCuenta, dia: Number(ingDia) || 1 } : null,
+        techo: null,
+      });
     } catch (e: any) {
       setError(e?.message || "No se pudo continuar. Inténtalo de nuevo.");
+      submitting.current = false;
       setGuardando(false);
     }
   };
 
-  const titulo = ["", "¿Qué cuentas tienes?", "¿Cuánto entra al mes?", "¿Cuánto quieres gastar?"][paso];
+  const titulo = ["", "Empieza por una cuenta", "¿Cuánto entra al mes?", "¿Cuánto quieres gastar?"][paso];
   const bajada = [
     "",
-    "Con esto ya tienes saldo total y patrimonio neto. Puedes agregar más después.",
+    "Efectivo o una cuenta de débito. Tus tarjetas y otros créditos van por separado en Mi dinero.",
     "Tu nómina o ingreso fijo. Se registra solo cada mes, y con eso la app puede proyectar tu cierre.",
-    "Un techo mensual de gasto. Te avisamos antes de rebasarlo, no después.",
+    "Un techo mensual de gasto. Compara tus gastos registrados con este límite. Puedes ajustarlo después.",
   ][paso];
 
   const sinCuentas = validas.length === 0 && cuentasExistentes.length === 0;
@@ -116,7 +128,7 @@ export default function Arranque({
 
         {paso === 1 && <div style={{ fontSize: T.md, color: C.muted, marginBottom: 6 }}>Hola, {nombre} 👋</div>}
         <div style={{ fontSize: T.hero, fontWeight: 800, letterSpacing: -0.5, marginBottom: 8 }}>{titulo}</div>
-        <div style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.5, marginBottom: 22 }}>{bajada}</div>
+        <div style={{ fontSize: T.md, color: C.muted, lineHeight: 1.5, marginBottom: 22 }}>{bajada}</div>
 
         <div style={{ flex: 1 }}>
           {paso === 1 && (
@@ -129,7 +141,7 @@ export default function Arranque({
               {filas.map((f, i) => (
                 <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                   <select
-                    value={f.icon}
+                    aria-label={`Icono de cuenta ${i+1}`} value={f.icon}
                     onChange={(e) => cambiar(i, { icon: e.target.value })}
                     style={{ ...S.inp, width: 62, flex: "0 0 auto", padding: "12px 6px", fontSize: T.xxl, textAlign: "center" }}
                   >
@@ -137,7 +149,7 @@ export default function Arranque({
                   </select>
                   <input
                     style={{ ...S.inp, flex: 1, minWidth: 0 }}
-                    placeholder="Nombre"
+                    aria-label={`Nombre de cuenta ${i+1}`} placeholder="Nombre"
                     value={f.name}
                     onChange={(e) => cambiar(i, { name: e.target.value })}
                   />
@@ -145,11 +157,11 @@ export default function Arranque({
                     style={{ ...S.inp, width: 108, flex: "0 0 auto" }}
                     type="number"
                     inputMode="decimal"
-                    placeholder="Saldo"
+                    aria-label={`Saldo de cuenta ${i+1}`} placeholder="Saldo"
                     value={f.balance}
                     onChange={(e) => cambiar(i, { balance: e.target.value })}
                   />
-                  <button onClick={() => quitar(i)} style={{ background: "none", border: "none", color: C.muted, fontSize: T.xl, cursor: "pointer", padding: "0 2px" }}>✕</button>
+                  <button aria-label={`Quitar cuenta ${i+1}`} onClick={() => quitar(i)} style={{ background: "none", border: "none", color: C.muted, fontSize: T.xl, cursor: "pointer", padding: "0 2px" }}>✕</button>
                 </div>
               ))}
 
@@ -159,14 +171,14 @@ export default function Arranque({
                   <button
                     key={s.name}
                     onClick={() => agregar(s.name, s.icon)}
-                    style={{ background: `${C.accent}18`, border: `1px solid ${C.accent}44`, color: C.aLight, borderRadius: R.pill, padding: "8px 14px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}
+                    style={{ background: `${C.accent}18`, border: `1px solid ${C.accent}44`, color: C.aLight, borderRadius: R.pill, padding: "8px 14px", fontSize: T.md, fontWeight: 600, cursor: "pointer" }}
                   >
                     {s.icon} {s.name}
                   </button>
                 ))}
                 <button
                   onClick={() => agregar("", "🏦")}
-                  style={{ background: "transparent", border: `1px dashed ${C.border}`, color: C.muted, borderRadius: R.pill, padding: "8px 14px", fontSize: 13.5, cursor: "pointer" }}
+                  style={{ background: "transparent", border: `1px dashed ${C.border}`, color: C.muted, borderRadius: R.pill, padding: "8px 14px", fontSize: T.md, cursor: "pointer" }}
                 >
                   ＋ Otra
                 </button>
@@ -191,7 +203,7 @@ export default function Arranque({
                   </select>
                   <label htmlFor="arranque-4" style={S.lbl}>¿Qué día del mes?</label>
                   <input id="arranque-4" style={{ ...S.inp, marginBottom: 14 }} type="number" min={1} max={28} value={ingDia} onChange={(e) => setIngDia(e.target.value)} />
-                  <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: T.sm, color: C.muted, lineHeight: 1.5 }}>
                     Si cobras después del 28, pon 28: así nunca se salta un mes corto.
                   </div>
                 </>
@@ -201,9 +213,9 @@ export default function Arranque({
 
           {paso === 3 && (
             <>
-              <label style={S.lbl}>Techo mensual de gasto</label>
+              <label htmlFor="arranque-budget" style={S.lbl}>Techo mensual de gasto</label>
               {/* Sin autoFocus: abría el teclado al entrar y tapaba la explicación de qué es el techo. */}
-              <input style={{ ...S.inp, marginBottom: 14, fontSize: T.xxl, fontWeight: 700 }} type="number" inputMode="decimal" placeholder="0.00" value={techo} onChange={(e) => setTecho(e.target.value)} />
+              <input id="arranque-budget" style={{ ...S.inp, marginBottom: 14, fontSize: T.xxl, fontWeight: 700 }} type="number" inputMode="decimal" placeholder="0.00" value={techo} onChange={(e) => setTecho(e.target.value)} />
               {parseFloat(ingMonto) > 0 && (
                 <button
                   onClick={() => setTecho(String(Math.round(parseFloat(ingMonto) * 0.7)))}
@@ -212,7 +224,7 @@ export default function Arranque({
                   Usar {fmt(Math.round(parseFloat(ingMonto) * 0.7))} — el 70% de lo que entra
                 </button>
               )}
-              <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>
+              <div style={{ fontSize: T.sm, color: C.muted, lineHeight: 1.5 }}>
                 No es un límite duro: nadie te va a bloquear nada. Es la referencia contra
                 la que se mide tu ritmo del mes.
               </div>

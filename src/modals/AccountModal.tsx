@@ -1,3 +1,5 @@
+import { useRef, useState } from "react";
+import ErrorBox from "../components/ErrorBox";
 import Modal from "../components/Modal";
 import { C, R, S, T, ACC_ICONS } from "../lib/constants";
 import { CURRENCIES, CURRENCY_LABEL, SELECTOR_DE_MONEDA_ACTIVO } from "../lib/currency";
@@ -21,15 +23,28 @@ export default function AccountModal({
   mode: "new" | "edit";
   form: AccountFormState;
   update: (patch: Partial<AccountFormState>) => void;
-  onSave: () => void;
+  onSave: () => Promise<void>;
   /** Archiva o elimina según tenga o no movimientos; lo decide App. */
   onRemove?: () => void;
   onClose: () => void;
 }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const lock = useRef(false);
+  const save = async () => {
+    if (lock.current) return;
+    if (!form.name.trim()) { setError("Ponle un nombre a la cuenta"); return; }
+    if (!Number.isFinite(Number(form.balance))) { setError("Revisa el saldo"); return; }
+    lock.current = true; setBusy(true); setError("");
+    try { await onSave(); } catch(e) { setError(e instanceof Error ? e.message : "No se pudo guardar la cuenta"); }
+    finally { lock.current = false; setBusy(false); }
+  };
   const isNew = mode === "new";
   return (
-    <Modal onClose={onClose} dirty={isNew && !!form.name} label={isNew ? "Nueva cuenta" : "Editar cuenta"}>
+    <Modal onClose={onClose} dirty={!!form.name || !!form.balance} busy={busy} label={isNew ? "Nueva cuenta" : "Editar cuenta"}>
       <div style={{ fontWeight: 800, fontSize: T.xl, marginBottom: 16 }}>{isNew ? "Nueva cuenta" : "Editar cuenta"}</div>
+      <p style={{ color: C.muted, fontSize: T.md, marginBottom: 16 }}>Efectivo o cuenta de débito. Las tarjetas de crédito se añaden en Mi dinero → Créditos.</p>
+      <fieldset disabled={busy} style={{ border: 0, padding: 0 }}>
       <label htmlFor="accountmodal-1" style={S.lbl}>Nombre</label>
       <input id="accountmodal-1" autoFocus style={{ ...S.inp, marginBottom: 14 }} placeholder={isNew ? "Ej: BBVA, Revolut…" : undefined} value={form.name} onChange={(e) => update({ name: e.target.value })} />
       <label htmlFor="accountmodal-2" style={S.lbl}>{isNew ? "Saldo inicial" : "Saldo actual"}</label>
@@ -57,13 +72,15 @@ export default function AccountModal({
 
       <label style={S.lbl}>Ícono</label>
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>{ACC_ICONS.map((ic) => <button key={ic} onClick={() => update({ icon: ic })} style={{ fontSize: T.hero, background: form.icon === ic ? C.accent + "33" : "transparent", border: `2px solid ${form.icon === ic ? C.accent : C.border + "44"}`, borderRadius: R.sm, padding: "6px 8px", cursor: "pointer" }}>{ic}</button>)}</div>
+      {error && <ErrorBox>{error}</ErrorBox>}
       <div style={{ display: "flex", gap: 10 }}>
         {!isNew && onRemove && (
           <button onClick={onRemove} style={{ background: C.red + "22", color: C.red, border: `1px solid ${C.red}44`, borderRadius: R.md, padding: "12px 14px", fontSize: T.base, fontWeight: 600, cursor: "pointer" }}>Quitar</button>
         )}
         <button style={{ ...S.btnO, flex: 1 }} onClick={onClose}>Cancelar</button>
-        <button style={{ ...S.btn(), flex: isNew ? 1 : 2 }} onClick={onSave}>{isNew ? "Agregar" : "Guardar"}</button>
+        <button style={{ ...S.btn(), flex: isNew ? 1 : 2 }} onClick={() => void save()}>{busy ? "Guardando…" : isNew ? "Agregar cuenta" : "Guardar"}</button>
       </div>
+      </fieldset>
     </Modal>
   );
 }

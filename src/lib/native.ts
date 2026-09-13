@@ -6,7 +6,9 @@
 // carga de forma perezosa para que la PWA no arrastre código que no usa.
 // ============================================================================
 import { Capacitor } from "@capacitor/core";
+import { hapticsEnabled, currentTheme, subscribeAppearance } from "./appearance";
 import { procesarEnlace } from "./enlace";
+import backend from "./backend.json";
 
 /** true dentro de la app de iOS o Android; false en el navegador y la PWA. */
 export const esNativo = (): boolean => Capacitor.isNativePlatform();
@@ -30,7 +32,7 @@ export const plataforma = (): "ios" | "android" | "web" => Capacitor.getPlatform
 export const apiBase = (): string => {
   const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
   if (base) return base;
-  return esNativo() ? "https://app.millionsapp.io" : "";
+  return esNativo() ? backend.apiOrigin : "";
 };
 
 /**
@@ -43,7 +45,7 @@ export const apiBase = (): string => {
  * abre la app en vez del navegador. Los dos deben estar en Supabase → Auth →
  * Redirect URLs.
  */
-export const authOrigin = (): string => (esNativo() ? "https://app.millionsapp.io" : window.location.origin);
+export const authOrigin = (): string => (esNativo() ? backend.apiOrigin : window.location.origin);
 
 /**
  * Ajustes de arranque en nativo: barra de estado oscura sobre la vista,
@@ -61,7 +63,9 @@ export async function arrancarNativo(): Promise<void> {
     import("@capacitor/app"),
   ]);
 
-  try { await StatusBar.setStyle({ style: Style.Dark }); } catch { /* iOS sin plugin en simulador viejo */ }
+  const syncStatusBar = () => { void StatusBar.setStyle({ style: currentTheme() === "dark" ? Style.Dark : Style.Light }).catch(() => {}); };
+  syncStatusBar();
+  subscribeAppearance(syncStatusBar);
   try { await StatusBar.setOverlaysWebView({ overlay: true }); } catch { /* solo Android */ }
   try { await SplashScreen.hide(); } catch { /* ya oculto */ }
   try { await Keyboard.setAccessoryBarVisible({ isVisible: false }); } catch { /* solo iOS */ }
@@ -93,7 +97,7 @@ export async function arrancarNativo(): Promise<void> {
 
 /** Un toque háptico breve al confirmar algo que mueve dinero. Silencioso en web. */
 export async function vibrar(): Promise<void> {
-  if (!esNativo()) return;
+  if (!esNativo() || !hapticsEnabled()) return;
   try {
     const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
     await Haptics.impact({ style: ImpactStyle.Light });

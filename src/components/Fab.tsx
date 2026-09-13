@@ -1,5 +1,6 @@
-import { C, R, S, T } from "../lib/constants";
-import { useEffect } from "react";
+import { S } from "../lib/constants";
+import Modal from "./Modal";
+import Icon from "./Icon";
 import TxDraftChips from "./TxDraftChips";
 import AccDraftChips from "./AccDraftChips";
 import type { AccDraft, TxDraft } from "../hooks/useAI";
@@ -9,9 +10,10 @@ import type { Account } from "../types";
 /** Botón flotante + sheet de captura por voz/texto. */
 export default function Fab({
   fab,
+  showHint = false,
   onOpen,
   onClose,
-  mic,
+  mic, micStarting = false,
   live,
   txLoading,
   txInput,
@@ -20,6 +22,7 @@ export default function Fab({
   startMic,
   stopMic,
   onSend,
+  onAddAccount,
   onManual,
   onTransfer,
   accs,
@@ -35,9 +38,10 @@ export default function Fab({
   aiUso,
 }: {
   fab: boolean;
+  showHint?: boolean;
   onOpen: () => void;
   onClose: () => void;
-  mic: boolean;
+  mic: boolean; micStarting?: boolean;
   live: string;
   txLoading: boolean;
   txInput: string;
@@ -46,6 +50,7 @@ export default function Fab({
   startMic: () => void;
   stopMic: () => void;
   onSend: (text: string) => void;
+  onAddAccount: () => void;
   onManual: () => void;
   onTransfer: () => void;
   accs: Account[];
@@ -65,86 +70,25 @@ export default function Fab({
 }) {
   const uso = textoAiUso(aiUso);
 
-  // Mientras el sheet está abierto: Escape lo cierra (salvo con borrador, que
-  // hay que guardar o descartar) y la página de atrás no hace scroll.
-  useEffect(() => {
-    if (!fab) return;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const alTeclear = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || draft || accDraft) return;
-      stopMic();
-      onClose();
-    };
-    document.addEventListener("keydown", alTeclear);
-    return () => {
-      document.removeEventListener("keydown", alTeclear);
-      document.body.style.overflow = overflow;
-    };
-  }, [fab, draft, accDraft, stopMic, onClose]);
-
-  return (
-    <>
-      {/* FAB */}
-      {!fab && <button onClick={onOpen} aria-label="Registrar un movimiento" style={{ position: "fixed", bottom: `calc(env(safe-area-inset-bottom,0px) + 80px)`, right: 20, width: 60, height: 60, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},#9333ea)`, border: "none", color: "#fff", fontSize: 28, cursor: "pointer", boxShadow: "0 8px 24px #7c6af755", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>＋</button>}
-
-      {/* FAB Sheet */}
-      {fab && (
-        // Con un borrador en pantalla, tocar el fondo NO cierra: se perdería
-        // lo capturado sin que nadie lo decidiera. Hay que guardar o descartar.
-        <div style={{ position: "fixed", inset: 0, background: "#000b", zIndex: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end", animation: "fadeIn 0.15s ease" }} onClick={() => { if (draft || accDraft) return; stopMic(); onClose(); }} role="dialog" aria-modal="true" aria-label="Capturar movimiento">
-          <div style={{ background: C.card, borderRadius: "24px 24px 0 0", padding: "20px", paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 20px)", animation: "slideUp 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ width: 36, height: 4, background: C.border, borderRadius: 2, margin: "0 auto 20px" }} />
-
-            {accDraft ? (
-              <AccDraftChips
-                draft={accDraft}
-                error={draftError}
-                busy={txLoading}
-                update={updateAccDraft}
-                onConfirm={onConfirmAccDraft}
-                onDiscard={onDiscardAccDraft}
-              />
-            ) : draft ? (
-              <TxDraftChips
-                draft={draft}
-                error={draftError}
-                accs={accs}
-                busy={txLoading}
-                update={updateDraft}
-                onConfirm={onConfirmDraft}
-                onDiscard={onDiscardDraft}
-              />
-            ) : (
-            <>
-            {mic && <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: R.md, padding: "10px 16px", marginBottom: 14, fontSize: T.md, color: C.red, display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: C.red, display: "inline-block", animation: "pulse 1s infinite" }} />{live || "Escuchando…"}</div>}
-            {!mic && live && <div style={{ background: C.green + "18", border: `1px solid ${C.green}44`, borderRadius: R.md, padding: "10px 16px", marginBottom: 14, fontSize: T.md, color: C.green }}>{live}</div>}
-            {txLoading && <div style={{ textAlign: "center", color: C.muted, fontSize: T.md, marginBottom: 14 }}>Procesando…</div>}
-            <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center" }}>
-              <button onClick={mic ? stopMic : startMic} disabled={!voiceOK || txLoading} style={{ width: 50, height: 50, borderRadius: "50%", flexShrink: 0, border: `2px solid ${mic ? C.red : C.accent}`, background: mic ? C.red + "22" : C.accent + "22", color: mic ? C.red : C.aLight, fontSize: 22, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", animation: mic ? "pulse 1.2s ease-in-out infinite" : "none" }}>
-                {mic ? "⏹" : "🎙️"}
-              </button>
-              <input style={{ ...S.inp, flex: 1 }} placeholder='Di o escribe: "Gasté $200 en el Ley"' value={txInput} onChange={(e) => setTxInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onSend(txInput.trim())} />
-              <button style={{ ...S.btn(), padding: "12px 14px" }} onClick={() => onSend(txInput.trim())} disabled={txLoading || !txInput.trim()}>↑</button>
-            </div>
-            {!voiceOK && <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 14, textAlign: "center" }}>El dictado por voz no está disponible en este navegador. En iPhone usa Safari; en Android o escritorio, Chrome.</div>}
-            {/* Aquí es donde se gasta: que el tope no sorprenda en la llamada 16.
-                Si se acabó, el botón manual de abajo sigue siendo la salida. */}
-            {uso && (
-              <div style={{ fontSize: T.xs, color: uso.agotado ? C.amber : C.muted, marginBottom: 14, textAlign: "center", fontWeight: uso.agotado ? 600 : 400 }}>
-                {uso.agotado ? `⏳ ${uso.texto} Mientras tanto, registra a mano.` : uso.texto}
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}><div style={{ flex: 1, height: 1, background: C.border }} /><span style={{ fontSize: T.sm, color: C.muted }}>o</span><div style={{ flex: 1, height: 1, background: C.border }} /></div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button style={{ ...S.btn(`${C.accent}22`), flex: 1, color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onManual}>✏️ Manual</button>
-              <button style={{ ...S.btn(`${C.accent}22`), flex: 1, color: C.aLight, border: `1px solid ${C.accent}44` }} onClick={onTransfer}>↔️ Transferir</button>
-            </div>
-            </>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  );
+  const close = () => { if (txLoading && (draft || accDraft)) return; stopMic(); onClose(); };
+  return <>
+    {!fab && <>{showHint && <span className="fab-hint">Habla o escribe</span>}<button className="fab-button" onClick={onOpen} aria-label="Añadir un movimiento" aria-haspopup="dialog"><Icon name="mas" size={28}/></button></>}
+    {fab && <Modal onClose={close} dirty={false} busy={txLoading && !!(draft || accDraft)} label="Registrar un movimiento">
+      <div className="section-head"><span className="hint">{draft || accDraft ? "Revisa antes de guardar" : "Nuevo movimiento"}</span><button className="text-link" onClick={close} disabled={txLoading && !!(draft || accDraft)}>Cerrar</button></div>
+      {!accs.length && !accDraft && <div style={{ marginBottom: 18 }}><p className="hint">Añade una cuenta para indicar de dónde sale o a dónde entra el dinero.</p><button className="text-link" onClick={onAddAccount}>Añadir mi primera cuenta <Icon name="mas" size={16}/></button></div>}
+      {accDraft ? <AccDraftChips draft={accDraft} error={draftError} busy={txLoading} update={updateAccDraft} onConfirm={onConfirmAccDraft} onDiscard={onDiscardAccDraft}/>
+      : draft ? <TxDraftChips draft={draft} error={draftError} accs={accs} busy={txLoading} update={updateDraft} onConfirm={onConfirmDraft} onDiscard={onDiscardDraft}/>
+      : <>
+        <div className="voice-mark" data-state={mic ? "escuchando" : txLoading ? "procesando" : "listo"} aria-hidden="true"><i/><i/><i/><i/></div>
+        <h2 className="capture-title">{micStarting ? "Preparando el micrófono…" : mic ? "Te escucho." : txLoading ? "Ordenando lo que dijiste…" : "¿Qué registramos?"}</h2>
+        <p className="hint" style={{ textAlign: "center" }}>Habla con naturalidad. Tú revisas y confirmas.</p>
+        <div className="capture-transcript" role="status" aria-live="polite">{live || (mic ? "Di el monto, en qué fue y tu cuenta." : "")}</div>
+        <button onClick={() => { if (mic) { const final = (live || txInput).trim(); stopMic(); if (final) onSend(final); } else startMic(); }} disabled={!voiceOK || micStarting || txLoading || !!uso?.agotado} style={{ ...S.btn(), width: "100%", marginBottom: 20, display: "flex", gap: 10, alignItems: "center", justifyContent: "center" }}><Icon name={mic ? "check" : "microfono"}/>{mic ? "Terminar y revisar" : "Registrar por voz"}</button>
+        <label htmlFor="capture-text" style={S.lbl}>También puedes escribirlo</label><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input id="capture-text" style={{ ...S.inp, flex: 1 }} placeholder='Gasté 280 en comida con mi cuenta Nu' value={txInput} disabled={mic || micStarting || txLoading} onChange={(e) => setTxInput(e.target.value)} onKeyDown={(e) => { if(e.key === "Enter" && !e.nativeEvent.isComposing && !mic && !txLoading && !uso?.agotado) onSend(txInput.trim()); }}/><button style={S.btn()} onClick={() => onSend(txInput.trim())} disabled={mic || micStarting || txLoading || !txInput.trim() || !!uso?.agotado} aria-label="Interpretar el movimiento"><Icon name="flecha"/></button></div>
+        {!voiceOK && <p className="hint" style={{ marginTop: 12 }}>El dictado no está disponible aquí. Puedes escribir o usar el formulario manual.</p>}
+        {uso && <p className="hint" style={{ marginTop: 12 }}>{uso.texto}{uso.agotado ? " Puedes seguir registrando de forma manual." : ""}</p>}
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}><button style={{ ...S.btnO, flex: 1 }} onClick={onManual}><Icon name="editar" size={18}/> Manual</button><button style={{ ...S.btnO, flex: 1 }} onClick={onTransfer}><Icon name="transferir" size={18}/> Transferir</button></div>
+      </>}
+    </Modal>}
+  </>;
 }

@@ -1,304 +1,34 @@
-import { lazy, Suspense } from "react";
-import { clickable } from "../lib/a11y";
-import { Skeleton } from "../components/Skeleton";
+import Icon from "../components/Icon";
 import TxRow from "../components/TxRow";
-import type { DonutDatum } from "../components/charts/DonutChart";
-import type { MonthlyDatum } from "../components/charts/MonthlyChart";
+import Money, { PrivacyButton } from "../components/Money";
+import { S } from "../lib/constants";
+import { dueLabel, homeAttention } from "../lib/presentation";
+import type { Proximo } from "../lib/upcoming";
+import type { TotalBudget } from "../lib/budgets";
+import type { Transaction } from "../types";
 
-const DonutChart = lazy(() => import("../components/charts/DonutChart"));
-const MonthlyChart = lazy(() => import("../components/charts/MonthlyChart"));
-const NetWorthChart = lazy(() => import("../components/NetWorthChart"));
-
-/** Mientras llega el chunk de la gráfica: un bloque con su misma altura. */
-const ChartFallback = ({ h }: { h: number }) => <Skeleton h={h} />;
-import Vacio from "./Vacio";
-import { C, R, S, T } from "../lib/constants";
-import { fmt } from "../lib/format";
-import { PERIODS, type PeriodKey } from "../lib/periods";
-import { iconoDe, type Proximo } from "../lib/upcoming";
-import { fmtCurrency, toBase, type FxRates } from "../lib/currency";
-import type { Account, Transaction } from "../types";
-import type { NetWorthPoint, Projection } from "../lib/analytics";
-
-export interface Comparison {
-  thisGastos: number;
-  lastGastos: number;
-  thisIngresos: number;
-  lastIngresos: number;
-  diffPct: number | null;
-}
-
-export default function Dashboard({
-  accs,
-  txs,
-  totI,
-  totG,
-  totalDebt,
-  proximos,
-  upcomingNet,
-  netWorth,
-  projection,
-  fx,
-  period,
-  onPeriod,
-  periodLabel,
-  comparison,
-  monthlyData,
-  catData,
-  onEditAcc,
-  onNewAcc,
-  onGoHist,
-  nombre,
-  onArranque,
-  onAddCredit,
-  onCapture,
-}: {
-  accs: Account[];
-  txs: Transaction[];
-  totI: number;
-  totG: number;
-  totalDebt: number;
-  proximos: Proximo[];
-  upcomingNet: number;
-  netWorth: NetWorthPoint[];
-  projection: Projection;
-  fx: FxRates;
-  period: PeriodKey;
-  onPeriod: (p: PeriodKey) => void;
-  periodLabel: string;
-  comparison: Comparison;
-  monthlyData: MonthlyDatum[];
-  catData: DonutDatum[];
-  onEditAcc: (a: Account) => void;
-  onNewAcc: () => void;
-  onGoHist: () => void;
-  nombre: string;
-  /** Volver a abrir el arranque guiado para quien lo saltó. */
-  onArranque: () => void;
-  onAddCredit: () => void;
-  /** Abre la captura por voz, igual que el FAB. */
-  onCapture: () => void;
+export default function Dashboard({ balance, hasAccounts, txs, income, spend, upcoming, budget, onAccounts, onNewAccount, onCredit, onPlans, onAnalysis, onHistory, onCapture, onEditTx }: {
+  balance: number; hasAccounts: boolean; txs: Transaction[]; income: number; spend: number; upcoming: Proximo[]; budget: TotalBudget | null;
+  onAccounts: () => void; onNewAccount: () => void; onCredit: () => void; onPlans: (section: "presupuestos" | "fijos") => void; onAnalysis: () => void; onHistory: () => void; onCapture: () => void; onEditTx: (t: Transaction) => void;
 }) {
-  // Sin cuentas no hay saldo, ni patrimonio, ni nada que graficar: seis
-  // tarjetas en cero no le dicen a nadie qué hacer. Tres botones sí.
-  if (accs.length === 0) return <Vacio nombre={nombre} onNewAcc={onNewAcc} onArranque={onArranque} onAddCredit={onAddCredit} />;
-
-  return (
-    <div className="fadeUp">
-      {/* Ingresos, gastos y deuda del período. El saldo total ya vive en el
-          header: repetirlo aquí en grande era el número más visible de la
-          pantalla, dos veces. El patrimonio neto de abajo trae el delta. */}
-      <div style={{ ...S.card, padding: "14px 16px" }}>
-        <div style={{ display: "flex", gap: 14 }}>
-          <div style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Ingresos</div><div style={{ fontSize: T.lg, fontWeight: 800, color: C.green }}>{fmt(totI)}</div></div>
-          <div style={{ width: 1, background: C.border }} />
-          <div style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Gastos</div><div style={{ fontSize: T.lg, fontWeight: 800, color: C.red }}>{fmt(totG)}</div></div>
-          {totalDebt > 0 && <><div style={{ width: 1, background: C.border }} /><div style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: T.xs, color: C.muted }}>Deudas</div><div style={{ fontSize: T.lg, fontWeight: 800, color: C.amber }}>{fmt(totalDebt)}</div></div></>}
-        </div>
-        <div style={{ fontSize: T.xs, color: C.muted, marginTop: 8, textAlign: "center" }}>{periodLabel}</div>
-      </div>
-
-      {/* Patrimonio neto: activos menos deudas, el número que resume todo */}
-      {(() => {
-        const hoy = netWorth[netWorth.length - 1];
-        const antes = netWorth[0];
-        if (!hoy) return null;
-        const cambio = hoy.net - antes.net;
-        const pct = antes.net !== 0 ? Math.round((cambio / Math.abs(antes.net)) * 100) : null;
-        const sube = cambio >= 0;
-        return (
-          <div style={S.card}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
-              <div style={{ fontWeight: 700, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Patrimonio neto</div>
-              {netWorth.length > 1 && (
-                <div style={{ fontSize: T.sm, fontWeight: 700, color: sube ? C.green : C.red }}>
-                  {sube ? "↑" : "↓"} {fmt(Math.abs(cambio))}{pct !== null ? ` (${sube ? "+" : ""}${pct}%)` : ""}
-                </div>
-              )}
-            </div>
-            <div style={{ fontSize: 30, fontWeight: 900, color: hoy.net >= 0 ? C.green : C.red, letterSpacing: -0.5, marginBottom: 2 }}>{fmt(hoy.net)}</div>
-            <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 14 }}>
-              {fmt(hoy.assets)} en cuentas − {fmt(hoy.debt)} de deuda
-            </div>
-            {netWorth.length > 1 && (
-              <>
-                <div style={{ height: 200 }}>
-                  <Suspense fallback={<ChartFallback h={200} />}><NetWorthChart data={netWorth} /></Suspense>
-                </div>
-                <div style={{ fontSize: T.xs, color: C.muted, marginTop: 8, lineHeight: 1.4 }}>
-                  El dato de hoy es exacto. Los meses anteriores se reconstruyen a partir de tus movimientos,
-                  así que un saldo o una deuda que hayas ajustado a mano no se refleja ahí.
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Proyección de cierre de mes */}
-      {period === "mes" && projection.daysElapsed > 0 && projection.spentSoFar > 0 && (
-        <div style={S.card}>
-          <div style={{ fontWeight: 700, marginBottom: 12, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Cierre de mes estimado</div>
-          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 4 }}>Llevas gastado</div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: C.red }}>{fmt(projection.spentSoFar)}</div>
-              <div style={{ fontSize: T.xs, color: C.muted, marginTop: 2 }}>{fmt(projection.dailyRate)} por día</div>
-            </div>
-            <div style={{ width: 1, background: C.border }} />
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 4 }}>Cerrarías en</div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: C.amber }}>{fmt(projection.projectedSpend)}</div>
-              <div style={{ fontSize: T.xs, color: C.muted, marginTop: 2 }}>día {projection.daysElapsed} de {projection.daysInMonth}</div>
-            </div>
-          </div>
-          {projection.pendingFixed > 0 && (
-            <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 8 }}>
-              Incluye {fmt(projection.pendingFixed)} de movimientos fijos que aún no ocurren.
-            </div>
-          )}
-          <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${C.border}22`, fontSize: T.md }}>
-            <span style={{ color: C.muted }}>Balance estimado del mes</span>
-            <span style={{ fontWeight: 800, color: projection.projectedNet >= 0 ? C.green : C.red }}>
-              {projection.projectedNet >= 0 ? "+" : ""}{fmt(projection.projectedNet)}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Selector de período: manda sobre TODAS las cifras de abajo */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
-        {PERIODS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => onPeriod(p.key)}
-            style={{
-              padding: "7px 14px",
-              borderRadius: R.pill,
-              border: `1px solid ${period === p.key ? C.accent : C.border + "44"}`,
-              background: period === p.key ? C.accent + "22" : "transparent",
-              color: period === p.key ? C.aLight : C.muted,
-              fontSize: 12.5,
-              cursor: "pointer",
-              fontWeight: period === p.key ? 700 : 400,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Comparativa mes a mes (solo tiene sentido viendo el mes en curso) */}
-      {period === "mes" && comparison.diffPct !== null && (
-        <div style={{ ...S.card, display: "flex", gap: 10 }}>
-          <div style={{ flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 4 }}>Gastos este mes</div>
-            <div style={{ fontSize: T.xl, fontWeight: 800, color: C.red }}>{fmt(comparison.thisGastos)}</div>
-            <div style={{ fontSize: T.sm, marginTop: 2, color: comparison.diffPct > 0 ? C.red : C.green, fontWeight: 600 }}>
-              {comparison.diffPct > 0 ? "↑" : "↓"} {Math.abs(comparison.diffPct)}% vs mes pasado
-            </div>
-          </div>
-          <div style={{ width: 1, background: C.border }} />
-          <div style={{ flex: 1, textAlign: "center" }}>
-            <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 4 }}>Mes pasado</div>
-            <div style={{ fontSize: T.xl, fontWeight: 800, color: C.muted }}>{fmt(comparison.lastGastos)}</div>
-            <div style={{ fontSize: T.xs, color: C.muted, marginTop: 2 }}>referencia</div>
-          </div>
-        </div>
-      )}
-
-      {/* Lo que viene: fijos del servidor + cortes y pagos de tarjeta */}
-      {proximos.length > 0 && (
-        <div style={S.card}>
-          <div style={{ fontWeight: 700, marginBottom: 4, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Próximos 7 días</div>
-          <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 12 }}>Movimientos fijos, cortes y pagos de tus créditos</div>
-          {proximos.map((u) => {
-            const cuando = u.dias < 0 ? `Vencido hace ${Math.abs(u.dias)} ${Math.abs(u.dias) === 1 ? "día" : "días"}` : u.dias === 0 ? "Hoy" : u.dias === 1 ? "Mañana" : `En ${u.dias} días`;
-            return (
-              <div key={u.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${C.border}22` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                  <span style={{ fontSize: T.lg }}>{iconoDe(u.tipo)}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: T.md, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}</div>
-                    <div style={{ fontSize: T.xs, color: u.dias <= 1 ? C.amber : C.muted }}>
-                      {cuando}{u.tipo === "fijo" ? " · se registra solo" : ""}
-                    </div>
-                  </div>
-                </div>
-                {/* Un corte no mueve dinero: se avisa, no se cobra. Y un crédito
-                    sin mensualidad fija tampoco tiene monto que mostrar. */}
-                <div style={{ fontSize: T.md, fontWeight: 700, color: u.amount === 0 ? C.muted : u.kind === "gasto" ? C.red : C.green }}>
-                  {u.amount === 0 ? (u.tipo === "corte" ? "corte" : "—") : `${u.kind === "gasto" ? "-" : "+"}${fmt(u.amount)}`}
-                </div>
-              </div>
-            );
-          })}
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: T.sm }}>
-            <span style={{ color: C.muted }}>Impacto neto</span>
-            <span style={{ fontWeight: 700, color: upcomingNet >= 0 ? C.green : C.red }}>
-              {upcomingNet >= 0 ? "+" : ""}{fmt(upcomingNet)}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Gráfica 6 meses (siempre 6 meses, independiente del período) */}
-      <div style={S.card}>
-        <div style={{ fontWeight: 700, marginBottom: 14, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Últimos 6 meses</div>
-        <div style={{ height: 200 }}><Suspense fallback={<ChartFallback h={200} />}><MonthlyChart data={monthlyData} /></Suspense></div>
-      </div>
-
-      {/* Gastos por categoría */}
-      <div style={S.card}>
-        <div style={{ fontWeight: 700, marginBottom: 4, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Gastos por categoría</div>
-        <div style={{ fontSize: T.xs, color: C.muted, marginBottom: 14 }}>{periodLabel}</div>
-        <div style={{ height: 160, marginBottom: 14 }}><Suspense fallback={<ChartFallback h={160} />}><DonutChart data={catData} /></Suspense></div>
-        {catData.map((d) => (
-          <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}22` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} /><span style={{ fontSize: T.md }}>{d.icon} {d.label}</span></div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}><span style={{ fontSize: T.xs, color: C.muted }}>{totG > 0 ? Math.round((d.value / totG) * 100) : 0}%</span><span style={{ fontSize: T.md, fontWeight: 700, color: C.red }}>{fmt(d.value)}</span></div>
-          </div>
-        ))}
-        {catData.length === 0 && <div style={{ color: C.muted, fontSize: T.md, textAlign: "center", padding: 12 }}>Sin gastos en este período</div>}
-      </div>
-
-      {/* Cuentas */}
-      <div style={S.card}>
-        <div style={{ fontWeight: 700, marginBottom: 12, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Mis cuentas</div>
-        {accs.map((a) => (
-          <div key={a.id} {...clickable(() => onEditAcc(a))} aria-label={`Editar ${a.name}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: `1px solid ${C.border}22`, cursor: "pointer" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: R.sm, background: a.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.xxl }}>{a.icon}</div>
-              <div><div style={{ fontWeight: 600, fontSize: T.base }}>{a.name}</div><div style={{ fontSize: T.xs, color: C.muted }}>{a.currency && a.currency !== "MXN" ? a.currency : "Toca para editar"}</div></div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontWeight: 800, color: Number(a.balance) >= 0 ? C.green : C.red, fontSize: 15 }}>{fmtCurrency(a.balance, a.currency)}</div>
-              {a.currency && a.currency !== "MXN" && <div style={{ fontSize: T.xs, color: C.muted }}>≈ {fmt(toBase(a.balance, a.currency, fx))}</div>}
-            </div>
-          </div>
-        ))}
-        <button onClick={onNewAcc} style={{ ...S.btn(), width: "100%", marginTop: 14, background: `${C.accent}22`, color: C.aLight, border: `1px solid ${C.accent}44`, padding: "10px" }}>＋ Nueva cuenta</button>
-      </div>
-
-      {/* Recientes */}
-      <div style={S.card}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: T.base, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Recientes</div>
-          {txs.length > 5 && <button onClick={onGoHist} style={{ background: "none", border: "none", color: C.aLight, fontSize: T.sm, cursor: "pointer" }}>Ver todo →</button>}
-        </div>
-        {txs.length === 0 && (
-          // Ya hay cuenta pero ni un movimiento: el siguiente paso es capturar
-          // uno, y el botón abre lo mismo que el FAB con el micrófono encendido.
-          <div style={{ textAlign: "center", padding: "6px 0 2px" }}>
-            <div style={{ color: C.muted, fontSize: T.md, lineHeight: 1.5, marginBottom: 12 }}>
-              Sin movimientos aún. Toca ＋ y di algo como “gasté 200 en el Ley”.
-            </div>
-            <button onClick={onCapture} style={{ ...S.btn(), padding: "11px 18px" }}>🎙️ Capturar el primero</button>
-          </div>
-        )}
-        {txs.slice(0, 5).map((t) => <TxRow key={t.id} tx={t} />)}
-      </div>
-    </div>
-  );
+  const attention = homeAttention(balance, upcoming, budget);
+  return <div className="fadeUp">
+    <div className="balance-stack"><section className="balance-hero" aria-label="Saldo de tus cuentas">
+      <div className="section-head" style={{ marginBottom: 0 }}><span className="muted">En tus cuentas</span><PrivacyButton /></div>
+      {hasAccounts ? <Money value={balance} size="hero" /> : <div className="display" style={{ fontSize: 38, margin: "12px 0" }}>Por añadir</div>}
+      <p className="hint">{hasAccounts ? "Saldo registrado · No incluye líneas de crédito" : "Empieza con efectivo o con tu cuenta de débito."}</p>
+      <button className="text-link" onClick={hasAccounts ? onAccounts : onNewAccount}>{hasAccounts ? "Ver cuentas" : "Añadir mi primera cuenta"}<Icon name="flecha" size={17}/></button>
+    </section></div>
+    {hasAccounts && <>
+      {attention.kind === "balance" ? <button className="attention" onClick={onAccounts}><Icon name="cuentas"/><div className="attention-copy"><strong>Revisa tus saldos</strong><p>El total registrado está por debajo de cero.</p></div><Icon name="flecha" size={18}/></button>
+      : attention.kind === "upcoming" ? <button className="attention" onClick={attention.next.tipo === "fijo" ? () => onPlans("fijos") : onCredit}><Icon name={attention.next.tipo === "fijo" ? "repetir" : "creditos"}/><div className="attention-copy"><strong>{attention.next.name}</strong><p>{dueLabel(attention.next.dias)}{attention.next.tipo === "fijo" ? " · Registro automático" : ""}</p></div>{attention.next.amount > 0 ? <Money value={attention.next.amount}/> : <span>{attention.next.tipo === "corte" ? "Corte" : "Revisar importe"}</span>}</button>
+      : attention.kind === "budget" ? <button className="attention attention-quiet" onClick={() => onPlans("presupuestos")}><div className="attention-copy"><strong>{attention.remaining >= 0 ? "Queda en tu presupuesto" : "Por encima del presupuesto"}</strong><p>Gasto registrado de este mes</p></div><Money value={Math.abs(attention.remaining)}/><Icon name="flecha" size={18}/></button>
+      : <button className="attention attention-quiet" onClick={() => onPlans("presupuestos")}><span className="hint">{attention.next ? `${attention.next.name} · ${dueLabel(attention.next.dias)}` : "Sin próximos pagos registrados"}</span><Icon name="flecha" size={18}/></button>}
+    </>}
+    {!hasAccounts && <p className="hint" style={{ marginBottom: 24 }}>¿Quieres empezar por una deuda? <button onClick={onCredit} className="text-link">Añadir tarjeta o crédito</button></p>}
+    <section className="section" aria-label="Resumen mensual"><div className="section-head"><h2>Tu mes</h2><button className="text-link" onClick={onAnalysis}>Ver análisis<Icon name="flecha" size={16}/></button></div><p className="hint" style={{ marginBottom: 14, textTransform: "capitalize" }}>{new Date().toLocaleDateString("es-MX",{month:"long",year:"numeric"})}</p><div className="month-stats"><div><p>Gastos</p><Money value={spend} size="stat"/></div><div><p>Ingresos</p><Money value={income} size="stat"/></div></div></section>
+    <section className="section"><div className="section-head"><h2>Movimientos recientes</h2><button className="text-link" onClick={onHistory}>Ver todos</button></div>
+      {txs.length ? <div className="quiet-list">{txs.slice(0,3).map((tx) => <TxRow key={tx.id} tx={tx} onEdit={onEditTx}/>)}</div> : <div className="empty-state"><Icon name="microfono" size={32}/><h3>Tu primer movimiento cambia esto.</h3><p>Cuéntanos qué gastaste. Revisa lo que entendimos y confirma para guardarlo.</p><button onClick={hasAccounts ? onCapture : onNewAccount} style={S.btn()}>{hasAccounts ? "Registrar un movimiento" : "Añadir una cuenta"}</button></div>}
+    </section>
+  </div>;
 }

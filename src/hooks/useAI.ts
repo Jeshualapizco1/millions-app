@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type { AiUso } from "../lib/aiUso";
 import { describeAction, runAction, type ActionContext } from "../lib/actions";
+import { captureDateISO, toLocalDateISO } from "../lib/dates";
+import { namesCreditPurchase } from "../lib/captureSource";
 import { findByName } from "../lib/names";
 import type { AiMsg, ChatMsg, ProposedAction, TxType } from "../types";
 
 /** Lo que la IA extrae del lenguaje natural para registrar una transacción. */
 export interface ParsedTx {
   description: string;
+  date?: string;
   amount: number;
   type: TxType;
   category?: string;
@@ -42,8 +45,7 @@ export interface AccDraft {
   dicho: string;
 }
 
-const AI_GREETING =
-  "¡Hola! Soy tu asesor financiero 🤖\n\nAnalizo tus cuentas, gastos, ingresos, créditos, presupuestos y metas — y puedo hacer cosas por ti.\n\nEjemplos:\n• ¿Cómo voy con mis presupuestos?\n• Transfiere 2000 de Efectivo a BanRegio\n• Pon un presupuesto de 8 mil en Alimentación\n• Dame un análisis completo";
+const AI_GREETING = "¿Qué quieres entender de tu dinero? Puedo ayudarte con tus movimientos, presupuestos, cuentas y créditos. Si proponemos un cambio, tú lo confirmas antes de guardarlo.";
 
 /** Historial acotado: el costo por llamada deja de crecer con la sesión. */
 const CAPTURE_TURNS = 6;
@@ -84,6 +86,18 @@ export function useAI({
   // Acciones en vuelo, por id. Es un ref y no estado porque el segundo toque
   // llega antes de que React vuelva a pintar con aiLoading en true.
   const acting = useRef(new Set<string>());
+  const captureEpoch = useRef(0);
+  const captureBusy = useRef(false);
+  const confirming = useRef(false);
+  const adviseBusy = useRef(false);
+  const alive = useRef(true);
+  const liveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const transient = (text: string, ms: number) => {
+    clearTimeout(liveTimer.current);
+    setLive(text);
+    liveTimer.current = setTimeout(() => { if (alive.current) setLive(""); }, ms);
+  };
+  useEffect(() => { alive.current = true; return () => { alive.current = false; captureEpoch.current++; clearTimeout(liveTimer.current); }; }, []);
   const [txLoading, setTxLoading] = useState(false);
   const [txHistory, setTxHistory] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState<TxDraft | null>(null);
@@ -100,18 +114,29 @@ export function useAI({
   // sigue igual — el que decide de verdad es el servidor.
   const [aiUso, setAiUso] = useState<AiUso | null>(null);
   useEffect(() => {
-    api.aiUsage().then(setAiUso).catch(() => {});
+    api.aiUsage().then((usage) => { if (alive.current) setAiUso(usage); }).catch(() => {});
   }, []);
 
+  const cancelCapture = useCallback(() => {
+    if (confirming.current) return;
+    captureEpoch.current++;
+    captureBusy.current = false;
+    clearTimeout(liveTimer.current);
+    setTxLoading(false);
+  }, []);
   const sendTx = async (text: string) => {
-    if (!text || txLoading) return;
-    setTxInput("");
+    if (!text.trim() || captureBusy.current || confirming.current || draft || accDraft) return;
+    captureBusy.current = true;
+    const epoch = ++captureEpoch.current;
+    clearTimeout(liveTimer.current);
+    setTxInput(text);
     setLive("");
     setTxLoading(true);
     const newHist = [...txHistory, { role: "user" as const, content: text }].slice(-CAPTURE_TURNS);
     setTxHistory(newHist);
     try {
       const { text: raw, uso } = await api.aiCapture(newHist);
+      if (!alive.current || epoch !== captureEpoch.current) return;
       if (uso) setAiUso(uso);
       let p: any;
       try {
@@ -129,13 +154,19 @@ export function useAI({
         // Con `findByName` y no con `includes`: exacta primero, parcial solo si
         // no hay ambigüedad. Con "BBVA" y "BBVA Oro", el `includes` prellenaba
         // la primera que encontrara y la persona confirmaba sin mirar.
-        const cuentas = actionContext().accs;
+        const context = actionContext();
+        if (namesCreditPurchase(text, p.type === "ingreso" ? "ingreso" : "gasto", String(p.accountName ?? ""), context.credits || [])) {
+          transient("Las compras con tarjeta de crédito aún no se pueden registrar aquí. No guardé este movimiento. En Créditos puedes registrar tu deuda y sus pagos.", 12000);
+          return;
+        }
+        const cuentas = context.accs;
         let match;
         try {
           match = findByName(cuentas, String(p.accountName ?? ""), "la cuenta");
         } catch {
           match = undefined; // no existe o es ambigua: que la elija la persona
         }
+        setTxInput("");
         setDraft({
           description: p.description || text,
           amount: Number(p.amount),
@@ -143,6 +174,7 @@ export function useAI({
           category: p.category || "Otros",
           accountName: match?.name ?? "",
           dicho: text,
+          date: toLocalDateISO(),
         });
         setDraftError(null);
         // El historial se cierra al confirmar o descartar: si se guardara aquí
@@ -155,19 +187,18 @@ export function useAI({
         // Igual que un movimiento: se propone y la persona confirma. El saldo
         // inicial entra al patrimonio neto, y ahí un número mal entendido no
         // se nota hasta mucho después.
+        setTxInput("");
         setAccDraft({ accountName: String(p.accountName), balance: String(p.balance ?? 0), icon: String(p.icon ?? "🏦"), dicho: text });
         setDraftError(null);
         setLive("");
         return;
       }
       setTxHistory([...newHist, { role: "assistant" as const, content: reply }].slice(-CAPTURE_TURNS));
-      setLive("✅ " + reply);
-      setTimeout(() => setLive(""), 3500);
+      transient(reply, 6000);
     } catch (e: any) {
-      setLive("❌ " + (e?.message || "Error"));
-      setTimeout(() => setLive(""), 3000);
+      if (alive.current && epoch === captureEpoch.current) transient(e?.message || "No se pudo interpretar. Puedes reintentar o usar Manual.", 10000);
     } finally {
-      setTxLoading(false);
+      if (alive.current && epoch === captureEpoch.current) { captureBusy.current = false; setTxLoading(false); }
     }
   };
 
@@ -179,9 +210,12 @@ export function useAI({
 
   /** Aquí, y solo aquí, el movimiento se escribe. Devuelve si quedó guardado. */
   const confirmDraft = async (): Promise<boolean> => {
-    if (!draft || txLoading) return false;
+    if (!draft || captureBusy.current || confirming.current) return false;
     if (!draft.accountName) { setDraftError("Elige una cuenta"); return false; }
-    if (!(draft.amount > 0)) { setDraftError("El monto debe ser mayor a cero"); return false; }
+    if (!Number.isFinite(draft.amount) || !(draft.amount > 0)) { setDraftError("El monto debe ser mayor a cero"); return false; }
+    if (!draft.description.trim()) { setDraftError("Escribe una descripción"); return false; }
+    try { captureDateISO(draft.date || toLocalDateISO()); } catch(e) { setDraftError((e as Error).message); return false; }
+    confirming.current = true;
     setTxLoading(true);
     try {
       const r = await applyTx(draft);
@@ -192,10 +226,13 @@ export function useAI({
       setTxHistory((h) => [...h, { role: "assistant" as const, content: resumen }].slice(-CAPTURE_TURNS));
       setDraft(null);
       setDraftError(null);
-      setLive("✅ Registrado");
-      setTimeout(() => setLive(""), 2500);
+      transient("Movimiento guardado", 3500);
       return true;
+    } catch (e) {
+      setDraftError(e instanceof Error ? e.message : "No se pudo guardar. Revisa e intenta de nuevo.");
+      return false;
     } finally {
+      confirming.current = false;
       setTxLoading(false);
     }
   };
@@ -207,24 +244,25 @@ export function useAI({
 
   /** Aquí, y solo aquí, la cuenta se crea. Devuelve si quedó guardada. */
   const confirmAccDraft = async (): Promise<boolean> => {
-    if (!accDraft || txLoading) return false;
+    if (!accDraft || captureBusy.current || confirming.current) return false;
     const nombre = accDraft.accountName.trim();
     if (!nombre) { setDraftError("Ponle un nombre a la cuenta"); return false; }
     const saldo = Number(accDraft.balance);
     if (!Number.isFinite(saldo)) { setDraftError("El saldo tiene que ser un número"); return false; }
+    confirming.current = true;
     setTxLoading(true);
     try {
       await applyNewAcc({ accountName: nombre, balance: saldo, icon: accDraft.icon });
       setTxHistory((h) => [...h, { role: "assistant" as const, content: `Cuenta creada: ${nombre} con ${saldo}.` }].slice(-CAPTURE_TURNS));
       setAccDraft(null);
       setDraftError(null);
-      setLive("✅ Cuenta creada");
-      setTimeout(() => setLive(""), 2500);
+      transient("Cuenta creada", 3500);
       return true;
     } catch (e: any) {
       setDraftError(e?.message || "No se pudo crear la cuenta");
       return false;
     } finally {
+      confirming.current = false;
       setTxLoading(false);
     }
   };
@@ -246,7 +284,8 @@ export function useAI({
   };
 
   const sendAnalysis = async (text: string) => {
-    if (!text || aiLoading) return;
+    if (!text.trim() || adviseBusy.current || acting.current.size > 0) return;
+    adviseBusy.current = true;
     setAiInput("");
     const newHist = [...aiHistory, { role: "user" as const, content: text }].slice(-ADVISE_TURNS);
     setAiMsgs((m) => [...m, { role: "user", text }]);
@@ -273,6 +312,7 @@ export function useAI({
     } catch (e: any) {
       setAiMsgs((m) => [...m, { role: "assistant", text: e?.message || "Error al conectar." }]);
     } finally {
+      adviseBusy.current = false;
       setAiLoading(false);
     }
   };
@@ -333,5 +373,5 @@ export function useAI({
     ]);
   };
 
-  return { txLoading, sendTx, draft, accDraft, draftError, updateDraft, confirmDraft, discardDraft, updateAccDraft, confirmAccDraft, discardAccDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso };
+  return { cancelCapture, txLoading, sendTx, draft, accDraft, draftError, updateDraft, confirmDraft, discardDraft, updateAccDraft, confirmAccDraft, discardAccDraft, aiMsgs, aiInput, setAiInput, aiLoading, sendAnalysis, confirmAction, dismissAction, aiUso };
 }

@@ -603,6 +603,12 @@ export const api = {
    * la parte de configurar si cerró la app en la pantalla de cierre, en vez
    * de volver a hacerle las cinco preguntas.
    */
+  async getOnboarding(): Promise<Respuestas | null> {
+    const { data, error } = await sbClient.from("user_survey").select("goal,pains,current_tool,dream,source").eq("user_id", await uid()).maybeSingle();
+    if (error) fail(error);
+    return data ? { goal: data.goal, pains: data.pains ?? [], current_tool: data.current_tool, dream: data.dream ?? "", source: data.source } : null;
+  },
+
   async surveyDone(): Promise<boolean> {
     const { data, error } = await sbClient.from("user_survey").select("completed").eq("user_id", await uid()).maybeSingle();
     if (error) fail(error);

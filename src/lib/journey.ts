@@ -1,0 +1,20 @@
+// Guía derivada de la prioridad; no genera ni guarda datos financieros.
+const paths: Record<string, {label: string; icon: string; title: string; steps: string[][]}> ={
+    saber_gastos:{label:'Saber en qué gasto',icon:'chart',title:'Entender en qué se va.',steps:[['wallet','Añade tu cuenta','Empieza por la que usas todos los días.'],['mic','Registra tu primer gasto','Habla, revisa los datos y confirma.'],['chart','Mira tus categorías','En Análisis puedes ver qué pesa más.']]},
+    salir_deudas:{label:'Poner mis deudas en orden',icon:'card',title:'Tus deudas, más claras.',steps:[['card','Añade tu tarjeta','Registra deuda y fechas de tu estado de cuenta.'],['wallet','Completa tus créditos','En Mi dinero puedes añadir los demás.'],['activity','Ubica tu próximo pago','Revisa importe y fecha antes de registrarlo.']]},
+    ahorrar_algo:{label:'Ahorrar para algo que quiero',icon:'target',title:'Darle lugar a tu meta.',steps:[['wallet','Añade tu cuenta','Parte del saldo que tienes registrado.'],['target','Crea tu primera meta','Ponle nombre e importe en Planes.'],['mic','Registra lo que entra y sale','Así puedes revisar tus avances con contexto.']]},
+    dejar_vivir_al_dia:{label:'Dejar de vivir al día',icon:'wallet',title:'Ver lo que viene.',steps:[['wallet','Añade tu cuenta','Empieza por tu saldo actual.'],['repeat','Anota tus gastos fijos','Ten presentes sus importes y fechas.'],['chart','Revisa tu mes','Compara ingresos y gastos registrados.']]},
+    ordenarme_invertir:{label:'Ordenarme para invertir',icon:'activity',title:'Conocer tu punto de partida.',steps:[['wallet','Reúne tus cuentas','Registra saldos y créditos por separado.'],['chart','Entiende tus movimientos','Mira ingresos, gastos y categorías.'],['target','Define tu presupuesto','Usa Planes para poner un límite a tus gastos.']]},
+    general:{label:'Empezar con lo esencial',icon:'wallet',title:'Un paso a la vez.',steps:[['wallet','Añade tu cuenta','Puede ser efectivo o tu cuenta de débito.'],['mic','Registra un movimiento','Por voz o a mano, siempre con revisión.'],['chart','Conoce tu mes','Consulta tus movimientos en Análisis.']]}
+  };
+export const STORIES =[
+    {id:'bienvenida',title:'Qué bueno tenerte aquí',eyebrow:'Bienvenida',duration:15,icon:'person',script:'Qué bueno que estás aquí. Millions es un lugar para entender tu dinero sin tener que ser experto. Empieza con lo que sabes hoy. Lo demás lo vamos ordenando, un movimiento a la vez.',takeaway:'Empieza con lo que sabes hoy.'},
+    {id:'registrar',title:'Dilo. Revísalo. Guárdalo.',eyebrow:'Tu primer movimiento',duration:18,icon:'mic',script:'Toca el botón más y cuéntale a Millions: gasté doscientos ochenta pesos en comida con mi cuenta Nu. Revisa el monto, la cuenta y la categoría. Tú confirmas qué se guarda. También puedes escribir.',takeaway:'Tú decides qué se guarda.'},
+    {id:'entender',title:'Tu dinero, con contexto',eyebrow:'Análisis y asistente',duration:17,icon:'chart',script:'En Análisis vas a ver tus ingresos, tus gastos y en qué categorías se fue tu dinero cada mes. ¿Quieres entender algo mejor? Pregúntale al asistente. Sus respuestas parten de los movimientos que registraste.',takeaway:'Pregunta sobre tus propios movimientos.'},
+    {id:'empezar',title:'Hazlo tuyo, paso a paso',eyebrow:'Tus primeros pasos',duration:16,icon:'target',script:'Empieza por la cuenta que más usas y registra un movimiento. Después puedes añadir tus otros créditos, crear un presupuesto o ponerle nombre a una meta. No necesitas configurar todo hoy.',takeaway:'Una cuenta. Un movimiento. Tu comienzo.'}
+  ];
+export function buildJourney(goal: string | null | undefined){const key=Object.prototype.hasOwnProperty.call(paths,goal || "")?goal!:'general';const p=paths[key];return {key,personalized:key!=='general',label:p.label,icon:p.icon,title:p.title,steps:p.steps.map(([icon,title,description],i)=>({number:i+1,icon,title,description}))};}
+
+export interface StoryMedia { id: string; src: string; poster?: string; captions: string; }
+// Añadir solo grabaciones propias terminadas y sus subtítulos sincronizados.
+export const STORY_MEDIA: StoryMedia[] = [];

@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ErrorBox from "../components/ErrorBox";
-import Confeti from "../components/Confeti";
 import { C, S, T } from "../lib/constants";
-import { bienvenida, PREGUNTAS, RESPUESTAS_VACIAS, type Respuestas } from "../lib/onboarding";
+import { PREGUNTAS, RESPUESTAS_VACIAS, type Respuestas } from "../lib/onboarding";
 
 /**
  * Arranque guiado del usuario nuevo.
@@ -20,8 +19,6 @@ export default function Onboarding({
   nombre,
   onFinish,
   onSkip,
-  onConfigurar,
-  onExplorar,
 }: {
   nombre: string;
   /**
@@ -32,14 +29,10 @@ export default function Onboarding({
   onFinish: (r: Respuestas) => Promise<void>;
   /** "Ahora no": deja constancia de que ya lo vio y cierra. */
   onSkip: () => Promise<void>;
-  /** "Configurar mis cuentas": pasa al arranque de configuracion. */
-  onConfigurar: () => void;
-  /** "Prefiero explorar": cierra sin configurar. Las respuestas ya se guardaron. */
-  onExplorar: () => Promise<void>;
 }) {
   const [paso, setPaso] = useState(0);
   const [r, setR] = useState<Respuestas>(RESPUESTAS_VACIAS);
-  const [cierre, setCierre] = useState(false);
+  const lock = useRef(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,14 +40,16 @@ export default function Onboarding({
   const p = PREGUNTAS[paso];
 
   const guardar = async (final: Respuestas) => {
+    if (lock.current) return; lock.current = true;
     setGuardando(true);
     setError("");
     try {
       await onFinish(final);
-      setCierre(true);
+
     } catch (e: any) {
       setError(e?.message || "No se pudieron guardar tus respuestas. Inténtalo de nuevo.");
     } finally {
+      lock.current = false;
       setGuardando(false);
     }
   };
@@ -67,78 +62,24 @@ export default function Onboarding({
   };
 
   const saltar = async () => {
+    if (lock.current) return; lock.current = true;
     setGuardando(true);
     setError("");
     try {
       await onSkip();
     } catch (e: any) {
       setError(e?.message || "No se pudo continuar. Inténtalo de nuevo.");
+      lock.current = false;
       setGuardando(false);
     }
   };
-
-  /** "Prefiero explorar primero": si falla, se ve, no se traga. */
-  const explorar = async () => {
-    setGuardando(true);
-    setError("");
-    try {
-      await onExplorar();
-    } catch (e: any) {
-      setError(e?.message || "No se pudo continuar. Inténtalo de nuevo.");
-      setGuardando(false);
-    }
-  };
-
-  // ── Pantalla de cierre ────────────────────────────────────────────────────
-  if (cierre) {
-    const b = bienvenida(nombre, r);
-    return (
-      <Marco>
-        <Confeti />
-        <div style={{ textAlign: "center", marginBottom: 22 }}>
-          <div style={{ fontSize: 50, marginBottom: 12 }}>🎉</div>
-          <div style={{ fontSize: 23, fontWeight: 800, color: C.text, lineHeight: 1.25 }}>{b.titulo}</div>
-        </div>
-        <div style={{ ...S.card, padding: 22, display: "flex", flexDirection: "column", gap: 15 }}>
-          {b.parrafos.map((t, i) => (
-            <div
-              key={i}
-              style={{
-                fontSize: 14.5,
-                lineHeight: 1.6,
-                // El párrafo de su respuesta abierta lleva su propia voz, así
-                // que se distingue del resto en vez de mezclarse con el copy.
-                color: t.startsWith("Y esto que escribiste") ? C.aLight : C.muted,
-                whiteSpace: "pre-line",
-              }}
-            >
-              {t}
-            </div>
-          ))}
-        </div>
-        {/* Configurar es la oferta, no el peaje. Llega despues de que la
-            persona ya se sintio escuchada, que es cuando pedir sus numeros
-            deja de sentirse como un tramite de entrada. */}
-        <button onClick={onConfigurar} style={{ ...S.btn(), width: "100%", marginTop: 4 }}>
-          Configurar mis cuentas
-        </button>
-        <button
-          onClick={explorar}
-          disabled={guardando}
-          style={{ width: "100%", background: "none", border: "none", color: C.muted, fontSize: T.md, padding: 14, cursor: "pointer", opacity: guardando ? 0.6 : 1 }}
-        >
-          Prefiero explorar primero
-        </button>
-        {error && <div style={{ fontSize: T.md, color: C.red, fontWeight: 600, textAlign: "center", marginTop: 4 }}>{error}</div>}
-      </Marco>
-    );
-  }
 
   // ── Preguntas ─────────────────────────────────────────────────────────────
   const seleccionadas = p.field === "pains" ? r.pains : [];
 
   return (
     <Marco>
+      <p className="hint" style={{ marginBottom: 16 }}>{nombre.split(" ")[0]}, empecemos por lo que te importa.</p>
       {/* Progreso: cinco barritas. Saber cuánto falta es la diferencia entre
           contestar y abandonar a la mitad. */}
       <div style={{ display: "flex", gap: 6, marginBottom: 26 }}>
@@ -160,13 +101,14 @@ export default function Onboarding({
         <div style={{ fontSize: T.sm, color: C.muted, fontWeight: 600, marginBottom: 8 }}>
           Pregunta {paso + 1} de {total}
         </div>
-        <div style={{ fontSize: 21, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{p.title}</div>
+        <h1 style={{ fontSize: 28 }}>{p.title}</h1>
         <div style={{ fontSize: T.md, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>{p.hint}</div>
       </div>
 
       {p.kind === "texto" ? (
         <>
           <textarea
+            aria-label={p.title}
             value={r.dream}
             onChange={(e) => setR({ ...r, dream: e.target.value.slice(0, 2000) })}
             placeholder={p.placeholder}
@@ -189,6 +131,7 @@ export default function Onboarding({
             return (
               <button
                 key={o.key}
+                aria-pressed={activa}
                 onClick={() => {
                   if (p.field === "pains") {
                     // Varias: alterna y espera al botón de continuar.
@@ -216,7 +159,7 @@ export default function Onboarding({
                 }}
               >
                 <span style={{ fontSize: 21, flexShrink: 0 }}>{o.emoji}</span>
-                <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600, color: activa ? C.text : C.text + "cc" }}>
+                <span style={{ flex: 1, fontSize: T.base, fontWeight: 600, color: activa ? C.text : C.text + "cc" }}>
                   {o.label}
                 </span>
                 {p.field === "pains" && (
