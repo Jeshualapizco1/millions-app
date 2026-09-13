@@ -11,6 +11,7 @@ import { sbClient } from "./supabase";
 import type { FxRates } from "./currency";
 import type { Account, Budget, Category, CategoryKind, ChatMsg, Profile, Credit, Goal, ProposedAction, RecurringFrequency, RecurringRule, Transaction, TxKind, TxType, Upcoming } from "../types";
 import type { Respuestas } from "./onboarding";
+import type { ProSubscription } from "./subscriptions";
 
 const fail = (error: { message: string } | null): never => {
   throw new Error(error?.message || "Error de servidor");
@@ -393,6 +394,16 @@ export const api = {
   },
 
   // ── Perfil ────────────────────────────────────────────────────────────────
+  async getProSubscription(): Promise<ProSubscription | null> {
+    const { data, error } = await sbClient
+      .from("subscriptions")
+      .select("entitlement,status,expires_at")
+      .eq("user_id", await uid())
+      .eq("entitlement", "pro")
+      .maybeSingle();
+    if (error) fail(error);
+    return data;
+  },
   async getProfile(): Promise<Profile> {
     const { data, error } = await sbClient
       .from("profiles")

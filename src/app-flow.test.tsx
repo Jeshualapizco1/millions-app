@@ -7,7 +7,7 @@ import { MoneyPrivacy } from "./components/Money";
 import { api } from "./lib/api";
 import { LEGAL_VERSION } from "./lib/legal";
 import type { Session } from "@supabase/supabase-js";
-vi.mock("./lib/api",()=>({api:{getCategories:vi.fn(),getAccounts:vi.fn(),getTxs:vi.fn(),getCredits:vi.fn(),getBudgets:vi.fn(),getGoals:vi.fn(),getRecurring:vi.fn(),getUpcoming:vi.fn(),getProfile:vi.fn(),getFxRates:vi.fn(),contarTxs:vi.fn(),aiUsage:vi.fn(),applyTx:vi.fn(),addAccount:vi.fn()}}));
+vi.mock("./lib/api",()=>({api:{getCategories:vi.fn(),getAccounts:vi.fn(),getTxs:vi.fn(),getCredits:vi.fn(),getBudgets:vi.fn(),getGoals:vi.fn(),getRecurring:vi.fn(),getUpcoming:vi.fn(),getProfile:vi.fn(),getProSubscription:vi.fn(),getFxRates:vi.fn(),contarTxs:vi.fn(),aiUsage:vi.fn(),applyTx:vi.fn(),addAccount:vi.fn()}}));
 vi.mock("./lib/errorLog",()=>({logError:vi.fn()}));
 vi.mock("./lib/native",()=>({esNativo:()=>false,plataforma:()=>"web",vibrar:vi.fn()}));
 vi.mock("./components/charts/MonthlyChart",()=>({default:()=> <p>Gráfico mensual</p>}));
@@ -21,6 +21,7 @@ beforeEach(()=>{
  Object.defineProperty(HTMLDialogElement.prototype,"showModal",{configurable:true,value:function(){this.setAttribute("open","");}});Object.defineProperty(HTMLDialogElement.prototype,"close",{configurable:true,value:function(){this.removeAttribute("open");}});
  vi.mocked(api.getAccounts).mockResolvedValue([a]);for(const k of ["getCategories","getTxs","getCredits","getBudgets","getGoals","getRecurring","getUpcoming"] as const) vi.mocked(api[k]).mockResolvedValue([]);
  vi.mocked(api.getFxRates).mockResolvedValue({});vi.mocked(api.contarTxs).mockResolvedValue(0);vi.mocked(api.aiUsage).mockResolvedValue({hoy:0,tope:10});
+ vi.mocked(api.getProSubscription).mockResolvedValue(null);
  vi.mocked(api.getProfile).mockResolvedValue({id:"qa",name:"Sara",base_currency:"MXN",timezone:"America/Mexico_City",monthly_budget:null,legal_version:LEGAL_VERSION,legal_accepted_at:new Date().toISOString(),created_at:new Date().toISOString(),onboarded_at:new Date().toISOString(),deletion_requested_at:null});
  vi.mocked(api.applyTx).mockImplementation(async(p)=>({id:"new-tx",description:p.description,amount:p.amount,kind:p.kind,type:p.kind==="ingreso"?"ingreso":"gasto",category:p.category||"Otros",categoryId:null,accountId:p.accountId,accountName:"Nu",toAccountName:null,toAccountId:null,creditId:null,goalId:null,date:p.date||new Date().toISOString()}));
  host=document.createElement("div");document.body.append(host);root=createRoot(host);
@@ -42,4 +43,57 @@ it("el formulario manual real se revisa antes de escribir y el saldo se actualiz
 });
 it("se puede añadir una primera cuenta desde el + y retomar la captura",async()=>{
  vi.mocked(api.getAccounts).mockResolvedValue([]);vi.mocked(api.addAccount).mockResolvedValue(a);await mount();await click("Añadir un movimiento");await click("Añadir mi primera cuenta");await fill("#accountmodal-1","Nu");await fill("#accountmodal-2","1000");await click("Agregar cuenta");expect(api.addAccount).toHaveBeenCalledTimes(1);expect(host.querySelector("dialog")!.textContent).toContain("¿Qué registramos?");
+});
+
+it("una cuenta con prueba vencida y acceso permanente entra al dashboard y puede registrar", async () => {
+ const profile = await api.getProfile();
+ vi.mocked(api.getProfile).mockResolvedValue({ ...profile, created_at: "2020-01-01T12:00:00Z" });
+ vi.mocked(api.getProSubscription).mockResolvedValue({ entitlement: "pro", status: "active", expires_at: null });
+ await mount();
+ expect(host.querySelector("header")?.textContent).toContain("Hola, Sara");
+ expect(host.textContent).not.toContain("Se terminaron tus");
+ expect(host.textContent).not.toContain("Tu prueba termina");
+ await click("Añadir un movimiento");
+ expect(host.querySelector("dialog")?.textContent).toContain("¿Qué registramos?");
+});
+
+it("el acceso vigente suprime el aviso de prueba incluso en su última semana", async () => {
+ const profile = await api.getProfile();
+ vi.mocked(api.getProfile).mockResolvedValue({ ...profile, created_at: new Date(Date.now() - 10 * 86400000).toISOString() });
+ vi.mocked(api.getProSubscription).mockResolvedValue({ entitlement: "pro", status: "active", expires_at: null });
+ await mount();
+ expect(host.querySelector("header")).not.toBeNull();
+ expect(host.textContent).not.toContain("Tu prueba termina");
+});
+
+it("una cuenta sin acceso y con prueba vencida conserva el muro y sus opciones de datos", async () => {
+ const profile = await api.getProfile();
+ vi.mocked(api.getProfile).mockResolvedValue({ ...profile, created_at: "2020-01-01T12:00:00Z" });
+ await mount();
+ expect(host.textContent).toContain("Se terminaron tus 14 días");
+ expect(host.textContent).toContain("Exportar mis movimientos a CSV");
+ expect(button("Añadir un movimiento")).toBeUndefined();
+});
+
+it("espera la respuesta del acceso antes de decidir entre dashboard y fin de prueba", async () => {
+ const profile = await api.getProfile();
+ vi.mocked(api.getProfile).mockResolvedValue({ ...profile, created_at: "2020-01-01T12:00:00Z" });
+ let resolve!: (value: Awaited<ReturnType<typeof api.getProSubscription>>) => void;
+ vi.mocked(api.getProSubscription).mockReturnValue(new Promise(done => { resolve = done; }));
+ await mount();
+ expect(host.querySelector('[aria-label="Cargando tus finanzas"]')).not.toBeNull();
+ expect(host.textContent).not.toContain("Se terminaron tus");
+ await act(async () => { resolve({ entitlement: "pro", status: "active", expires_at: null }); });
+ expect(host.querySelector("header")?.textContent).toContain("Hola, Sara");
+});
+
+it("si no se puede consultar el acceso, muestra error sin regalar acceso ni afirmar vencimiento", async () => {
+ const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+ try {
+  vi.mocked(api.getProSubscription).mockRejectedValue(new Error("No se pudo verificar el acceso"));
+  await mount();
+  expect(host.textContent).toContain("No se pudo verificar el acceso");
+  expect(host.querySelector("nav")).toBeNull();
+  expect(host.textContent).not.toContain("Se terminaron tus");
+ } finally { errorLog.mockRestore(); }
 });

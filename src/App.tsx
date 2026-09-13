@@ -26,6 +26,7 @@ import { budgetProgress as calcBudgets, totalBudgetStatus } from "./lib/budgets"
 import { logError } from "./lib/errorLog";
 import { findByName } from "./lib/names";
 import { GRACIA_DIAS, LEGAL_VERSION, PRUEBA_DIAS } from "./lib/legal";
+import { hasActiveProAccess } from "./lib/subscriptions";
 import Perfil from "./views/Perfil";
 import LegalGate from "./views/LegalGate";
 import Arranque, { type ArranqueResult } from "./views/Arranque";
@@ -75,7 +76,7 @@ const emptyGoalForm: GoalFormState = { name: "", target_amount: "", current_amou
 export default function App({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const userName = session.user?.user_metadata?.name || session.user?.email?.split("@")[0] || "Usuario";
 
-  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx, booting, loadError, accsRef, txsRef, creditsRef, goalsRef, recargar, historialCompleto, totalTxs, completarHistorial } = useFinanceData();
+  const { accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals, recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, subscription, fx, booting, loadError, accsRef, txsRef, creditsRef, goalsRef, recargar, historialCompleto, totalTxs, completarHistorial } = useFinanceData();
   const [planSection, setPlanSection] = useState<"presupuestos" | "metas" | "fijos">("presupuestos");
   const [tab, setTab] = useState<Tab>("dash");
   const previousTab = useRef<Tab>("dash");
@@ -183,7 +184,8 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // que es mucho más presente. Se deja así a propósito —una prueba corta
   // necesita que se note— pero si la gente se queja, esto es lo que se baja.
   const diasDePrueba = diasRestantesDePlazo(profile?.created_at, PRUEBA_DIAS);
-  const avisarPrueba = diasDePrueba !== null && diasDePrueba > 0 && diasDePrueba <= 7;
+  const accesoPro = hasActiveProAccess(subscription);
+  const avisarPrueba = !accesoPro && diasDePrueba !== null && diasDePrueba > 0 && diasDePrueba <= 7;
 
   // ── Arranque guiado ───────────────────────────────────────────────────────
   // Dos mitades, en este orden. Primero QUE BUSCA la persona: cinco preguntas
@@ -967,7 +969,7 @@ export default function App({ session, onSignOut }: { session: Session; onSignOu
   // El muro va después del portón legal —los términos que lo explican hay que
   // aceptarlos primero— y antes del arranque: no tiene sentido pedirle a
   // alguien que configure una app que no va a poder usar.
-  if (profile && diasDePrueba === 0) return (
+  if (profile && diasDePrueba === 0 && !accesoPro) return (
     <>
       <FinDePrueba txs={txs} totalTxs={totalTxs} historialCompleto={historialCompleto} onCargarTodo={completarHistorial} onSignOut={onSignOut} onDeleteAccount={pedirBorrado} />
       {/* Se re-montan aquí: el resto de la app no se renderiza en este camino */}

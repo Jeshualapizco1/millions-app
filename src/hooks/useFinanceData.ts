@@ -6,6 +6,7 @@ import { logError } from "../lib/errorLog";
 import { listar as listarCola, soportaCola } from "../lib/offlineQueue";
 import type { Account, Budget, Category, Credit, Goal, Profile, RecurringRule, Transaction, Upcoming } from "../types";
 import type { FxRates } from "../lib/currency";
+import type { ProSubscription } from "../lib/subscriptions";
 
 /**
  * Carga inicial + estado de accounts/txs/credits/budgets/goals, con refs
@@ -31,6 +32,7 @@ export function useFinanceData() {
   const [upcoming, setUpcoming] = useState<Upcoming[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [subscription, setSubscription] = useState<ProSubscription | null>(null);
   const [fx, setFx] = useState<FxRates>({});
   const [booting, setBooting] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function useFinanceData() {
   useEffect(() => { completoRef.current = historialCompleto; }, [historialCompleto]);
 
   const cargar = useCallback((desde?: string) =>
-    Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(desde), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7), api.getProfile(), api.getFxRates(), api.contarTxs()]), []);
+    Promise.all([api.getCategories(), api.getAccounts(), api.getTxs(desde), api.getCredits(), api.getBudgets(), api.getGoals(), api.getRecurring(), api.getUpcoming(7), api.getProfile(), api.getFxRates(), api.contarTxs(), api.getProSubscription()]), []);
 
   /**
    * Mete en el estado una tanda de movimientos sin perder los que el servidor
@@ -69,8 +71,9 @@ export function useFinanceData() {
     });
   }, []);
 
-  const aplicar = useCallback(async ([cats, a, t, cr, b, g, rr, up, prof, rates, total]: Awaited<ReturnType<typeof cargar>>, todo: boolean, idsPrevios: ReadonlySet<string>) => {
+  const aplicar = useCallback(async ([cats, a, t, cr, b, g, rr, up, prof, rates, total, access]: Awaited<ReturnType<typeof cargar>>, todo: boolean, idsPrevios: ReadonlySet<string>) => {
     setProfile(prof);
+    setSubscription(access);
     setFx(rates);
     setCategories(cats);
     setAccs(a);
@@ -161,7 +164,7 @@ export function useFinanceData() {
 
   return {
     accs, setAccs, txs, setTxs, credits, setCredits, budgets, setBudgets, goals, setGoals,
-    recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, fx,
+    recurring, setRecurring, upcoming, setUpcoming, categories, setCategories, profile, setProfile, subscription, fx,
     booting, loadError, accsRef, txsRef, creditsRef, budgetsRef, goalsRef, recargar,
     historialCompleto, totalTxs: historialCompleto ? txs.length : Math.max(totalTxs, txs.length), completarHistorial,
   };

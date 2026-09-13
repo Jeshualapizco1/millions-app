@@ -485,6 +485,48 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          entitlement: string
+          status: string
+          store: string
+          product_id: string | null
+          expires_at: string | null
+          will_renew: boolean
+          rc_subscriber_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          entitlement?: string
+          status: string
+          store: string
+          product_id?: string | null
+          expires_at?: string | null
+          will_renew?: boolean
+          rc_subscriber_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          entitlement?: string
+          status?: string
+          store?: string
+          product_id?: string | null
+          expires_at?: string | null
+          will_renew?: boolean
+          rc_subscriber_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_survey: {
         Row: {
           completed: boolean
